@@ -1,5 +1,19 @@
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
+
+## TODOs
+- Port all functionality from the current mobile app to the next js web app
+- Set up server + api for PWA version
+- Add Movie Swiper UI
+- Redesign architecture while porting
+- Add user profiles
+    - Functionality to add friends
+    - Allow friends to send recommendations
+- Allow writing full reviews or add notes to list entries
+- Add a search bar in all modes except stats
+- Add more stats
+- Fix backlog function and remove item from backlog if it is added again
+
 ## Getting Started
 
 First, run the development server:
