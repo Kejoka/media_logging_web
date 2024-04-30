@@ -8,12 +8,11 @@ const withPWA = require("@ducanh2912/next-pwa").default({
     workboxOptions: {
         disableDevLogs: true,
     },
-    // ... other options you like
 });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    // ... other options you like
+
 };
 
 module.exports = withPWA(nextConfig);

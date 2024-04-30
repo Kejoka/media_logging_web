@@ -14,6 +14,11 @@ This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next
 - Add more stats
 - Fix backlog function and remove item from backlog if it is added again
 
+- DaisyUI
+- Mailgun
+- MongoDB + Mongoose
+- Vercel for Hosting
+
 ## Getting Started
 
 First, run the development server:
