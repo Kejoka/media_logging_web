@@ -1,3 +1,5 @@
+const runtimeCaching = require("next-pwa/cache");
+
 const withPWA = require("@ducanh2912/next-pwa").default({
     dest: "public",
     cacheOnFrontEndNav: true,
@@ -8,11 +10,15 @@ const withPWA = require("@ducanh2912/next-pwa").default({
     workboxOptions: {
         disableDevLogs: true,
     },
+    pwa: {
+        runtimeCaching,
+        buildExcludes: [/middleware-manifest.json$/]
+    },
 });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-
+    reactStrictMode: false
 };
 
 module.exports = withPWA(nextConfig);

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { StyledEngineProvider } from "@mui/material";
 
 const APP_NAME = "Media Logging";
 const APP_DEFAULT_TITLE = "Media Logging PWA";
@@ -50,9 +51,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div className="flex w-screen h-screen">
-          {children}
-        </div>
+        <StyledEngineProvider injectFirst>
+          <div className="flex w-screen h-screen overflow-x-hidden">
+            {children}
+          </div>
+        </StyledEngineProvider>
       </body>
     </html>
   );
