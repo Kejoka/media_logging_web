@@ -40,6 +40,15 @@ export default function MovieCardStack() {
         } catch (error) {
             console.log(error);
         }
+        try {
+            fetch("http://localhost:5500/randomMovie")
+                .then((res) => res.json())
+                .then((movie) => {
+                    setMovieList([...movieList, movie]);
+                });
+        } catch (error) {
+            console.log(error);
+        }
     }
 
     const onCardLeftScreen = (direction: string, title: string, index: number) => {
@@ -50,15 +59,6 @@ export default function MovieCardStack() {
             if (el != null) {
                 el.style.visibility = "hidden";
             }
-        } catch (error) {
-            console.log(error);
-        }
-        try {
-            fetch("http://localhost:5500/randomMovie")
-                .then((res) => res.json())
-                .then((movie) => {
-                    setMovieList([...movieList, movie]);
-                });
         } catch (error) {
             console.log(error);
         }
@@ -79,15 +79,15 @@ export default function MovieCardStack() {
                 console.log(error);
             }
         }
-    }, [movieList]);
+    }, []);
 
     if (!isLoading) return (
         <div>
             <div className="grid" id="cardStack">
                 {movieList.map((movie, index) => {
-                    return <div id={movie["title"] + index} style={{ zIndex: (999999 - index) }} key={movie["title"] + index} className={`col-start-1 col-end-1 row-start-1 row-end-1`}>
+                    return <div id={movie["title"] + index} style={{ zIndex: (999999 - index) }} key={movie["title"] + index} className={`col-start-1 col-end-1 row-start-1 row-end-1 justify-center content-center`}>
                         <TinderCard onSwipe={(direction) => onSwipe(direction, movie["title"], index)} onCardLeftScreen={(direction) => onCardLeftScreen(direction, movie["title"], index)}>
-                            <div className="bg-white p-2 rounded-imageCard">
+                            <div className="bg-white p-2 rounded-imageCard pointer-events-none">
                                 <img src={"https://image.tmdb.org/t/p/w500/" + movie["poster_path"]} alt={movie["title"]} className="rounded-imageCard shadow-current shadow-md pointer-events-none" />
                             </div>
                         </TinderCard>
