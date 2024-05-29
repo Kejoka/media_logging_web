@@ -1,6 +1,6 @@
 /** @type {import('./$types').PageServerLoad} */
 export async function load({ fetch }) {
-    const res = await fetch('http://localhost:5500/initialCards');
+    const res = await fetch('/api/v1/initialMovies');
     const movies: TmdbMovie[] = await res.json();
 
     return { movies };

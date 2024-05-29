@@ -10,7 +10,7 @@
 	let thresholdPassed = 0;
 
 	async function loadNewCard() {
-		const res = await fetch('http://localhost:5500/randomMovie');
+		const res = await fetch('/api/v1/randomMovie');
 		const movie: TmdbMovie = await res.json();
 		data.movies = [...data.movies, movie];
 	}
