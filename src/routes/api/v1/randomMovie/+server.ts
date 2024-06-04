@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { MovieDb, type PopularMoviesRequest } from 'moviedb-promise';
 import { getRandomNonAdult } from '../../utils.js';
-import { SECRET_TMDB_V3_KEY } from '$env/static/private';
+import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ }) {
@@ -11,7 +11,7 @@ export async function GET({ }) {
         page: Math.floor(Math.random() * 100),
         region: 'DE'
     }
-    const tmdb = new MovieDb(SECRET_TMDB_V3_KEY);
+    const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
     try {
         const movies = await tmdb.moviePopular(params);
         return new Response(JSON.stringify(getRandomNonAdult(movies.results !== undefined ? movies.results : [])));

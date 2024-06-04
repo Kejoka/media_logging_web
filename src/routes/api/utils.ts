@@ -1,4 +1,5 @@
-import type { MovieResult } from "moviedb-promise";
+import { PRIVATE_TMDB_V3_KEY } from "$env/static/private";
+import { MovieDb, type MovieResult } from "moviedb-promise";
 
 export function getRandomNonAdult(movies: MovieResult[]) {
     let movie: MovieResult;

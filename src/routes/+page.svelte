@@ -15,6 +15,11 @@
 		data.movies = [...data.movies, movie];
 	}
 
+	async function logKeywords(id: number) {
+		const res = await fetch(`/api/v1/getKeywords?id=${id}`);
+		console.log(await res.json());
+	}
+
 	function swipeHandler(cardDetails: any) {
 		// cardDetails:
 		// direction: 'left' | 'right'
@@ -22,6 +27,7 @@
 		// element: HTMLElement
 		// data: CardData
 		console.log(`Swiped ${cardDetails.data.title} ${cardDetails.direction}`);
+		logKeywords(cardDetails.data.id);
 		loadNewCard();
 	}
 </script>
@@ -33,7 +39,8 @@
 			cardData={(index) => {
 				return {
 					title: data.movies[index].title,
-					image: `https://image.tmdb.org/t/p/w500/${data.movies[index].poster_path}`
+					image: `https://image.tmdb.org/t/p/w500/${data.movies[index].poster_path}`,
+					id: data.movies[index].id
 				};
 			}}
 			on:swiped={(e) => {
