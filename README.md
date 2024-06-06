@@ -14,9 +14,9 @@ npm run dev
 
 ### MovieSwiper Disclaimer
 
-Now you can find the MovieSwiper Training Component at http://localhost:5173/devtools/[id]-movieswiper/ where [id] is a given user id. Here random movies will be shown in order to create a starting set. 
+Now you can find the MovieSwiper Training Component at http://localhost:5173/devtools/[id]/movieswiper/ where [id] is a given user id. Here random movies will be shown in order to create a starting set. 
 
-Recommendations for a trained profile can be accessed at http://localhost:5173/devtools/[id]-recommendations/ where [id] is the user id that has been used earlier to train a profile for the recommender. In here you can continue training based on actual recommendations. 
+Recommendations for a trained profile can be accessed at http://localhost:5173/devtools/[id]/recommendations/ where [id] is the user id that has been used earlier to train a profile for the recommender. In here you can continue training based on actual recommendations. 
 
 ### TODOS
 This project is managed on a trello board which can be found [here](https://trello.com/w/medialoggingweb)
