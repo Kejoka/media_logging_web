@@ -38,17 +38,30 @@
 		// move card out of the view
 		el.classList.add('transition-transform', 'duration-300');
 
-		let direction: Direction = movement[0] > 0 ? 'right' : 'left';
+		let direction: Direction;
+		if(Math.abs(movement[0]) > Math.abs(movement[1])) {
+			direction = movement[0] > 0 ? 'right' : 'left';
+		} else {
+			direction = movement[1] < 0 ? 'up' : 'right';
+		}
+
 		let data = el === card1 ? card1Data : card2Data;
 		dispatch('swiped', { direction, element: el, data, index: cardIndex - 2 });
-		thresholdPassed = movement[0] > 0 ? 1 : -1;
 
+		if (direction === 'up') {
+			thresholdPassed = 2;
+		} else {
+			thresholdPassed = movement[0] > 0 ? 1 : -1;
+		}
+		
 		let moveOutWidth = document.body.clientWidth;
 
-		let endX = Math.max(Math.abs(velocity[0]) * moveOutWidth, moveOutWidth);
-		let toX = movement[0] > 0 ? endX : -endX;
-		let endY = Math.abs(velocity[1]) * moveOutWidth;
-		let toY = movement[1] > 0 ? endY : -endY;
+
+
+		let endX = direction === 'up' ? 0 : Math.max(Math.abs(velocity[0]) * moveOutWidth, moveOutWidth);
+		let toX = direction === 'left' ? -endX : direction === 'up'? 0 : endX;
+		let endY = direction === 'up' ? -Math.abs(velocity[1]) * moveOutWidth : Math.abs(velocity[1] * moveOutWidth);
+		let toY = direction === 'up' ? -endY : endY;
 
 		let rotate = movement[0] * 0.03 * (movement[1] / 80);
 
@@ -83,14 +96,15 @@
 		}
 	) => {
 		let elWidth = el.offsetWidth;
+		let elHeight = el.offsetHeight;
 
 		if (state.pressed) {
 			let rotate = state.movement[0] * 0.03 * (state.movement[1] / 80);
 
 			el.style.transform = `translate(${state.movement[0]}px, ${state.movement[1]}px) rotate(${rotate}deg)`;
 
-			if (Math.abs(state.movement[0]) / elWidth > minSwipeDistance) {
-				thresholdPassed = state.movement[0] > 0 ? 1 : -1;
+			if (Math.abs(state.movement[0]) / elWidth > minSwipeDistance || Math.abs(state.movement[1]) / elHeight > minSwipeDistance) {
+				thresholdPassed = state.movement[0] > 0 ? 1 : state.movement[1] < 0 ? -2 : -1;
 			} else {
 				thresholdPassed = 0;
 			}
@@ -99,7 +113,9 @@
 		// if dragging is finished
 		let keep =
 			Math.abs(state.movement[0]) / elWidth < minSwipeDistance &&
-			Math.abs(state.velocity[0]) < minSwipeVelocity;
+			Math.abs(state.velocity[0]) < minSwipeVelocity &&
+			Math.abs(state.movement[1]) / elHeight < minSwipeDistance &&
+        	Math.abs(state.velocity[1]) < minSwipeVelocity;
 
 		if (keep) {
 			thresholdPassed = 0;
@@ -117,7 +133,12 @@
 		if (thresholdPassed !== 0) return;
 
 		let dir = direction === 'left' ? -1 : 1;
-		cardSwiped(topCard, [dir, 0.1], [dir, 1]);
+		if (direction === 'up') {
+			cardSwiped(topCard, [0, -1], [0, -1]);
+		} else {
+			cardSwiped(topCard, [dir, 0.1], [dir, 1]);
+		}
+		
 	};
 
 	export let cardData: (index: number) => CardData;
@@ -137,7 +158,9 @@
 			swipe('left');
 		} else if (e.key === 'ArrowRight') {
 			swipe('right');
-		}
+		} else if (e.key === 'ArrowUp') {
+            swipe('up');
+        }
 	}}
 />
 
