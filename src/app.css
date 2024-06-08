@@ -8,7 +8,6 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    background-color: #f0f0f0;
 }
 
 .main-container {
@@ -16,9 +15,8 @@ body {
     max-width: 600px;
     height: 100%;
     margin: 0 auto;
-    background-color: #fff;
     padding: 25px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 10px;
     border-radius: 8px;
     overflow: hidden;
 }
