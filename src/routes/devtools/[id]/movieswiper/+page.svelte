@@ -51,20 +51,24 @@
 			bind:thresholdPassed
 		/>
 		<div class="absolute flex -bottom-8 w-full justify-evenly order-first">
-			<button
-				class="p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-				on:click={() => swipe('left')}
-			>
-				👎
-			</button>
-
-			<button
-				class="p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-				on:click={() => swipe('right')}
-			>
-				👍
-			</button>
-		</div>
+		<button
+			class="absolute bottom-1 left-1 p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
+			on:click={() => swipe('left')}
+		>
+			👎
+		</button>
+      		<button
+			class="absolute top-1 left-1/2 -translate-x-1/2 p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
+			on:click={() => swipe('up')}
+		>
+		😐
+		</button>
+		<button
+			class="absolute bottom-1 right-1 p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
+			on:click={() => swipe('right')}
+		>
+			👍
+		</button>
 	</div>
 
 	{#if thresholdPassed !== 0}
@@ -72,7 +76,13 @@
 			transition:fade={{ duration: 200 }}
 			class="absolute w-full h-full inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center text-9xl pointer-events-none"
 		>
-			{thresholdPassed > 0 ? '👍' : '👎'}
+			{#if thresholdPassed === 1}
+				👍
+			{:else if thresholdPassed === -1}
+				👎
+			{:else if thresholdPassed === 2}
+				😐
+			{/if}
 		</div>
 	{/if}
 </div>
