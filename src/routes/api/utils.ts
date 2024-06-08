@@ -4,7 +4,7 @@ import { MovieDb, type MovieResult } from "moviedb-promise";
 // IMPORTANT: There might be movies that are not pornographic but instead deals with the pornography industry.
 // Said movies as well a lesser known movies without keywords will be removed here
 const KEYWORD_MIN = 1;
-const BANNED_KEYWORDS: string[] = ["sex", "softcore", "hentai", "masochism", "eroticism", "erotic movie", "sexploitation", "gangbang", "pedophilia", "sexual violence", "threesome", "porno", "erotic movie"];
+const BANNED_KEYWORDS: string[] = ["sex", "softcore", "hentai", "masochism", "eroticism", "erotic movie", "sexploitation", "gangbang", "pedophilia", "sexual violence", "threesome", "porno", "erotic movie", "sexual humor"];
 
 export async function getRandomNonAdult(movies: MovieResult[]) {
     let movie: MovieResult;

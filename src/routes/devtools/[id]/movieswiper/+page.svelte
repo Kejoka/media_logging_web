@@ -6,6 +6,7 @@
 	/** @type {import('./$types').PageServerData} */
 	export let data: PageServerData;
 	import { page } from '$app/stores';
+	import Fab, { Icon } from '@smui/fab';
 	console.log('Loaded profile: ' + $page.params.id);
 
 	let swipe: (direction?: Direction) => void;
@@ -51,39 +52,29 @@
 			bind:thresholdPassed
 		/>
 		<div class="absolute flex -bottom-8 w-full justify-evenly order-first">
-			<button
-				class="p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-				on:click={() => swipe('left')}
-			>
-				👎
-			</button>
-			<button
-				class="p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-				on:click={() => swipe('up')}
-			>
-				😐
-			</button>
-			<button
-				class="p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-				on:click={() => swipe('right')}
-			>
-				👍
-			</button>
+			<Fab class=" bg-[#424242]/85 z-10" on:click={() => swipe('left')}>
+				<Icon class="material-icons">thumb_down</Icon>
+			</Fab>
+			<Fab class=" bg-[#424242]/85 z-10" on:click={() => swipe('up')}>
+				<Icon class="material-icons">thumbs_up_down</Icon>
+			</Fab>
+			<Fab class=" bg-[#424242]/85 z-10" on:click={() => swipe('right')}>
+				<Icon class="material-icons">thumb_up</Icon>
+			</Fab>
 		</div>
+		{#if thresholdPassed !== 0}
+			<div
+				transition:fade={{ duration: 200 }}
+				class="absolute w-full h-full inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center text-9xl pointer-events-none z-0"
+			>
+				{#if thresholdPassed === 1}
+					<Icon class="material-icons opacity-70 scale-[5]">thumb_up</Icon>
+				{:else if thresholdPassed === -1}
+					<Icon class="material-icons opacity-70 scale-[5]">thumb_down</Icon>
+				{:else if thresholdPassed === 2}
+					<Icon class="material-icons opacity-70 scale-[5]">thumbs_up_down</Icon>
+				{/if}
+			</div>
+		{/if}
 	</div>
-
-	{#if thresholdPassed !== 0}
-		<div
-			transition:fade={{ duration: 200 }}
-			class="absolute w-full h-full inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center text-9xl pointer-events-none"
-		>
-			{#if thresholdPassed === 1}
-				👍
-			{:else if thresholdPassed === -1}
-				👎
-			{:else if thresholdPassed === 2}
-				😐
-			{/if}
-		</div>
-	{/if}
 </div>
