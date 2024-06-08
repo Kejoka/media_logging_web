@@ -1,6 +1,4 @@
-import { error } from '@sveltejs/kit';
-import { MovieDb, type PopularMoviesRequest } from 'moviedb-promise';
-import { getRandomNonAdult } from '../../utils.js';
+import { MovieDb } from 'moviedb-promise';
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 
 /** @type {import('./$types').RequestHandler} */

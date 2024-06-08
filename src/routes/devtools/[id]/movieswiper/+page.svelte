@@ -34,7 +34,7 @@
 	}
 </script>
 
-<div class="h-[95svh] flex items-center justify-center overflow-hidden">
+<div class="h-[85svh] flex items-center justify-center">
 	<div class="w-full h-full max-w-xl relative">
 		<CardSwiper
 			bind:swipe
@@ -50,20 +50,21 @@
 			}}
 			bind:thresholdPassed
 		/>
+		<div class="absolute flex -bottom-8 w-full justify-evenly order-first">
+			<button
+				class="p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
+				on:click={() => swipe('left')}
+			>
+				👎
+			</button>
 
-		<button
-			class="absolute bottom-1 left-1 p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-			on:click={() => swipe('left')}
-		>
-			👎
-		</button>
-
-		<button
-			class="absolute bottom-1 right-1 p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-			on:click={() => swipe('right')}
-		>
-			👍
-		</button>
+			<button
+				class="p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
+				on:click={() => swipe('right')}
+			>
+				👍
+			</button>
+		</div>
 	</div>
 
 	{#if thresholdPassed !== 0}

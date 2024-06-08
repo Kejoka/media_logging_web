@@ -1,12 +1,9 @@
-import { error } from '@sveltejs/kit';
 import { MovieDb, type PopularMoviesRequest } from 'moviedb-promise';
 import { getRandomNonAdult } from '../../utils.js';
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ }) {
-
-    console.log("Fetching initial cards")
     let movies = [];
     let result;
     const params: PopularMoviesRequest = {
@@ -18,9 +15,9 @@ export async function GET({ }) {
     for (let i = 0; i < 5; i++) {
         try {
             result = await tmdb.moviePopular(params);
-            movies.push(getRandomNonAdult(result.results !== undefined ? result.results : []));
+            movies.push(await getRandomNonAdult(result.results !== undefined ? result.results : []));
         } catch (error) {
-            console.log("Error on Endpoint initialCards:\n" + error);
+            console.log(`Error on Endpoint initialCards: ${error}`);
             return new Response(String(error))
         }
     }
