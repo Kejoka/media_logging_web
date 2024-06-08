@@ -42,7 +42,7 @@
 		if(Math.abs(movement[0]) > Math.abs(movement[1])) {
 			direction = movement[0] > 0 ? 'right' : 'left';
 		} else {
-			direction = movement[1] < 0 ? 'up' : 'right';
+			direction = 'up';
 		}
 
 		let data = el === card1 ? card1Data : card2Data;
@@ -61,7 +61,7 @@
 		let endX = direction === 'up' ? 0 : Math.max(Math.abs(velocity[0]) * moveOutWidth, moveOutWidth);
 		let toX = direction === 'left' ? -endX : direction === 'up'? 0 : endX;
 		let endY = direction === 'up' ? -Math.abs(velocity[1]) * moveOutWidth : Math.abs(velocity[1] * moveOutWidth);
-		let toY = direction === 'up' ? -endY : endY;
+		let toY = direction === 'up' ? endY : -endY;
 
 		let rotate = movement[0] * 0.03 * (movement[1] / 80);
 
@@ -132,12 +132,14 @@
 	export const swipe = (direction: Direction = 'right') => {
 		if (thresholdPassed !== 0) return;
 
-		let dir = direction === 'left' ? -1 : 1;
 		if (direction === 'up') {
 			cardSwiped(topCard, [0, -1], [0, -1]);
+		} else if (direction === 'left'){
+			cardSwiped(topCard, [-1, 0.1], [-1, 0.1]);
 		} else {
-			cardSwiped(topCard, [dir, 0.1], [dir, 1]);
+			cardSwiped(topCard, [1, 0.1], [1, 0.1]);
 		}
+		
 		
 	};
 
