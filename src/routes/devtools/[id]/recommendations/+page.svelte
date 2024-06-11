@@ -1,77 +1,61 @@
 <script lang="ts">
-	import { CardSwiper, type Direction } from '$lib/CardSwiper';
-	import { fade } from 'svelte/transition';
-	import type { PageServerData } from './$types';
 	import type { TmdbMovie } from './+page.server';
-	/** @type {import('./$types').PageServerData} */
-	export let data: PageServerData;
-	import { page } from '$app/stores';
-	console.log('Loaded profile: ' + $page.params.id);
+	import RecommendationList from '$lib/RecommendationList/RecommendationList.svelte';
+	import { onMount } from 'svelte';
 
-	let swipe: (direction?: Direction) => void;
-	let thresholdPassed = 0;
+	let dummyMovie = {
+    "adult": false,
+    "backdrop_path": "/iZ2816km53S1Qvs0w2nUOL6jpP7.jpg",
+    "genre_ids": [28, 12, 878],
+    "id": 157350,
+    "original_language": "en",
+    "original_title": "Divergent",
+    "overview": "Das zukünftige Chicago ist in fünf Lager aufgeteilt und in jedem herrscht eine andere Tugend vor: Candor (die Ehrlichen), Abnegation (di…",
+    "popularity": 51.007,
+    "poster_path": "/6T6U0VU7PViMfgfApgndCl661Il.jpg",
+    "release_date": "2014-04-10",
+    "title": "Die Bestimmung - Divergent",
+    "video": false,
+    "vote_averag": 6.917,
+    "vote_count": 12533
+}
 
-	async function loadNewCard() {
+	let dummyArray : Array<TmdbMovie> = [];
+	let isLoading = true;
+
+	async function loadNewMovie() {
 		const res = await fetch('/api/v1/randomMovie');
 		const movie: TmdbMovie = await res.json();
-		data.movies = [...data.movies, movie];
+		return movie;
 	}
 
-	async function logKeywords(id: number) {
-		const res = await fetch(`/api/v1/getKeywords?id=${id}`);
-		console.log(await res.json());
-	}
+	async function fillArray() {
+		for(let i = 0; i < 30; i++) {
+			let movie = await loadNewMovie();
+			movie.image = `https://image.tmdb.org/t/p/w200${movie.poster_path}`;
+			// let movieData = {
+			// 	title: movie.title,
+			// 	image: `https://image.tmdb.org/t/p/w200${movie.poster_path}`,
+			// 	id: movie.id
 
-	function swipeHandler(cardDetails: any) {
-		// cardDetails:
-		// direction: 'left' | 'right'
-		// index: number
-		// element: HTMLElement
-		// data: CardData
-		console.log(`Swiped ${cardDetails.data.title} ${cardDetails.direction}`);
-		logKeywords(cardDetails.data.id);
-		loadNewCard();
+			// }
+			dummyArray.push(movie);
+		}
+		console.log('Dummy Array:', dummyArray);
+		isLoading = false;
 	}
+	onMount(async () => {
+		await fillArray();
+	});
+
 </script>
 
-<div class="h-[95svh] flex items-center justify-center overflow-hidden">
-	<div class="w-full h-full max-w-xl relative">
-		<CardSwiper
-			bind:swipe
-			cardData={(index) => {
-				return {
-					title: data.movies[index].title,
-					image: `https://image.tmdb.org/t/p/w500/${data.movies[index].poster_path}`,
-					id: data.movies[index].id
-				};
-			}}
-			on:swiped={(e) => {
-				swipeHandler(e.detail);
-			}}
-			bind:thresholdPassed
-		/>
-
-		<button
-			class="absolute bottom-1 left-1 p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-			on:click={() => swipe('left')}
-		>
-			👎
-		</button>
-
-		<button
-			class="absolute bottom-1 right-1 p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-			on:click={() => swipe('right')}
-		>
-			👍
-		</button>
+<div>
+	<div>
+		{#if isLoading}
+			<p>Loading...</p>
+		{:else}
+		<RecommendationList cards={dummyArray} />
+		{/if}
 	</div>
-
-	{#if thresholdPassed !== 0}
-		<div
-			transition:fade={{ duration: 200 }}
-			class="absolute w-full h-full inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center text-9xl pointer-events-none"
-		>
-			{thresholdPassed > 0 ? '👍' : '👎'}
-		</div>
-	{/if}
 </div>
