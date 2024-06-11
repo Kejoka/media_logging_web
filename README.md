@@ -4,6 +4,8 @@
 In order for this project to work you must create a ```.env``` File containing the following parameters:
 ```
 PRIVATE_TMDB_V3_KEY=<tmdb v3 api key>
+PUBLIC_SUPABASE_URL=<your supabase database url>
+PUBLIC_SUPABASE_ANON=<your supabase anon key>
 ```
 To run this project in development mode use the following commands:
 
