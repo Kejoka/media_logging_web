@@ -16,7 +16,7 @@
 	let username: string = profile?.username ?? '';
 	let avatarUrl: string = profile?.avatar_url ?? '';
 
-	const handleSubmit: SubmitFunction = () => {
+	const handleUpdate: SubmitFunction = () => {
 		loading = true;
 		return async () => {
 			loading = false;
@@ -37,7 +37,7 @@
 		class="form-widget"
 		method="post"
 		action="?/update"
-		use:enhance={handleSubmit}
+		use:enhance={handleUpdate}
 		bind:this={profileForm}
 	>
 		<div>
@@ -67,7 +67,12 @@
 	</form>
 	<button
 		type="button"
+		class="button block"
 		on:click={() => {
+			if (profile.username == '') {
+				alert('You need to choose a Username first');
+				return;
+			}
 			goto(`${$page.url.pathname}/movieswiper`);
 		}}
 	>
