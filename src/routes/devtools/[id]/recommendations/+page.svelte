@@ -5,7 +5,7 @@
 	import CircularProgress from '@smui/circular-progress';
 
 
-	let dummyArray : Array<TmdbMovie> = [];
+	let movieArray : Array<TmdbMovie> = [];
 	let isLoading = true;
 	let isFetchingMoreMovies = false;
 
@@ -33,8 +33,8 @@
 	}
 
 	async function fillArray() {
-		const movies = await loadNewMovies(20);
-		dummyArray = [...dummyArray, ...movies];
+		const newMovies = await loadNewMovies(20);
+		movieArray = [...movieArray, ...newMovies];
 		isLoading = false;
 		isFetchingMoreMovies = false;
 	}
@@ -71,7 +71,7 @@
 			</div>
 			<p class="text-center p-8">Loading...</p>
 		{:else}
-		<RecommendationList cards={dummyArray} />
+		<RecommendationList cards={movieArray} />
 			{#if isFetchingMoreMovies}
 			<div style="display: flex; justify-content: center">
 				<CircularProgress style="height: 32px; width: 32px;" indeterminate />
