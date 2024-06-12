@@ -2,60 +2,83 @@
 	import type { TmdbMovie } from './+page.server';
 	import RecommendationList from '$lib/RecommendationList/RecommendationList.svelte';
 	import { onMount } from 'svelte';
+	import CircularProgress from '@smui/circular-progress';
 
-	let dummyMovie = {
-    "adult": false,
-    "backdrop_path": "/iZ2816km53S1Qvs0w2nUOL6jpP7.jpg",
-    "genre_ids": [28, 12, 878],
-    "id": 157350,
-    "original_language": "en",
-    "original_title": "Divergent",
-    "overview": "Das zukünftige Chicago ist in fünf Lager aufgeteilt und in jedem herrscht eine andere Tugend vor: Candor (die Ehrlichen), Abnegation (di…",
-    "popularity": 51.007,
-    "poster_path": "/6T6U0VU7PViMfgfApgndCl661Il.jpg",
-    "release_date": "2014-04-10",
-    "title": "Die Bestimmung - Divergent",
-    "video": false,
-    "vote_averag": 6.917,
-    "vote_count": 12533
-}
 
 	let dummyArray : Array<TmdbMovie> = [];
 	let isLoading = true;
+	let isFetchingMoreMovies = false;
 
-	async function loadNewMovie() {
-		const res = await fetch('/api/v1/randomMovie');
-		const movie: TmdbMovie = await res.json();
-		return movie;
+	async function loadNewMovies(amount: number) {
+		let movies: Array<TmdbMovie> = [];
+		while(movies.length < amount) {
+			try {
+				let res = await fetch(`/api/v1/randomMovie`);
+				if(!res.ok) {
+					throw new Error(`Fetching Movie failed ${res}`)
+				} else {
+					console.log("Fetching Movie successful")
+					let movie: TmdbMovie = await res.json();
+					movies.push(movie);
+				}
+				
+			} catch (error) {
+				console.error("Error filling movies Array! " + error);
+			}	
+		}
+		return movies.map(movie => ({
+			...movie,
+			image: `https://image.tmdb.org/t/p/w200${movie.poster_path}`
+		}));
 	}
 
 	async function fillArray() {
-		for(let i = 0; i < 30; i++) {
-			let movie = await loadNewMovie();
-			movie.image = `https://image.tmdb.org/t/p/w200${movie.poster_path}`;
-			// let movieData = {
-			// 	title: movie.title,
-			// 	image: `https://image.tmdb.org/t/p/w200${movie.poster_path}`,
-			// 	id: movie.id
-
-			// }
-			dummyArray.push(movie);
-		}
-		console.log('Dummy Array:', dummyArray);
+		const movies = await loadNewMovies(20);
+		dummyArray = [...dummyArray, ...movies];
 		isLoading = false;
+		isFetchingMoreMovies = false;
 	}
+
+	function handleScroll(event: Event) {
+		const element = event.currentTarget as HTMLElement;
+		const tolerance = 20;
+		const scrollHeight = element.scrollHeight;
+		const scrollTop = element.scrollTop;
+		const clientHeight = element.clientHeight;
+
+		if (Math.ceil(scrollHeight - scrollTop) <= clientHeight + tolerance && !isFetchingMoreMovies) {
+        loadMoreMovies();
+    	}
+	}
+
+	async function loadMoreMovies() {
+		isFetchingMoreMovies = true;
+		await fillArray();
+	}
+
 	onMount(async () => {
 		await fillArray();
 	});
 
 </script>
 
-<div>
+
+<div class="overflow-y-auto h-screen" on:scroll="{handleScroll}">
 	<div>
 		{#if isLoading}
-			<p>Loading...</p>
+			<div style="display: flex; justify-content: center">
+				<CircularProgress style="height: 32px; width: 32px;" indeterminate />
+			</div>
+			<p class="text-center p-8">Loading...</p>
 		{:else}
 		<RecommendationList cards={dummyArray} />
+			{#if isFetchingMoreMovies}
+			<div style="display: flex; justify-content: center">
+				<CircularProgress style="height: 32px; width: 32px;" indeterminate />
+			</div>
+			<p class="text-center p-8">Loading more...</p>
+				
+			{/if}
 		{/if}
 	</div>
 </div>
