@@ -41,7 +41,7 @@
 		const keywords = await fetch(`/api/v1/getKeywords?id=${id}`);
 		for (let keyword of await keywords.json()) {
 			const { error } = await supabase.rpc('upsert_and_change_factor', {
-				r_user_id: data.session.user.id,
+				r_user_preference_id: Number(data.data?.id),
 				r_tmdb_id: keyword.id,
 				r_name: keyword.name,
 				r_factor: value

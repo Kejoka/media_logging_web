@@ -1,38 +1,44 @@
-import { fail, redirect } from '@sveltejs/kit'
-import type { PageServerLoad } from './$types'
+import { fail, redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals: { supabase, safeGetSession }, fetch, url }) => {
-    const { session } = await safeGetSession()
-    if (!session) {
-        redirect(303, '/')
-    }
+export const load: PageServerLoad = async ({
+	locals: { supabase, safeGetSession },
+	fetch,
+	url
+}) => {
+	const { session } = await safeGetSession();
+	if (!session) {
+		redirect(303, '/');
+	}
 
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select(`username, avatar_url`)
-        .eq('id', session.user.id)
-        .single()
+	const { data: profile } = await supabase
+		.from('profiles')
+		.select(`username, avatar_url`)
+		.eq('id', session.user.id)
+		.single();
 
-    if (url.pathname.slice(1).split("/")[0] !== profile?.username) {
-        // IMPORTANT This line redirects the user to their own profile. This should be chnaged
-        // as soon as public user profiles have been implemented
-        redirect(303, `/${profile?.username}/movieswiper`);
-    }
-    const res = await fetch('/api/v1/initialMovies');
-    const movies: TmdbMovie[] = await res.json();
+	if (url.pathname.slice(1).split('/')[0] !== profile?.username) {
+		// IMPORTANT This line redirects the user to their own profile. This should be chnaged
+		// as soon as public user profiles have been implemented
+		redirect(303, `/${profile?.username}/movieswiper?profile=${url.searchParams.get('profile')}`);
+	}
+	const { error } = await supabase.from('preference_profiles').insert({ user_id: session.user.id, name: url.searchParams.get('profile') });
+	const { data } = await supabase.from('preference_profiles').select('id').eq('name', url.searchParams.get('profile')).single();
+	const res = await fetch('/api/v1/initialMovies');
+	const movies: TmdbMovie[] = await res.json();
 
-    return { session, profile, movies }
-}
+	return { session, profile, movies, data };
+};
 
 export type TmdbMovie = {
-    adult: boolean,
-    backdrop_path: string,
-    genre_ids: number[],
-    id: number,
-    overview: string,
-    popularity: number,
-    poster_path: string,
-    release_date: string,
-    vote_average: number,
-    title: string
-}
+	adult: boolean;
+	backdrop_path: string;
+	genre_ids: number[];
+	id: number;
+	overview: string;
+	popularity: number;
+	poster_path: string;
+	release_date: string;
+	vote_average: number;
+	title: string;
+};
