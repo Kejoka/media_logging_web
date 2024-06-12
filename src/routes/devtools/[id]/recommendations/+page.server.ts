@@ -17,5 +17,4 @@ export type TmdbMovie = {
     release_date: string,
     vote_average: number,
     title: string,
-    image: string,
 }
