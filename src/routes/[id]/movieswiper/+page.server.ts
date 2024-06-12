@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({
 		redirect(303, `/${profile?.username}/movieswiper?profile=${url.searchParams.get('profile')}`);
 	}
 	const { error } = await supabase.from('preference_profiles').insert({ user_id: session.user.id, name: url.searchParams.get('profile') });
-	const { data } = await supabase.from('preference_profiles').select('id').eq('name', url.searchParams.get('profile')).single();
+	const { data } = await supabase.from('preference_profiles').select('id').eq('user_id', session.user.id).eq('name', url.searchParams.get('profile')).single();
 	const res = await fetch('/api/v1/initialMovies');
 	const movies: TmdbMovie[] = await res.json();
 
