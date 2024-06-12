@@ -11,7 +11,7 @@
 
 
 <div class="relative inline-block">
-	<a href={`https://www.themoviedb.org/movie/${movieId}`}>
+	<a href={`https://www.themoviedb.org/movie/${movieId}`} target="_blank">
 		<img class="block w-full transition-opacity duration-300 ease-in-out hover:opacity-50 rounded-lg" src={image} alt={title} />
 		<div class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white opacity-0 transition-opacity duration-300 ease-in-out hover:opacity-100 text-center">
 			<span class="text-ellipsis overflow-hidden">{hoverText}</span>
