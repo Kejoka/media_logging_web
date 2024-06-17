@@ -6,6 +6,7 @@
 	import type { PageServerData } from './$types';
 	export let data: PageServerData;
 
+	let amountToLoad = 20;
 	let recommendations: Array<TmdbMovie> = [];
 	let isLoading = true;
 	let isFetchingMoreMovies = false;
@@ -15,7 +16,7 @@
 		let movies: Array<TmdbMovie> = [];
 		while (movies.length < amount) {
 			try {
-				let res = await fetch(`/api/v1/getRecommendations?user_pref_id=${data.data?.id}&page=${currentPage}`);
+				let res = await fetch(`/api/v1/getReco?user_pref_id=${data.data?.id}&page=${currentPage}`);
 				if (!res.ok) {
 					throw new Error(`Fetching Movie failed ${res}`);
 				} else {
