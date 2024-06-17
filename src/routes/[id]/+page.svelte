@@ -73,7 +73,7 @@
 				alert('You need to choose a Username first');
 				return;
 			}
-			goto(`${$page.url.pathname}/movieswiper`);
+			goto(`${$page.url.pathname}/movieswiper?profile=personal`);
 		}}
 	>
 		MovieSwiper

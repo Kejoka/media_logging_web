@@ -2,31 +2,32 @@
 
 $background: #fff;
 
-@use '@material/theme/index' as theme with ($primary: color-palette.$purple-500,
-  $secondary: color-palette.$teal-600,
-  $surface: #fff,
-  $background: $background,
-  $error: #b00020);
+@use '@material/theme/index' as theme with (
+	$primary: color-palette.$purple-500,
+	$secondary: color-palette.$teal-600,
+	$surface: #fff,
+	$background: $background,
+	$error: #b00020
+);
 
 html,
-
 body {
-  background-color: $background;
-  color: if(theme.contrast-tone($background)=='dark', #000, #fff);
+	background-color: $background;
+	color: if(theme.contrast-tone($background) == 'dark', #000, #fff);
 }
 
 a {
-  color: color-palette.$blue-500;
+	color: color-palette.$blue-500;
 }
 
 a:hover {
-  color: color-palette.$blue-300;
+	color: color-palette.$blue-300;
 }
 
 a:visited {
-  color: color-palette.$blue-800;
+	color: color-palette.$blue-800;
 }
 
 .main-container {
-  background-color: theme.$surface;
+	background-color: theme.$surface;
 }
