@@ -14,20 +14,18 @@
 
 	async function loadNewMovies(amount: number) {
 		let movies: Array<TmdbMovie> = [];
-		while (movies.length < amount) {
-			try {
-				let res = await fetch(`/api/v1/getReco?user_pref_id=${data.data?.id}&page=${currentPage}`);
-				if (!res.ok) {
-					throw new Error(`Fetching Movie failed ${res}`);
-				} else {
-					console.log('Fetching Movie successful');
-					let movie_recs: TmdbMovie[] = await res.json();
-					movies = [...movies, ...movie_recs];
-					console.log(movies);
-				}
-			} catch (error) {
-				console.error('Error filling movies Array! ' + error);
+		try {
+			let res = await fetch(`/api/v1/getReco?user_pref_id=${data.data?.id}&page=${currentPage}`);
+			if (!res.ok) {
+				throw new Error(`Fetching Movie failed ${res}`);
+			} else {
+				console.log('Fetching Movie successful');
+				let movie_recs: TmdbMovie[] = await res.json();
+				movies = [...movies, ...movie_recs];
+				console.log(movies);
 			}
+		} catch (error) {
+			console.error('Error filling movies Array! ' + error);
 		}
 		return movies.map((movie) => ({
 			...movie,
@@ -37,7 +35,12 @@
 
 	async function fillArray() {
 		const movies = await loadNewMovies(20);
-		recommendations = [...recommendations, ...movies];
+		//remove duplicates
+		const loadedReccommendations = [...recommendations, ...movies];
+		recommendations = loadedReccommendations.filter(
+			(obj, index, self) => index === self.findIndex((t) => t.id === obj.id)
+		);
+		console.log(recommendations);
 		isLoading = false;
 		isFetchingMoreMovies = false;
 		currentPage += 1;

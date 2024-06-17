@@ -1,4 +1,4 @@
-import { MovieDb, type DiscoverMovieRequest, type PopularMoviesRequest } from 'moviedb-promise';
+import { MovieDb, type DiscoverMovieRequest, type MovieResult, type PopularMoviesRequest } from 'moviedb-promise';
 import { removeAllNonAdults } from '../../utils.js';
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient.js';
@@ -8,9 +8,9 @@ import type { TmdbMovie } from '../../../[id]/movieswiper/proxy+page.server.js';
 export async function GET({ url }) {
     const prefs = await supabase.from('preferences').select('tmdb_id, factor').eq('user_preference_id', url.searchParams.get('user_pref_id')).order('factor', { ascending: false });
     let keywordStrings: Array<string> = [];
-    let allRecoMovies: string = "";
+    let allRecoMovies: MovieResult[] = [];
 
-    for (let i = 5; i > 2; i--) {
+    for (let i = 5; i > 1; i--) {
         let keyword_string: string = "";
         for (let j = 0; j < i; j++) {
 
@@ -18,38 +18,50 @@ export async function GET({ url }) {
         }
         keywordStrings.push(keyword_string);
     }
+    let keywordOrString = '';
+    for (let i = 5; i > 1; i--) {
+        keywordOrString += prefs.data?.at(i)?.tmdb_id + "|";
+    }
+    keywordStrings.push(keywordOrString);
 
     console.log(keywordStrings);
-    
+
     try {
 
-    const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
+        const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
 
-    for (const keyword of keywordStrings) {
-        const params: DiscoverMovieRequest = {
-            page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
-            sort_by: 'popularity.desc',
-            include_adult: false,
-            with_keywords: keyword
-        };
+        for (const keyword of keywordStrings) {
+            const params: DiscoverMovieRequest = {
+                page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
+                sort_by: 'popularity.desc',
+                include_adult: false,
+                with_keywords: keyword
+            };
 
-        const response = await tmdb.discoverMovie(params);
-        const movies = await removeAllNonAdults(response.results !== undefined ? response.results : [])
-        if (movies?.length != 0) {
-            const jsonMovies = JSON.stringify(movies);
-
-            allRecoMovies += jsonMovies;
+            const response = await tmdb.discoverMovie(params);
+            let movies = await removeAllNonAdults(response.results !== undefined ? response.results : [])
+            movies = movies !== undefined ? movies : [];
+            if (movies?.length != 0) {
+                allRecoMovies = [...allRecoMovies, ...movies];
+            }
         }
-    }
-    console.log(allRecoMovies);
-    return new Response(allRecoMovies);
+        // sort movies by moviescore
+        // try {
+        //     const keywords = await tmdb.movieKeywords(id);
+        //     return new Response(JSON.stringify(keywords.keywords !== undefined ? keywords.keywords : []));
+        // } catch (error) {
+        //     console.log('Error on Endpoint getKeywords:\n' + error);
+        //     return new Response(String(error));
+        // }
+        console.log(allRecoMovies);
+        return new Response(JSON.stringify(allRecoMovies));
 
     } catch (error) {
-    console.error(`Error on Endpoint randomMovie: ${error}`);
-    return new Response(String(error), { status: 500 });
-}
+        console.error(`Error on Endpoint randomMovie: ${error}`);
+        return new Response(String(error), { status: 500 });
+    }
 
-    
+
 }
 
 // export interface DiscoverMovieRequest extends RequestParams {
