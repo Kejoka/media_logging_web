@@ -21,7 +21,7 @@
 </script>
 
 <svelte:head>
-	<title>Profile Page</title>
+	<title>Media Logging Login</title>
 </svelte:head>
 
 <main class="main-container">

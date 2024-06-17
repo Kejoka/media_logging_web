@@ -15,14 +15,16 @@
 	async function loadNewMovies(amount: number) {
 		let movies: Array<TmdbMovie> = [];
 		try {
-			let res = await fetch(`/api/v1/getReco?user_pref_id=${data.data?.id}&page=${currentPage}`);
+			let res = await fetch(
+				`/api/v1/getRecommendations?user_pref_id=${data.data?.id}&page=${currentPage}`
+			);
 			if (!res.ok) {
 				throw new Error(`Fetching Movie failed ${res}`);
 			} else {
 				console.log('Fetching Movie successful');
 				let movie_recs: TmdbMovie[] = await res.json();
 				movies = [...movies, ...movie_recs];
-				console.log(movies);
+				// console.log(movies);
 			}
 		} catch (error) {
 			console.error('Error filling movies Array! ' + error);
@@ -36,11 +38,10 @@
 	async function fillArray() {
 		const movies = await loadNewMovies(20);
 		//remove duplicates
-		const loadedReccommendations = [...recommendations, ...movies];
-		recommendations = loadedReccommendations.filter(
+		const loadedRecommendations = [...recommendations, ...movies];
+		recommendations = loadedRecommendations.filter(
 			(obj, index, self) => index === self.findIndex((t) => t.id === obj.id)
 		);
-		console.log(recommendations);
 		isLoading = false;
 		isFetchingMoreMovies = false;
 		currentPage += 1;
@@ -75,6 +76,11 @@
 				<CircularProgress style="height: 32px; width: 32px;" indeterminate />
 			</div>
 			<p class="text-center p-8">Loading...</p>
+		{:else if recommendations.length < 20}
+			<div class="flex-col text-center">
+				<p class="text-3xl">Sorry, No recommendations yet 😓</p>
+				<p class="text-lg mt-5">Use MovieSwiper to train your recommender for a while!</p>
+			</div>
 		{:else}
 			<RecommendationList cards={recommendations} />
 			{#if isFetchingMoreMovies}

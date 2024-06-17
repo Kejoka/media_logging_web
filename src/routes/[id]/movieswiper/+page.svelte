@@ -10,14 +10,21 @@
 
 	let swipe: (direction?: Direction) => void;
 	let thresholdPassed = 0;
+	let swipeCount = 0;
 
 	async function loadNewCard() {
-		const res = await fetch('/api/v1/randomMovie');
+		let res: Response;
+		if (swipeCount % 2 == 0) {
+			res = await fetch(`/api/v1/randomMovieFromKeyword?user_pref_id=${Number(data.data?.id)}`);
+		} else {
+			res = await fetch('/api/v1/randomMovie');
+		}
 		const movie: TmdbMovie = await res.json();
 		data.movies = [...data.movies, movie];
 	}
 
 	async function swipeHandler(cardDetails: any) {
+		swipeCount++;
 		// cardDetails:
 		// direction: 'left' | 'right' | 'up'
 		// index: number

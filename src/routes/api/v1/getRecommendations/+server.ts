@@ -1,66 +1,76 @@
-import { MovieDb, type DiscoverMovieRequest, type PopularMoviesRequest } from 'moviedb-promise';
-import { removeAllNonAdults } from '../../utils.js';
+import { MovieDb, type DiscoverMovieRequest, type MovieResult, type PopularMoviesRequest } from 'moviedb-promise';
+import { removeAllNonAdultsAndAddScore } from '../../utils.js';
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ url }) {
     const prefs = await supabase.from('preferences').select('tmdb_id, factor').eq('user_preference_id', url.searchParams.get('user_pref_id')).order('factor', { ascending: false });
-    let keyword_string: string = '';
-    prefs.data?.forEach(preference => {
-        keyword_string += preference.tmdb_id + ' | '
-    });
-    const params: DiscoverMovieRequest = {
-        page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
-        sort_by: 'popularity.desc',
-        include_adult: false,
-        with_keywords: keyword_string
+    if (prefs == null) {
+        return new Response(`Error: No preferences found for ${url.searchParams.get('user_pref_id')}`);
     }
-    const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
+    const KEYWORD_MAX = 5;
+    const MIN_COMBINATION_LENGTH = 2
+    const MAX_COMBINATION_LENGTH = 3;
+    let keywordStrings: string[] = getAllCombinations(prefs.data?.slice(0, KEYWORD_MAX - 1) !== undefined ? prefs.data?.slice(0, KEYWORD_MAX - 1) : [], MIN_COMBINATION_LENGTH, MAX_COMBINATION_LENGTH);
+    let allRecoMovies: (MovieResult & { score: number })[] = [];
+    // Emergency Filler Movies
+    // let keywordOrString = '';
+    // for (let i = 0; i < KEYWORD_MAX; i++) {
+    //     keywordOrString += prefs.data?.at(i)?.tmdb_id + "|";
+    // }
+    // keywordStrings.push(keywordOrString);
+
     try {
-        const movies = await tmdb.discoverMovie(params);
-        return new Response(
-            JSON.stringify(await removeAllNonAdults(movies.results !== undefined ? movies.results : []))
-        );
+        const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
+
+        for (const keyword of keywordStrings) {
+            const params: DiscoverMovieRequest = {
+                page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
+                sort_by: 'popularity.desc',
+                include_adult: false,
+                with_keywords: keyword
+            };
+
+            const response = await tmdb.discoverMovie(params);
+            let movies = await removeAllNonAdultsAndAddScore(response.results !== undefined ? response.results : [], prefs.data !== null ? prefs.data : [])
+            movies = movies !== undefined ? movies : [];
+            if (movies?.length != 0) {
+                allRecoMovies = [...allRecoMovies, ...movies];
+            }
+        }
+        allRecoMovies.sort((a, b) => b.score - a.score);
+        return new Response(JSON.stringify(allRecoMovies));
+
     } catch (error) {
-        console.log(`Error on Endpoint randomMovie: ${error}`);
-        return new Response(String(error));
+        console.error(`Error on Endpoint randomMovie: ${error}`);
+        return new Response(String(error), { status: 500 });
     }
 }
 
-// export interface DiscoverMovieRequest extends RequestParams {
-//     region?: string;
-//     sort_by?: 'popularity.asc' | 'popularity.desc' | 'release_date.asc' | 'release_date.desc' | 'revenue.asc' | 'revenue.desc' | 'primary_release_date.asc' | 'primary_release_date.desc' | 'original_title.asc' | 'original_title.desc' | 'vote_average.asc' | 'vote_average.desc' | 'vote_count.asc' | 'vote_count.desc';
-//     certification_country?: string;
-//     certification?: string;
-//     'certification.lte'?: string;
-//     'certification.gte'?: string;
-//     include_adult?: boolean;
-//     include_video?: boolean;
-//     page?: number;
-//     primary_release_year?: number;
-//     'primary_release_date.gte'?: string;
-//     'primary_release_date.lte'?: string;
-//     'release_date.gte'?: string;
-//     'release_date.lte'?: string;
-//     with_release_type?: string;
-//     year?: number;
-//     'vote_count.gte'?: number;
-//     'vote_count.lte'?: number;
-//     'vote_average.gte'?: number;
-//     'vote_average.lte'?: number;
-//     with_cast?: string;
-//     with_crew?: string;
-//     with_people?: string;
-//     with_companies?: string;
-//     with_genres?: string;
-//     without_genres?: string;
-//     with_keywords?: string;
-//     without_keywords?: string;
-//     'with_runtime.gte'?: number;
-//     'with_runtime.lte'?: number;
-//     with_original_language?: string;
-//     with_watch_providers?: string;
-//     watch_region?: string;
-//     with_watch_monetization_types?: string;
-// }
+function getAllCombinations(arr: {
+    tmdb_id: any;
+    factor: any;
+}[], minLength: number, maxLength: number) {
+    const combinations: string[] = [];
+    for (let i = 0; i < Math.pow(2, arr.length); i++) {
+        const combination = [];
+        for (let j = 0; j < arr.length; j++) {
+            if ((i >> j) & 1) {
+                combination.push(arr[j]);
+            }
+        }
+        combination.sort();
+        if (combination.length > maxLength || combination.length < minLength) {
+            continue;
+        }
+        combination.sort();
+        let combinationString: string = '';
+        combination.forEach(el => {
+            combinationString += `${el.tmdb_id},`
+        })
+        combinations.push(combinationString);
+    }
+    [...new Set(combinations.shift())];
+    return combinations;
+}

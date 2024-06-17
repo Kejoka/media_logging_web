@@ -4,17 +4,17 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
+	import { supabase } from '$lib/supabaseClient.js';
 
 	export let data;
 	export let form;
 
-	let { session, supabase, profile } = data;
-	$: ({ session, supabase, profile } = data);
+	let { session, profile } = data;
+	$: ({ session, profile } = data);
 
 	let profileForm: HTMLFormElement;
 	let loading = false;
 	let username: string = profile?.username ?? '';
-	let avatarUrl: string = profile?.avatar_url ?? '';
 
 	const handleUpdate: SubmitFunction = () => {
 		loading = true;
@@ -29,6 +29,20 @@
 			loading = false;
 			update();
 		};
+	};
+
+	const handleProfileClear = async () => {
+		const pref_id = await supabase
+			.from('preference_profiles')
+			.select('id')
+			.eq('user_id', session.user.id)
+			.single();
+		const res = await supabase
+			.from('preferences')
+			.delete()
+			.eq('user_preference_id', pref_id.data?.id)
+			.select();
+		alert(`${res.data?.length} profile preferences have been deleted from the database`);
 	};
 </script>
 
@@ -90,5 +104,18 @@
 		}}
 	>
 		Recommendations
+	</button>
+	<button
+		type="button"
+		class="button block"
+		on:click={() => {
+			if (profile.username == '') {
+				alert('You need to choose a Username first');
+				return;
+			}
+			handleProfileClear();
+		}}
+	>
+		Delete Preference Profile
 	</button>
 </div>
