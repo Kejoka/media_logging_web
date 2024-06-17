@@ -9,12 +9,13 @@
 	let recommendations: Array<TmdbMovie> = [];
 	let isLoading = true;
 	let isFetchingMoreMovies = false;
+	let currentPage = 1;
 
 	async function loadNewMovies(amount: number) {
 		let movies: Array<TmdbMovie> = [];
 		while (movies.length < amount) {
 			try {
-				let res = await fetch(`/api/v1/getRecommendations?user_pref_id=${data.data?.id}&page=1`);
+				let res = await fetch(`/api/v1/getRecommendations?user_pref_id=${data.data?.id}&page=${currentPage}`);
 				if (!res.ok) {
 					throw new Error(`Fetching Movie failed ${res}`);
 				} else {
@@ -38,6 +39,7 @@
 		recommendations = [...recommendations, ...movies];
 		isLoading = false;
 		isFetchingMoreMovies = false;
+		currentPage += 1;
 	}
 
 	function handleScroll(event: Event) {
