@@ -1,77 +1,84 @@
 <script lang="ts">
-	import { CardSwiper, type Direction } from '$lib/CardSwiper';
-	import { fade } from 'svelte/transition';
-	import type { PageServerData } from './$types';
 	import type { TmdbMovie } from './+page.server';
-	/** @type {import('./$types').PageServerData} */
-	export let data: PageServerData;
-	import { page } from '$app/stores';
-	console.log('Loaded profile: ' + $page.params.id);
+	import RecommendationList from '$lib/RecommendationList/RecommendationList.svelte';
+	import { onMount } from 'svelte';
+	import CircularProgress from '@smui/circular-progress';
 
-	let swipe: (direction?: Direction) => void;
-	let thresholdPassed = 0;
 
-	async function loadNewCard() {
-		const res = await fetch('/api/v1/randomMovie');
-		const movie: TmdbMovie = await res.json();
-		data.movies = [...data.movies, movie];
+	let dummyArray : Array<TmdbMovie> = [];
+	let isLoading = true;
+	let isFetchingMoreMovies = false;
+
+	async function loadNewMovies(amount: number) {
+		let movies: Array<TmdbMovie> = [];
+		while(movies.length < amount) {
+			try {
+				let res = await fetch(`/api/v1/randomMovie`);
+				if(!res.ok) {
+					throw new Error(`Fetching Movie failed ${res}`)
+				} else {
+					console.log("Fetching Movie successful")
+					let movie: TmdbMovie = await res.json();
+					movies.push(movie);
+				}
+				
+			} catch (error) {
+				console.error("Error filling movies Array! " + error);
+			}	
+		}
+		return movies.map(movie => ({
+			...movie,
+			image: `https://image.tmdb.org/t/p/w200${movie.poster_path}`
+		}));
 	}
 
-	async function logKeywords(id: number) {
-		const res = await fetch(`/api/v1/getKeywords?id=${id}`);
-		console.log(await res.json());
+	async function fillArray() {
+		const movies = await loadNewMovies(20);
+		dummyArray = [...dummyArray, ...movies];
+		isLoading = false;
+		isFetchingMoreMovies = false;
 	}
 
-	function swipeHandler(cardDetails: any) {
-		// cardDetails:
-		// direction: 'left' | 'right'
-		// index: number
-		// element: HTMLElement
-		// data: CardData
-		console.log(`Swiped ${cardDetails.data.title} ${cardDetails.direction}`);
-		logKeywords(cardDetails.data.id);
-		loadNewCard();
+	function handleScroll(event: Event) {
+		const element = event.currentTarget as HTMLElement;
+		const tolerance = 20;
+		const scrollHeight = element.scrollHeight;
+		const scrollTop = element.scrollTop;
+		const clientHeight = element.clientHeight;
+
+		if (Math.ceil(scrollHeight - scrollTop) <= clientHeight + tolerance && !isFetchingMoreMovies) {
+        loadMoreMovies();
+    	}
 	}
+
+	async function loadMoreMovies() {
+		isFetchingMoreMovies = true;
+		await fillArray();
+	}
+
+	onMount(async () => {
+		await fillArray();
+	});
+
 </script>
 
-<div class="h-[95svh] flex items-center justify-center overflow-hidden">
-	<div class="w-full h-full max-w-xl relative">
-		<CardSwiper
-			bind:swipe
-			cardData={(index) => {
-				return {
-					title: data.movies[index].title,
-					image: `https://image.tmdb.org/t/p/w500/${data.movies[index].poster_path}`,
-					id: data.movies[index].id
-				};
-			}}
-			on:swiped={(e) => {
-				swipeHandler(e.detail);
-			}}
-			bind:thresholdPassed
-		/>
 
-		<button
-			class="absolute bottom-1 left-1 p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-			on:click={() => swipe('left')}
-		>
-			👎
-		</button>
-
-		<button
-			class="absolute bottom-1 right-1 p-3 px-4 bg-white/50 backdrop-blur-sm rounded-full z-10 text-3xl"
-			on:click={() => swipe('right')}
-		>
-			👍
-		</button>
+<div class="overflow-y-auto h-screen" on:scroll="{handleScroll}">
+	<div>
+		{#if isLoading}
+			<div style="display: flex; justify-content: center">
+				<CircularProgress style="height: 32px; width: 32px;" indeterminate />
+			</div>
+			<p class="text-center p-8">Loading...</p>
+		{:else}
+		<RecommendationList cards={dummyArray} />
+			{#if isFetchingMoreMovies}
+			<div style="display: flex; justify-content: center">
+				<CircularProgress style="height: 32px; width: 32px;" indeterminate />
+			</div>
+			<p class="text-center p-8">Loading more...</p>
+				
+			{/if}
+		{/if}
 	</div>
-
-	{#if thresholdPassed !== 0}
-		<div
-			transition:fade={{ duration: 200 }}
-			class="absolute w-full h-full inset-0 bg-white/20 backdrop-blur-sm flex items-center justify-center text-9xl pointer-events-none"
-		>
-			{thresholdPassed > 0 ? '👍' : '👎'}
-		</div>
-	{/if}
 </div>

@@ -18,3 +18,16 @@ export type TmdbMovie = {
 	vote_average: number;
 	title: string;
 };
+
+adult: boolean,
+	backdrop_path: string,
+		genre_ids: number[],
+			id: number,
+				overview: string,
+					popularity: number,
+						poster_path: string,
+							release_date: string,
+								vote_average: number,
+									title: string
+image: string
+}
