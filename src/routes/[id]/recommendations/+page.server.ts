@@ -22,10 +22,8 @@ export const load: PageServerLoad = async ({
 		// as soon as public user profiles have been implemented
 		redirect(303, `/${profile?.username}/movieswiper?profile=${url.searchParams.get('profile')}`);
 	}
-	const res = await fetch('/api/v1/initialMovies');
-	const movies: TmdbMovie[] = await res.json();
 
-	return { session, profile, movies };
+	return { session, profile };
 };
 
 export type TmdbMovie = {

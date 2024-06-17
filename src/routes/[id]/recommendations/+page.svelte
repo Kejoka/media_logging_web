@@ -4,7 +4,7 @@
 	import { onMount } from 'svelte';
 	import CircularProgress from '@smui/circular-progress';
 
-	let dummyArray: Array<TmdbMovie> = [];
+	let recommendations: Array<TmdbMovie> = [];
 	let isLoading = true;
 	let isFetchingMoreMovies = false;
 
@@ -32,7 +32,7 @@
 
 	async function fillArray() {
 		const movies = await loadNewMovies(20);
-		dummyArray = [...dummyArray, ...movies];
+		recommendations = [...recommendations, ...movies];
 		isLoading = false;
 		isFetchingMoreMovies = false;
 	}
@@ -67,7 +67,7 @@
 			</div>
 			<p class="text-center p-8">Loading...</p>
 		{:else}
-			<RecommendationList cards={dummyArray} />
+			<RecommendationList cards={recommendations} />
 			{#if isFetchingMoreMovies}
 				<div style="display: flex; justify-content: center">
 					<CircularProgress style="height: 32px; width: 32px;" indeterminate />

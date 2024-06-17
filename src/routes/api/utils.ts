@@ -50,3 +50,28 @@ export async function getRandomNonAdult(movies: MovieResult[]) {
 	} while (!nonAdultFoundCheck);
 	return movie;
 }
+
+
+export async function removeAllNonAdults(movies: MovieResult[]) {
+	let filteredMovies: MovieResult[] = [];
+	const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
+	for (let movie of movies) {
+		try {
+			const keywords = await tmdb.movieKeywords(Number(movie.id));
+			if (Number(keywords.keywords?.length) < KEYWORD_MIN || movie.vote_count == 0) {
+				continue;
+			} else {
+				keywords.keywords?.forEach((keyword) => {
+					if (BANNED_KEYWORDS.indexOf(String(keyword.name).toLowerCase()) > -1) {
+						console.log(`Removing ${movie.title} because of keyword ${keyword.name}`);
+					}
+				});
+				filteredMovies.push(movie);
+			}
+		} catch (error) {
+			console.log(`Error on Endpoint getKeywords: ${error}`);
+			return undefined;
+		}
+	}
+	return filteredMovies;
+}
