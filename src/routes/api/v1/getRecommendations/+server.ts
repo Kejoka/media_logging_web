@@ -11,6 +11,7 @@ export async function GET({ url }) {
         keyword_string += preference.tmdb_id + ' | '
     });
     const params: DiscoverMovieRequest = {
+        page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
         sort_by: 'popularity.desc',
         include_adult: false,
         with_keywords: keyword_string

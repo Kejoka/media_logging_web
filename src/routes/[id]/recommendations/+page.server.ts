@@ -23,7 +23,9 @@ export const load: PageServerLoad = async ({
 		redirect(303, `/${profile?.username}/movieswiper?profile=${url.searchParams.get('profile')}`);
 	}
 
-	return { session, profile };
+	const { data } = await supabase.from('preference_profiles').select('id').eq('user_id', session.user.id).eq('name', url.searchParams.get('profile')).single();
+
+	return { session, profile, data };
 };
 
 export type TmdbMovie = {

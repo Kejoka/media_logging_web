@@ -3,6 +3,8 @@
 	import RecommendationList from '$lib/RecommendationList/RecommendationList.svelte';
 	import { onMount } from 'svelte';
 	import CircularProgress from '@smui/circular-progress';
+	import type { PageServerData } from './$types';
+	export let data: PageServerData;
 
 	let recommendations: Array<TmdbMovie> = [];
 	let isLoading = true;
@@ -12,13 +14,14 @@
 		let movies: Array<TmdbMovie> = [];
 		while (movies.length < amount) {
 			try {
-				let res = await fetch(`/api/v1/randomMovie`);
+				let res = await fetch(`/api/v1/getRecommendations?user_pref_id=${data.data?.id}&page=1`);
 				if (!res.ok) {
 					throw new Error(`Fetching Movie failed ${res}`);
 				} else {
 					console.log('Fetching Movie successful');
-					let movie: TmdbMovie = await res.json();
-					movies.push(movie);
+					let movie_recs: TmdbMovie[] = await res.json();
+					movies = [...movies, ...movie_recs];
+					console.log(movies);
 				}
 			} catch (error) {
 				console.error('Error filling movies Array! ' + error);
