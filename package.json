@@ -15,6 +15,7 @@
 		"smui-theme-dark": "smui-theme compile static/smui-dark.css -i src/theme/dark"
 	},
 	"devDependencies": {
+		"@smui/circular-progress": "^7.0.0",
 		"@smui/fab": "^7.0.0",
 		"@smui/icon-button": "^7.0.0",
 		"@sveltejs/adapter-auto": "^3.0.0",

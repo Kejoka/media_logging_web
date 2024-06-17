@@ -78,4 +78,17 @@
 	>
 		MovieSwiper
 	</button>
+	<button
+		type="button"
+		class="button block"
+		on:click={() => {
+			if (profile.username == '') {
+				alert('You need to choose a Username first');
+				return;
+			}
+			goto(`${$page.url.pathname}/recommendations?profile=personal`);
+		}}
+	>
+		Recommendations
+	</button>
 </div>
