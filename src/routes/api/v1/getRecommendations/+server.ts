@@ -10,16 +10,16 @@ export async function GET({ url }) {
         return new Response(`Error: No preferences found for ${url.searchParams.get('user_pref_id')}`);
     }
     const KEYWORD_MAX = 5;
-    const MIN_COMBINATION_LENGTH = 2
+    const MIN_COMBINATION_LENGTH = 1
     const MAX_COMBINATION_LENGTH = 3;
     let keywordStrings: string[] = getAllCombinations(prefs.data?.slice(0, KEYWORD_MAX - 1) !== undefined ? prefs.data?.slice(0, KEYWORD_MAX - 1) : [], MIN_COMBINATION_LENGTH, MAX_COMBINATION_LENGTH);
     let allRecoMovies: (MovieResult & { score: number })[] = [];
     // Emergency Filler Movies
-    let keywordOrString = '';
-    for (let i = 0; i < KEYWORD_MAX; i++) {
-        keywordOrString += prefs.data?.at(i)?.tmdb_id + "|";
-    }
-    keywordStrings.push(keywordOrString);
+    // let keywordOrString = '';
+    // for (let i = 0; i < KEYWORD_MAX; i++) {
+    //     keywordOrString += prefs.data?.at(i)?.tmdb_id + "|";
+    // }
+    // keywordStrings.push(keywordOrString);
 
     try {
         const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
