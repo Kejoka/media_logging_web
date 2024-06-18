@@ -19,7 +19,8 @@ const BANNED_KEYWORDS: string[] = [
 	'porno',
 	'sexual humor',
 	'fencing',
-	'pink film'
+	'pink film',
+	'erotic'
 ];
 
 export async function getRandomNonAdult(movies: MovieResult[]) {

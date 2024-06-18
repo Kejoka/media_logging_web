@@ -15,15 +15,14 @@ export async function GET({ url }) {
     let keywordStrings: string[] = getAllCombinations(prefs.data?.slice(0, KEYWORD_MAX - 1) !== undefined ? prefs.data?.slice(0, KEYWORD_MAX - 1) : [], MIN_COMBINATION_LENGTH, MAX_COMBINATION_LENGTH);
     let allRecoMovies: (MovieResult & { score: number })[] = [];
     // Emergency Filler Movies
-    // let keywordOrString = '';
-    // for (let i = 0; i < KEYWORD_MAX; i++) {
-    //     keywordOrString += prefs.data?.at(i)?.tmdb_id + "|";
-    // }
-    // keywordStrings.push(keywordOrString);
+    let keywordOrString = '';
+    for (let i = 0; i < KEYWORD_MAX; i++) {
+        keywordOrString += prefs.data?.at(i)?.tmdb_id + "|";
+    }
+    keywordStrings.push(keywordOrString);
 
     try {
         const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
-
         for (const keyword of keywordStrings) {
             const params: DiscoverMovieRequest = {
                 page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
