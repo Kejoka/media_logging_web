@@ -2,6 +2,9 @@
 	"name": "media-logging",
 	"version": "0.0.1",
 	"private": true,
+	"engines": {
+		"node": "^18.18.0 || >=20.0.0"
+	},
 	"scripts": {
 		"dev": "npm run prepare && vite dev",
 		"build": "vite build",
