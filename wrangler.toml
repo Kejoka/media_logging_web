@@ -1,5 +1,10 @@
-name = "media-logging"
+name = "media-logging-web"
 type = "javascript"
 
 [env.production]
 node_version = "18.18.0"
+
+[[build]]
+command = "npm run build"
+cwd = "."
+output_path = "build"
