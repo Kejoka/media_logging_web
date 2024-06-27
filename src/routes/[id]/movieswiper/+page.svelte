@@ -68,6 +68,10 @@
 	}
 </script>
 
+<svelte:head>
+	<title>MovieSwiper</title>
+</svelte:head>
+
 <div class="h-[85svh] flex items-center justify-center">
 	<div class="w-full h-full max-w-xl relative">
 		<CardSwiper

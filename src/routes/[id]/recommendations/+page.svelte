@@ -68,6 +68,10 @@
 	});
 </script>
 
+<svelte:head>
+	<title>Movie Recommendations</title>
+</svelte:head>
+
 <div class="overflow-y-auto h-screen" on:scroll={handleScroll}>
 	<div>
 		{#if isLoading}
