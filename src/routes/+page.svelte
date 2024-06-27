@@ -2,8 +2,20 @@
 <script lang="ts">
 	import { Auth } from '@supabase/auth-ui-svelte';
 	import { ThemeSupa } from '@supabase/auth-ui-shared';
+	import { onMount } from 'svelte';
 
 	export let data;
+	const checkIsDarkSchemePreferred = () =>
+		window?.matchMedia?.('(prefers-color-scheme:dark)')?.matches ?? false;
+	let theme: string;
+	onMount(() => {
+		const userPrefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;
+		if (userPrefersDarkMode) {
+			theme = 'dark';
+		} else {
+			theme = 'light';
+		}
+	});
 </script>
 
 <svelte:head>
@@ -17,7 +29,8 @@
 			view="magic_link"
 			redirectTo={`${data.url}/auth/callback`}
 			showLinks={false}
-			appearance={{ theme: ThemeSupa, style: { input: 'color: #fff' } }}
+			appearance={{ theme: ThemeSupa }}
+			{theme}
 		/>
 	</div>
 </div>
