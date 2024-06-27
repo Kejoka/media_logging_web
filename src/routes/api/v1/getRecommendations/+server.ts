@@ -30,18 +30,19 @@ export async function GET({ url }) {
 	//     keywordOrString += prefs.data?.at(i)?.tmdb_id + "|";
 	// }
 	// keywordStrings.push(keywordOrString);
-
+	const discoverParams: DiscoverMovieRequest[] = [];
+	for (const keyword of keywordStrings) {
+		discoverParams.push({
+			page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
+			sort_by: 'popularity.desc',
+			include_adult: false,
+			with_keywords: keyword
+		});
+	}
 	try {
 		const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
-		for (const keyword of keywordStrings) {
-			const params: DiscoverMovieRequest = {
-				page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
-				sort_by: 'popularity.desc',
-				include_adult: false,
-				with_keywords: keyword
-			};
-
-			const response = await tmdb.discoverMovie(params);
+		const responses = await Promise.all(discoverParams.map((param) => tmdb.discoverMovie(param)));
+		for (const response of responses) {
 			let movies = await removeAllNonAdultsAndAddScore(
 				response.results !== undefined ? response.results : [],
 				prefs.data !== null ? prefs.data : []
