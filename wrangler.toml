@@ -1,2 +1,5 @@
+name = "media-logging"
+type = "javascript"
+
 [env.production]
 node_version = "18.18.0"
