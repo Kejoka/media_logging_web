@@ -54,11 +54,10 @@ export async function getRandomNonAdult(movies: MovieResult[]) {
 	return movie;
 }
 
-
 export async function removeAllNonAdults(movies: MovieResult[]) {
-	let filteredMovies: MovieResult[] = [];
+	const filteredMovies: MovieResult[] = [];
 	const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
-	for (let movie of movies) {
+	for (const movie of movies) {
 		try {
 			const keywords = await tmdb.movieKeywords(Number(movie.id));
 			if (Number(keywords.keywords?.length) < KEYWORD_MIN || movie.vote_count == 0) {
@@ -84,10 +83,13 @@ export async function removeAllNonAdults(movies: MovieResult[]) {
 	return filteredMovies;
 }
 
-export async function removeAllNonAdultsAndAddScore(movies: MovieResult[], prefs: { tmdb_id: number, factor: number }[]) {
-	let filteredMovies: (MovieResult & { score: number })[] = [];
+export async function removeAllNonAdultsAndAddScore(
+	movies: MovieResult[],
+	prefs: { tmdb_id: number; factor: number }[]
+) {
+	const filteredMovies: (MovieResult & { score: number })[] = [];
 	const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
-	for (let movie of movies) {
+	for (const movie of movies) {
 		try {
 			const keywords = await tmdb.movieKeywords(Number(movie.id));
 			if (Number(keywords.keywords?.length) < KEYWORD_MIN || movie.vote_count == 0) {
@@ -100,10 +102,8 @@ export async function removeAllNonAdultsAndAddScore(movies: MovieResult[], prefs
 					if (BANNED_KEYWORDS.indexOf(String(keyword.name).toLowerCase()) > -1) {
 						bannedKeywordCheck = true;
 						console.log(`Removing ${movie.title} because of keyword ${keyword.name}`);
-					}
-					else {
-						const keywordIndex = prefs.findIndex(x => x.tmdb_id == keyword.id)
-						const matchCount = 0;
+					} else {
+						const keywordIndex = prefs.findIndex((x) => x.tmdb_id == keyword.id);
 						if (keywordIndex != -1) {
 							// console.log(`${movie.title} has keyword ${keyword.name} with factor ${prefs[keywordIndex].factor}`)
 							movieScore += prefs[keywordIndex].factor;

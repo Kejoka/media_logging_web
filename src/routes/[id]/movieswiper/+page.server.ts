@@ -1,4 +1,4 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({
@@ -22,8 +22,15 @@ export const load: PageServerLoad = async ({
 		// as soon as public user profiles have been implemented
 		redirect(303, `/${profile?.username}/movieswiper?profile=${url.searchParams.get('profile')}`);
 	}
-	const { error } = await supabase.from('preference_profiles').insert({ user_id: session.user.id, name: url.searchParams.get('profile') });
-	const { data } = await supabase.from('preference_profiles').select('id').eq('user_id', session.user.id).eq('name', url.searchParams.get('profile')).single();
+	await supabase
+		.from('preference_profiles')
+		.insert({ user_id: session.user.id, name: url.searchParams.get('profile') });
+	const { data } = await supabase
+		.from('preference_profiles')
+		.select('id')
+		.eq('user_id', session.user.id)
+		.eq('name', url.searchParams.get('profile'))
+		.single();
 	const res = await fetch('/api/v1/initialMovies');
 	const movies: TmdbMovie[] = await res.json();
 

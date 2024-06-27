@@ -6,13 +6,12 @@
 	import type { PageServerData } from './$types';
 	export let data: PageServerData;
 
-	let amountToLoad = 20;
 	let recommendations: Array<TmdbMovie> = [];
 	let isLoading = true;
 	let isFetchingMoreMovies = false;
 	let currentPage = 1;
 
-	async function loadNewMovies(amount: number) {
+	async function loadNewMovies() {
 		let movies: Array<TmdbMovie> = [];
 		try {
 			let res = await fetch(
@@ -36,7 +35,7 @@
 	}
 
 	async function fillArray() {
-		const movies = await loadNewMovies(20);
+		const movies = await loadNewMovies();
 		//remove duplicates
 		const loadedRecommendations = [...recommendations, ...movies];
 		recommendations = loadedRecommendations.filter(

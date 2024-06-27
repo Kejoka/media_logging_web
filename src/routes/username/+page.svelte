@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { goto } from '$app/navigation';
-	import { redirect, type SubmitFunction } from '@sveltejs/kit';
+	import { type SubmitFunction } from '@sveltejs/kit';
 	export let data;
 	export let form;
-	let { session, profile } = data;
-	$: ({ session, profile } = data);
+	let { profile } = data;
+	$: ({ profile } = data);
 	let username: string = profile?.username ?? '';
 	let loading = false;
 
