@@ -3,7 +3,7 @@ import { getRandomNonAdult } from '../../utils.js';
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({}) {
+export async function GET() {
 	const params: PopularMoviesRequest = {
 		language: 'de',
 		page: Math.floor(Math.random() * 100),

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { supabase } from '$lib/supabaseClient';
-	import { CardSwiper, type Direction } from '$lib/CardSwiper';
+	import { CardSwiper, type CardData, type Direction } from '$lib/CardSwiper';
 	import { fade } from 'svelte/transition';
 	import type { PageServerData } from './$types';
 	import type { TmdbMovie } from './+page.server';
@@ -23,7 +23,13 @@
 		data.movies = [...data.movies, movie];
 	}
 
-	async function swipeHandler(cardDetails: any) {
+	async function swipeHandler(cardDetails: {
+		direction: string;
+		index: number;
+		element: HTMLElement;
+		data: CardData;
+	}) {
+		console.log(typeof cardDetails);
 		swipeCount++;
 		// cardDetails:
 		// direction: 'left' | 'right' | 'up'
@@ -32,11 +38,12 @@
 		// data: CardData
 		switch (cardDetails.direction) {
 			case 'left':
-				modifyKeywordPreferences(cardDetails.data.id, -1);
+				modifyKeywordPreferences(Number(cardDetails.data.id), -1);
+				break;
 			case 'up':
 				break;
 			case 'right':
-				modifyKeywordPreferences(cardDetails.data.id, 1);
+				modifyKeywordPreferences(Number(cardDetails.data.id), 1);
 				break;
 			default:
 				break;

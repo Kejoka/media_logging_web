@@ -1,11 +1,7 @@
-import { fail, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({
-	locals: { supabase, safeGetSession },
-	fetch,
-	url
-}) => {
+export const load: PageServerLoad = async ({ locals: { supabase, safeGetSession }, url }) => {
 	const { session } = await safeGetSession();
 	if (!session) {
 		redirect(303, '/');
@@ -23,7 +19,12 @@ export const load: PageServerLoad = async ({
 		redirect(303, `/${profile?.username}/movieswiper?profile=${url.searchParams.get('profile')}`);
 	}
 
-	const { data } = await supabase.from('preference_profiles').select('id').eq('user_id', session.user.id).eq('name', url.searchParams.get('profile')).single();
+	const { data } = await supabase
+		.from('preference_profiles')
+		.select('id')
+		.eq('user_id', session.user.id)
+		.eq('name', url.searchParams.get('profile'))
+		.single();
 
 	return { session, profile, data };
 };
