@@ -4,7 +4,8 @@ import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient.js';
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({ url }) {
+export async function POST({ request, url }) {
+	const reqBody = await request.json();
 	const prefs = await supabase
 		.from('preferences')
 		.select('tmdb_id, factor')
@@ -30,6 +31,7 @@ export async function GET({ url }) {
 	//     keywordOrString += prefs.data?.at(i)?.tmdb_id + "|";
 	// }
 	// keywordStrings.push(keywordOrString);
+	// Prepare discover params for batched requests
 	const discoverParams: DiscoverMovieRequest[] = [];
 	for (const keyword of keywordStrings) {
 		discoverParams.push({
@@ -42,15 +44,25 @@ export async function GET({ url }) {
 	try {
 		const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
 		const responses = await Promise.all(discoverParams.map((param) => tmdb.discoverMovie(param)));
+		// filter loaded movies and remove duplicates before requesting keywords
+		let loadedMovies: MovieResult[] = []
 		for (const response of responses) {
-			let movies = await removeAllNonAdultsAndAddScore(
-				response.results !== undefined ? response.results : [],
-				prefs.data !== null ? prefs.data : []
-			);
-			movies = movies !== undefined ? movies : [];
-			if (movies?.length != 0) {
-				allRecoMovies = [...allRecoMovies, ...movies];
-			}
+			const res: MovieResult[] = response.results != undefined ? response.results : []
+			loadedMovies = [...loadedMovies, ...res];
+		}
+		console.log(reqBody['movieIds'])
+		const movieSet = loadedMovies.filter(
+			(obj, index, self) => index === self.findIndex((t) => t.id === obj.id) && !reqBody['movieIds'].includes(obj.id)
+		);
+		console.log(movieSet.map((m) => m['id']))
+		// remove non adult and add scores
+		let movies = await removeAllNonAdultsAndAddScore(
+			movieSet,
+			prefs.data !== null ? prefs.data : []
+		);
+		movies = movies !== undefined ? movies : [];
+		if (movies?.length != 0) {
+			allRecoMovies = [...allRecoMovies, ...movies];
 		}
 		allRecoMovies.sort((a, b) => b.score - a.score);
 		return new Response(JSON.stringify(allRecoMovies));

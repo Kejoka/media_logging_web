@@ -14,8 +14,17 @@
 	async function loadNewMovies() {
 		let movies: Array<TmdbMovie> = [];
 		try {
+			// Send current rec ids so they can be filtered out server site
+			const movieIds = recommendations.map((m) => m['id']);
 			let res = await fetch(
-				`/api/v1/getRecommendations?user_pref_id=${data.data?.id}&page=${currentPage}`
+				`/api/v1/getRecommendations?user_pref_id=${data.data?.id}&page=${currentPage}`,
+				{
+					method: 'POST',
+					body: JSON.stringify({ movieIds }),
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				}
 			);
 			if (!res.ok) {
 				throw new Error(`Fetching Movie failed ${res}`);

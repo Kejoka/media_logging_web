@@ -3,6 +3,7 @@ import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 
 /** @type {import('./$types').RequestHandler} */
 export async function GET({ url }) {
+	console.log(url.searchParams.toString())
 	const id = Number(url.searchParams.get('id') ?? '0');
 	if (id == 0) {
 		return new Response('No movie id has been passed');

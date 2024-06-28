@@ -12,7 +12,7 @@ export async function GET({ url }) {
 		.order('factor', { ascending: false })
 		.limit(10);
 	const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
-	if (prefs == null) {
+	if (prefs.count == null) {
 		const params: PopularMoviesRequest = {
 			language: 'de',
 			page: Math.floor(Math.random() * 25),

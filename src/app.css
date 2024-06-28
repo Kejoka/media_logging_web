@@ -10,6 +10,12 @@ body {
 	align-items: center;
 }
 
+*::-webkit-scrollbar {
+	display: none;
+	-ms-overflow-style: none;
+	scrollbar-width: none;
+}
+
 .main-container {
 	width: 100%;
 	max-width: 600px;
