@@ -14,7 +14,7 @@ export async function POST({ request, url }) {
 	if (prefs == null) {
 		return new Response(`Error: No preferences found for ${url.searchParams.get('user_pref_id')}`);
 	}
-	const KEYWORD_MAX = 5;
+	const KEYWORD_MAX = 4;
 	const MIN_COMBINATION_LENGTH = 1;
 	const MAX_COMBINATION_LENGTH = 3;
 	const keywordStrings: string[] = getAllCombinations(
@@ -50,11 +50,15 @@ export async function POST({ request, url }) {
 			const res: MovieResult[] = response.results != undefined ? response.results : []
 			loadedMovies = [...loadedMovies, ...res];
 		}
-		console.log(reqBody['movieIds'])
-		const movieSet = loadedMovies.filter(
+		let movieSet = loadedMovies.filter(
 			(obj, index, self) => index === self.findIndex((t) => t.id === obj.id) && !reqBody['movieIds'].includes(obj.id)
 		);
-		console.log(movieSet.map((m) => m['id']))
+		console.log(`Subrequest-Count: ${movieSet.length + keywordStrings.length + 1}`)
+		// limit because of cloudflare
+		if (movieSet.length + keywordStrings.length + 1 > 50) {
+			const maxMovies = 50 - (keywordStrings.length + 1)
+			movieSet = movieSet.splice(0, maxMovies);
+		}
 		// remove non adult and add scores
 		let movies = await removeAllNonAdultsAndAddScore(
 			movieSet,
