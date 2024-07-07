@@ -18,6 +18,10 @@
 	};
 </script>
 
+<svelte:head>
+	<title>Choose Username</title>
+</svelte:head>
+
 <div class="form-widget">
 	<form class="form-widget" method="post" action="?/update" use:enhance={handleUpdate}>
 		<p class="text-center text-md">You must choose a username to be able use Media Logging</p>

@@ -4,7 +4,8 @@ import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient.js';
 
 /** @type {import('./$types').RequestHandler} */
-export async function GET({ url }) {
+export async function POST({ request, url }) {
+	const reqBody = await request.json();
 	const prefs = await supabase
 		.from('preferences')
 		.select('tmdb_id, factor')
@@ -13,7 +14,7 @@ export async function GET({ url }) {
 	if (prefs == null) {
 		return new Response(`Error: No preferences found for ${url.searchParams.get('user_pref_id')}`);
 	}
-	const KEYWORD_MAX = 5;
+	const KEYWORD_MAX = 4;
 	const MIN_COMBINATION_LENGTH = 1;
 	const MAX_COMBINATION_LENGTH = 3;
 	const keywordStrings: string[] = getAllCombinations(
@@ -30,26 +31,42 @@ export async function GET({ url }) {
 	//     keywordOrString += prefs.data?.at(i)?.tmdb_id + "|";
 	// }
 	// keywordStrings.push(keywordOrString);
-
+	// Prepare discover params for batched requests
+	const discoverParams: DiscoverMovieRequest[] = [];
+	for (const keyword of keywordStrings) {
+		discoverParams.push({
+			page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
+			sort_by: 'popularity.desc',
+			include_adult: false,
+			with_keywords: keyword
+		});
+	}
 	try {
 		const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
-		for (const keyword of keywordStrings) {
-			const params: DiscoverMovieRequest = {
-				page: Number(url.searchParams.get('page') !== undefined ? url.searchParams.get('page') : 1),
-				sort_by: 'popularity.desc',
-				include_adult: false,
-				with_keywords: keyword
-			};
-
-			const response = await tmdb.discoverMovie(params);
-			let movies = await removeAllNonAdultsAndAddScore(
-				response.results !== undefined ? response.results : [],
-				prefs.data !== null ? prefs.data : []
-			);
-			movies = movies !== undefined ? movies : [];
-			if (movies?.length != 0) {
-				allRecoMovies = [...allRecoMovies, ...movies];
-			}
+		const responses = await Promise.all(discoverParams.map((param) => tmdb.discoverMovie(param)));
+		// filter loaded movies and remove duplicates before requesting keywords
+		let loadedMovies: MovieResult[] = []
+		for (const response of responses) {
+			const res: MovieResult[] = response.results != undefined ? response.results : []
+			loadedMovies = [...loadedMovies, ...res];
+		}
+		let movieSet = loadedMovies.filter(
+			(obj, index, self) => index === self.findIndex((t) => t.id === obj.id) && !reqBody['movieIds'].includes(obj.id)
+		);
+		console.log(`Subrequest-Count: ${movieSet.length + keywordStrings.length + 1}`)
+		// limit because of cloudflare
+		if (movieSet.length + keywordStrings.length + 1 > 50) {
+			const maxMovies = 50 - (keywordStrings.length + 1)
+			movieSet = movieSet.splice(0, maxMovies);
+		}
+		// remove non adult and add scores
+		let movies = await removeAllNonAdultsAndAddScore(
+			movieSet,
+			prefs.data !== null ? prefs.data : []
+		);
+		movies = movies !== undefined ? movies : [];
+		if (movies?.length != 0) {
+			allRecoMovies = [...allRecoMovies, ...movies];
 		}
 		allRecoMovies.sort((a, b) => b.score - a.score);
 		return new Response(JSON.stringify(allRecoMovies));

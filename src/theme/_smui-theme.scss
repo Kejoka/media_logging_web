@@ -12,8 +12,8 @@ $background: #fff;
 
 html,
 body {
-	background-color: $background;
 	color: if(theme.contrast-tone($background) == 'dark', #000, #fff);
+	
 }
 
 a {

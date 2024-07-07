@@ -12,7 +12,7 @@ export async function GET({ url }) {
 		const keywords = await tmdb.movieKeywords(id);
 		return new Response(JSON.stringify(keywords.keywords !== undefined ? keywords.keywords : []));
 	} catch (error) {
-		console.log('Error on Endpoint getKeywords:\n' + error);
+		console.log(`Error on Endpoint getKeywords for id ${id}: \n ${error}`);
 		return new Response(String(error));
 	}
 }

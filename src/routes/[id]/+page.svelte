@@ -46,6 +46,10 @@
 	};
 </script>
 
+<svelte:head>
+	<title>Profile Page</title>
+</svelte:head>
+
 <div class="form-widget">
 	<form
 		class="form-widget"
@@ -119,3 +123,9 @@
 		Delete Preference Profile
 	</button>
 </div>
+
+<style>
+	.main-container {
+		display: block;
+	}
+</style>
