@@ -13,7 +13,6 @@ $background: #fff;
 html,
 body {
 	color: if(theme.contrast-tone($background) == 'dark', #000, #fff);
-	
 }
 
 a {

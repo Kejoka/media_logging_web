@@ -1,4 +1,9 @@
-import { MovieDb, type DiscoverMovieRequest, type MovieResult, type PopularMoviesRequest } from 'moviedb-promise';
+import {
+	MovieDb,
+	type DiscoverMovieRequest,
+	type MovieResult,
+	type PopularMoviesRequest
+} from 'moviedb-promise';
 import { delay, getBiasedRandom, getRandomNonAdult } from '../../utils.js';
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient.js';
@@ -8,7 +13,7 @@ const RETRIES: number = 5;
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, url }) {
 	const reqBody = await request.json();
-	console.log(reqBody['swipedIds'])
+	console.log(reqBody['swipedIds']);
 	const prefs = await supabase
 		.from('preferences')
 		.select('tmdb_id, factor')
@@ -22,27 +27,23 @@ export async function POST({ request, url }) {
 			page: 1,
 			region: 'DE'
 		};
-		let responseMovie: MovieResult;
 		let try_count = 0;
 		while (try_count < RETRIES) {
 			try {
 				params.page = getBiasedRandom(1, 50);
 				const movies = await tmdb.moviePopular(params);
-				let movieSet: MovieResult[] = []
-				movies.results?.forEach(movie => {
+				const movieSet: MovieResult[] = [];
+				movies.results?.forEach((movie) => {
 					if (!reqBody['swipedIds'].includes(movie.id)) {
 						movieSet.push(movie);
+					} else {
+						console.log(`${movie.title} has already been swiped`);
 					}
-					else {
-						console.log(`${movie.title} has already been swiped`)
-					}
-				})
+				});
 				if (movieSet?.length != 0) {
-					let chosenMovie = await getRandomNonAdult(movieSet !== undefined ? movieSet : []);
+					const chosenMovie = await getRandomNonAdult(movieSet !== undefined ? movieSet : []);
 					if (chosenMovie !== undefined) {
-						return new Response(
-							JSON.stringify(chosenMovie)
-						);
+						return new Response(JSON.stringify(chosenMovie));
 					}
 				}
 			} catch (error) {
@@ -63,27 +64,23 @@ export async function POST({ request, url }) {
 			include_adult: false,
 			with_keywords: String(randomPref?.tmdb_id)
 		};
-		let responseMovie: MovieResult;
 		let try_count = 0;
 		while (try_count < RETRIES) {
 			try {
 				params.page = getBiasedRandom(1, 50);
 				const movies = await tmdb.discoverMovie(params);
-				let movieSet: MovieResult[] = []
-				movies.results?.forEach(movie => {
+				const movieSet: MovieResult[] = [];
+				movies.results?.forEach((movie) => {
 					if (!reqBody['swipedIds'].includes(movie.id)) {
 						movieSet.push(movie);
+					} else {
+						console.log(`${movie.title} has already been swiped`);
 					}
-					else {
-						console.log(`${movie.title} has already been swiped`)
-					}
-				})
+				});
 				if (movieSet?.length != 0) {
-					let chosenMovie = await getRandomNonAdult(movieSet !== undefined ? movieSet : []);
+					const chosenMovie = await getRandomNonAdult(movieSet !== undefined ? movieSet : []);
 					if (chosenMovie !== undefined) {
-						return new Response(
-							JSON.stringify(chosenMovie)
-						);
+						return new Response(JSON.stringify(chosenMovie));
 					}
 				}
 			} catch (error) {

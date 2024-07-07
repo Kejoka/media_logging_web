@@ -123,9 +123,3 @@
 		Delete Preference Profile
 	</button>
 </div>
-
-<style>
-	.main-container {
-		display: block;
-	}
-</style>

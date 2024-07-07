@@ -5,8 +5,8 @@
 	import { onMount } from 'svelte';
 
 	export let data;
-	const checkIsDarkSchemePreferred = () =>
-		window?.matchMedia?.('(prefers-color-scheme:dark)')?.matches ?? false;
+	// const checkIsDarkSchemePreferred = () =>
+	// 	window?.matchMedia?.('(prefers-color-scheme:dark)')?.matches ?? false;
 	let theme: string;
 	onMount(() => {
 		const userPrefersDarkMode = window.matchMedia('(prefers-color-scheme: dark)').matches;

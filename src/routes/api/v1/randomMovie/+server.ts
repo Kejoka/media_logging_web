@@ -7,7 +7,7 @@ const RETRIES: number = 5;
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
 	const reqBody = await request.json();
-	console.log(reqBody['swipedIds'])
+	console.log(reqBody['swipedIds']);
 	const params: PopularMoviesRequest = {
 		language: 'de',
 		page: 1,
@@ -19,22 +19,19 @@ export async function POST({ request }) {
 		try {
 			params.page = getBiasedRandom(1, 150);
 			const movies = await tmdb.moviePopular(params);
-			let movieSet: MovieResult[] = []
-			movies.results?.forEach(movie => {
+			const movieSet: MovieResult[] = [];
+			movies.results?.forEach((movie) => {
 				if (!reqBody['swipedIds'].includes(movie.id)) {
 					movieSet.push(movie);
+				} else {
+					console.log(`${movie.title} has already been swiped`);
 				}
-				else {
-					console.log(`${movie.title} has already been swiped`)
-				}
-			})
+			});
 			if (movieSet?.length != 0) {
 				// console.log(`Chose movie from page ${params.page}`)
-				let chosenMovie = await getRandomNonAdult(movieSet !== undefined ? movieSet : []);
+				const chosenMovie = await getRandomNonAdult(movieSet !== undefined ? movieSet : []);
 				if (chosenMovie !== undefined) {
-					return new Response(
-						JSON.stringify(chosenMovie)
-					);
+					return new Response(JSON.stringify(chosenMovie));
 				}
 			}
 		} catch (error) {

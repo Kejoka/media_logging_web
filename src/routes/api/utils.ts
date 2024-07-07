@@ -28,7 +28,7 @@ const BANNED_KEYWORDS: string[] = [
 
 export async function getRandomNonAdult(movies: MovieResult[]) {
 	let movie: MovieResult;
-	let try_count = 0
+	let try_count = 0;
 	let nonAdultFoundCheck: boolean = false;
 	const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
 	do {
@@ -46,6 +46,7 @@ export async function getRandomNonAdult(movies: MovieResult[]) {
 					}
 				});
 				if (bannedKeywordCheck) {
+					try_count++;
 					continue;
 				}
 			}
@@ -56,7 +57,7 @@ export async function getRandomNonAdult(movies: MovieResult[]) {
 		}
 	} while (!nonAdultFoundCheck || try_count > 10);
 	if (try_count > 10) {
-		return undefined
+		return undefined;
 	}
 	return movie;
 }
@@ -141,5 +142,5 @@ export function getBiasedRandom(min: number, max: number): number {
 
 // Function to add delay
 export function delay(ms: number): Promise<void> {
-	return new Promise(resolve => setTimeout(resolve, ms));
+	return new Promise((resolve) => setTimeout(resolve, ms));
 }

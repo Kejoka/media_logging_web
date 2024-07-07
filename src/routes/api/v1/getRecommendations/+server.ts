@@ -45,18 +45,19 @@ export async function POST({ request, url }) {
 		const tmdb = new MovieDb(PRIVATE_TMDB_V3_KEY);
 		const responses = await Promise.all(discoverParams.map((param) => tmdb.discoverMovie(param)));
 		// filter loaded movies and remove duplicates before requesting keywords
-		let loadedMovies: MovieResult[] = []
+		let loadedMovies: MovieResult[] = [];
 		for (const response of responses) {
-			const res: MovieResult[] = response.results != undefined ? response.results : []
+			const res: MovieResult[] = response.results != undefined ? response.results : [];
 			loadedMovies = [...loadedMovies, ...res];
 		}
 		let movieSet = loadedMovies.filter(
-			(obj, index, self) => index === self.findIndex((t) => t.id === obj.id) && !reqBody['movieIds'].includes(obj.id)
+			(obj, index, self) =>
+				index === self.findIndex((t) => t.id === obj.id) && !reqBody['movieIds'].includes(obj.id)
 		);
-		console.log(`Subrequest-Count: ${movieSet.length + keywordStrings.length + 1}`)
+		console.log(`Subrequest-Count: ${movieSet.length + keywordStrings.length + 1}`);
 		// limit because of cloudflare
 		if (movieSet.length + keywordStrings.length + 1 > 50) {
-			const maxMovies = 50 - (keywordStrings.length + 1)
+			const maxMovies = 50 - (keywordStrings.length + 1);
 			movieSet = movieSet.splice(0, maxMovies);
 		}
 		// remove non adult and add scores
