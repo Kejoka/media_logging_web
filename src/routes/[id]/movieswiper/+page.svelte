@@ -11,16 +11,36 @@
 	let swipe: (direction?: Direction) => void;
 	let thresholdPassed = 0;
 	let swipeCount = 0;
+	let swipedIds: number[] = [];
 
 	async function loadNewCard() {
 		let res: Response;
-		if (swipeCount % 2 == 0) {
-			res = await fetch(`/api/v1/randomMovieFromKeyword?user_pref_id=${Number(data.data?.id)}`);
-		} else {
-			res = await fetch('/api/v1/randomMovie');
+		let try_count = 0;
+		while (try_count < 10) {
+			if (swipeCount % 2 == 0) {
+				res = await fetch(`/api/v1/randomMovieFromKeyword?user_pref_id=${Number(data.data?.id)}`, {
+					method: 'POST',
+					body: JSON.stringify({ swipedIds }),
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
+			} else {
+				res = await fetch('/api/v1/randomMovie', {
+					method: 'POST',
+					body: JSON.stringify({ swipedIds }),
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
+			}
+			const movie: TmdbMovie = await res.json();
+			if (movie.id != undefined) {
+				try_count = 199;
+				data.movies = [...data.movies, movie];
+			}
+			try_count++;
 		}
-		const movie: TmdbMovie = await res.json();
-		data.movies = [...data.movies, movie];
 	}
 
 	async function swipeHandler(cardDetails: {
@@ -29,26 +49,34 @@
 		element: HTMLElement;
 		data: CardData;
 	}) {
-		console.log(typeof cardDetails);
-		swipeCount++;
-		// cardDetails:
-		// direction: 'left' | 'right' | 'up'
-		// index: number
-		// element: HTMLElement
-		// data: CardData
-		switch (cardDetails.direction) {
-			case 'left':
-				modifyKeywordPreferences(Number(cardDetails.data.id), -1);
-				break;
-			case 'up':
-				break;
-			case 'right':
-				modifyKeywordPreferences(Number(cardDetails.data.id), 1);
-				break;
-			default:
-				break;
+		if (cardDetails.data.id != undefined) {
+			swipedIds.push(Number(cardDetails.data.id));
+			swipeCount++;
+			// cardDetails:
+			// direction: 'left' | 'right' | 'up'
+			// index: number
+			// element: HTMLElement
+			// data: CardData
+			switch (cardDetails.direction) {
+				case 'left':
+					modifyKeywordPreferences(Number(cardDetails.data.id), -1);
+					break;
+				case 'up':
+					break;
+				case 'right':
+					modifyKeywordPreferences(Number(cardDetails.data.id), 1);
+					break;
+				default:
+					break;
+			}
+			await loadNewCard();
+		} else {
+			swipeCount++;
+			alert('An error has ocurred. This swipe has not been counted');
+			await loadNewCard();
+			await loadNewCard();
+			// console.log(cardDetails, data.movies, data.movies[cardDetails.index]['id']);
 		}
-		loadNewCard();
 	}
 
 	async function modifyKeywordPreferences(id: number, value: number) {
@@ -77,6 +105,7 @@
 		<CardSwiper
 			bind:swipe
 			cardData={(index) => {
+				// console.log(index, data.movies.length, data.movies, data.movies[index].title);
 				return {
 					title: data.movies[index].title,
 					image: `https://image.tmdb.org/t/p/w500/${data.movies[index].poster_path}`,
