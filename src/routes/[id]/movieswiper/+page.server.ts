@@ -31,8 +31,26 @@ export const load: PageServerLoad = async ({
 		.eq('user_id', session.user.id)
 		.eq('name', url.searchParams.get('profile'))
 		.single();
-	const res = await fetch('/api/v1/initialMovies');
-	const movies: TmdbMovie[] = await res.json();
+	const movies = [];
+	const swipedIds: number[] = [];
+	for (let i = 0; i < 5; i++) {
+		try {
+			const res = await fetch('/api/v1/randomMovie', {
+				method: 'POST',
+				body: JSON.stringify({ swipedIds }),
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			console.log(res);
+			const movie: TmdbMovie = await res.json();
+			console.log(`Loaded: ${movie.title}`);
+			swipedIds.push(movie.id);
+			movies.push(movie);
+		} catch (error) {
+			console.log(`Error on page load: ${error}`);
+		}
+	}
 
 	return { session, profile, movies, data };
 };

@@ -36,7 +36,7 @@
 				});
 			}
 			const movie: TmdbMovie = await res.json();
-			console.log(`Loaded: ${movie.title}`);
+			// console.log(`Loaded: ${movie.title}`);
 			swipedIds.push(movie.id);
 			if (movie.id != undefined) {
 				loadedMovies = [...loadedMovies, movie];
@@ -46,9 +46,10 @@
 		}
 	}
 
-	async function fillMovies() {
-		if (loadedMovies.length < 10) {
-			for (let i = 0; i < 10 - loadedMovies.length; i++) {
+	async function fillMovies(index: number) {
+		// console.log(`INDEX: ${index} | MOVIELIST LENGTH: ${loadedMovies.length}`);
+		if (loadedMovies.length - index < 10) {
+			for (let i = 0; i < 10 - loadedMovies.length - index; i++) {
 				await loadNewCard();
 			}
 		}
@@ -112,7 +113,6 @@
 		<CardSwiper
 			bind:swipe
 			cardData={(index) => {
-				console.log(index, loadedMovies.length, loadedMovies, loadedMovies[index].title);
 				return {
 					title: loadedMovies[index].title,
 					image: `https://image.tmdb.org/t/p/w500/${loadedMovies[index].poster_path}`,
@@ -120,7 +120,7 @@
 				};
 			}}
 			on:swiped={async (e) => {
-				await fillMovies();
+				await fillMovies(e.detail.index);
 				await swipeHandler(e.detail);
 			}}
 			bind:thresholdPassed
