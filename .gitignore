@@ -1,4 +1,6 @@
 .DS_Store
+.wrangler
+.vscode
 node_modules
 /build
 /.svelte-kit

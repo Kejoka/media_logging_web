@@ -12,12 +12,13 @@
 	let thresholdPassed = 0;
 	let swipeCount = 0;
 	let swipedIds: number[] = [];
+	let loadedMovies = data.movies;
 
 	async function loadNewCard() {
 		let res: Response;
 		let try_count = 0;
 		while (try_count < 10) {
-			if (swipeCount % 2 == 0) {
+			if (swipeCount++ % 2 == 0) {
 				res = await fetch(`/api/v1/randomMovieFromKeyword?user_pref_id=${Number(data.data?.id)}`, {
 					method: 'POST',
 					body: JSON.stringify({ swipedIds }),
@@ -35,11 +36,21 @@
 				});
 			}
 			const movie: TmdbMovie = await res.json();
+			console.log(`Loaded: ${movie.title}`);
+			swipedIds.push(movie.id);
 			if (movie.id != undefined) {
-				try_count = 199;
-				data.movies = [...data.movies, movie];
+				loadedMovies = [...loadedMovies, movie];
+				break;
 			}
 			try_count++;
+		}
+	}
+
+	async function fillMovies() {
+		if (loadedMovies.length < 10) {
+			for (let i = 0; i < 10 - loadedMovies.length; i++) {
+				await loadNewCard();
+			}
 		}
 	}
 
@@ -50,8 +61,6 @@
 		data: CardData;
 	}) {
 		if (cardDetails.data.id != undefined) {
-			swipedIds.push(Number(cardDetails.data.id));
-			swipeCount++;
 			// cardDetails:
 			// direction: 'left' | 'right' | 'up'
 			// index: number
@@ -71,11 +80,9 @@
 			}
 			await loadNewCard();
 		} else {
-			swipeCount++;
 			alert('An error has ocurred. This swipe has not been counted');
 			await loadNewCard();
-			await loadNewCard();
-			// console.log(cardDetails, data.movies, data.movies[cardDetails.index]['id']);
+			// console.log(cardDetails, loadedMovies, loadedMovies[cardDetails.index]['id']);
 		}
 	}
 
@@ -105,15 +112,16 @@
 		<CardSwiper
 			bind:swipe
 			cardData={(index) => {
-				// console.log(index, data.movies.length, data.movies, data.movies[index].title);
+				console.log(index, loadedMovies.length, loadedMovies, loadedMovies[index].title);
 				return {
-					title: data.movies[index].title,
-					image: `https://image.tmdb.org/t/p/w500/${data.movies[index].poster_path}`,
-					id: data.movies[index].id
+					title: loadedMovies[index].title,
+					image: `https://image.tmdb.org/t/p/w500/${loadedMovies[index].poster_path}`,
+					id: loadedMovies[index].id
 				};
 			}}
-			on:swiped={(e) => {
-				swipeHandler(e.detail);
+			on:swiped={async (e) => {
+				await fillMovies();
+				await swipeHandler(e.detail);
 			}}
 			bind:thresholdPassed
 		/>
