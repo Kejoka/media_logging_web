@@ -2,7 +2,6 @@
 	import type { TmdbMovie } from './+page.server';
 	import RecommendationList from '$lib/RecommendationList/RecommendationList.svelte';
 	import { onMount } from 'svelte';
-	import CircularProgress from '@smui/circular-progress';
 	import type { PageServerData } from './$types';
 	export let data: PageServerData;
 
@@ -85,9 +84,8 @@
 	<div>
 		{#if isLoading}
 			<div style="display: flex; justify-content: center">
-				<CircularProgress style="height: 32px; width: 32px;" indeterminate />
+				<span class="loading loading-spinner"></span>
 			</div>
-			<p class="text-center p-8">Loading...</p>
 		{:else if recommendations.length < 20}
 			<div class="flex-col text-center">
 				<p class="text-3xl">Sorry, No recommendations yet 😓</p>
@@ -97,9 +95,8 @@
 			<RecommendationList cards={recommendations} />
 			{#if isFetchingMoreMovies}
 				<div style="display: flex; justify-content: center">
-					<CircularProgress style="height: 32px; width: 32px;" indeterminate />
+					<span class="loading loading-spinner"></span>
 				</div>
-				<p class="text-center p-8">Loading more...</p>
 			{/if}
 		{/if}
 	</div>

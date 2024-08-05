@@ -1,5 +1,5 @@
 import { MovieDb, type PopularMoviesRequest, type MovieResult } from 'moviedb-promise';
-import { delay, getBiasedRandom, getRandomNonAdult } from '../../utils.js';
+import { delay, getBiasedRandom, getRandomNonAdult } from '$lib/utils.js';
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 
 const RETRIES: number = 5;

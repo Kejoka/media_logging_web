@@ -1,5 +1,5 @@
 import { MovieDb, type DiscoverMovieRequest, type MovieResult } from 'moviedb-promise';
-import { removeAllNonAdultsAndAddScore } from '../../utils.js';
+import { removeAllNonAdultsAndAddScore } from '$lib/utils.js';
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient.js';
 

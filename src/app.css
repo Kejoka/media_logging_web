@@ -2,7 +2,30 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
+/* Gesamte Scrollleiste */
+::-webkit-scrollbar {
+    width: 0.5vw; /* Breite der vertikalen Scrollleiste */
+    height: 0.5vw; /* Höhe der horizontalen Scrollleiste */
+}
+
+/* Schiene der Scrollleiste */
+::-webkit-scrollbar-track {
+    background: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity))); 
+    /* border-radius: 10px; */
+}
+
+/* Griff der Scrollleiste */
+::-webkit-scrollbar-thumb {
+    background: var(--fallback-b3,oklch(var(--b3)/var(--tw-bg-opacity))); 
+    border-radius: 15px;
+}
+
+/* Griff der Scrollleiste beim Hovern */
+::-webkit-scrollbar-thumb:hover {
+    background: #555; 
+}
+
+/* body {
 	height: 100vh;
 	max-height: 100svh;
 	display: flex;
@@ -73,8 +96,6 @@ body {
 	}
 }
 
-/* Forms */
-
 label {
 	display: block;
 	margin: 5px 0;
@@ -97,8 +118,6 @@ input[disabled] {
 	color: var(--custom-color-secondary);
 }
 
-/* Utils */
-
 .block {
 	display: block;
 	width: 100%;
@@ -108,8 +127,6 @@ input[disabled] {
 	display: inline-block;
 	width: 100%;
 }
-
-/* Button */
 
 button,
 .button {
@@ -150,4 +167,4 @@ button.primary,
 
 .form-widget .button:hover {
 	background-color: var(--custom-panel-color-hover);
-}
+} */

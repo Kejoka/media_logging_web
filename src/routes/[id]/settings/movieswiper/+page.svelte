@@ -4,9 +4,11 @@
 	import { fade } from 'svelte/transition';
 	import type { PageServerData } from './$types';
 	import type { TmdbMovie } from './+page.server';
+	import ThumbUp from '$lib/Icons/thumb_up.svelte';
+	import ThumbDown from '$lib/Icons/thumb_down.svelte';
+	import ThumbsUpDown from '$lib/Icons/thumbs_up_down.svelte';
 	/** @type {import('./$types').PageServerData} */
 	export let data: PageServerData;
-	import Fab, { Icon } from '@smui/fab';
 
 	let swipe: (direction?: Direction) => void;
 	let thresholdPassed = 0;
@@ -126,15 +128,15 @@
 			bind:thresholdPassed
 		/>
 		<div class="absolute flex -bottom-8 w-full justify-evenly order-first">
-			<Fab class=" bg-[#424242]/85 z-10" on:click={() => swipe('left')}>
-				<Icon class="material-icons">thumb_down</Icon>
-			</Fab>
-			<Fab class=" bg-[#424242]/85 z-10" on:click={() => swipe('up')}>
-				<Icon class="material-icons">thumbs_up_down</Icon>
-			</Fab>
-			<Fab class=" bg-[#424242]/85 z-10" on:click={() => swipe('right')}>
-				<Icon class="material-icons">thumb_up</Icon>
-			</Fab>
+			<button class="btn btn-circle" on:click={() => swipe('left')}>
+				<ThumbDown></ThumbDown>
+			</button>
+			<button class="btn btn-circle" on:click={() => swipe('up')}>
+				<ThumbsUpDown></ThumbsUpDown>
+			</button>
+			<button class="btn btn-circle" on:click={() => swipe('right')}>
+				<ThumbUp></ThumbUp>
+			</button>
 		</div>
 		{#if thresholdPassed !== 0}
 			<div
@@ -142,11 +144,11 @@
 				class="absolute w-full h-full inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center text-9xl pointer-events-none z-0"
 			>
 				{#if thresholdPassed === 1}
-					<Icon class="material-icons opacity-70 scale-[5]">thumb_up</Icon>
+					<ThumbUp></ThumbUp>
 				{:else if thresholdPassed === -1}
-					<Icon class="material-icons opacity-70 scale-[5]">thumb_down</Icon>
+					<ThumbDown></ThumbDown>
 				{:else if thresholdPassed === 2}
-					<Icon class="material-icons opacity-70 scale-[5]">thumbs_up_down</Icon>
+					<ThumbsUpDown></ThumbsUpDown>
 				{/if}
 			</div>
 		{/if}

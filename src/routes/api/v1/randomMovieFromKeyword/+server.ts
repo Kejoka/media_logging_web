@@ -4,7 +4,7 @@ import {
 	type MovieResult,
 	type PopularMoviesRequest
 } from 'moviedb-promise';
-import { delay, getBiasedRandom, getRandomNonAdult } from '../../utils.js';
+import { delay, getBiasedRandom, getRandomNonAdult } from '$lib/utils.js';
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import { supabase } from '$lib/supabaseClient.js';
 

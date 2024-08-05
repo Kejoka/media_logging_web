@@ -1,6 +1,5 @@
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import { MovieDb, type MovieResult } from 'moviedb-promise';
-
 // IMPORTANT: There might be movies that are not pornographic but instead deals with the pornography industry.
 // Said movies as well a lesser known movies without keywords will be removed here
 const KEYWORD_MIN = 1;
