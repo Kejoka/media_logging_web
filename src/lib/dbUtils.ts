@@ -1,4 +1,4 @@
-export function getYears(db_data: mediaObject[]) {
+export function getYears(db_data: mediaObject[], active_year: string) {
     const currentYear = new Date().getFullYear()
     let uniqueYears = [...new Set(db_data.map(obj => new Date(obj.added || 404).getFullYear()))].sort()
     if (uniqueYears.indexOf(currentYear) == -1) {
@@ -8,8 +8,13 @@ export function getYears(db_data: mediaObject[]) {
         year: value.toString(),
         active: false
     }));
-    newYearObjects[newYearObjects.findIndex(obj => obj.year == currentYear.toString())].active = true;
     newYearObjects.push({ year: 'Gesamt', active: false })
+    if (newYearObjects.some(obj => obj.year === active_year)) {
+        newYearObjects[newYearObjects.findIndex(obj => obj.year === active_year)].active = true;
+    }
+    else {
+        newYearObjects[newYearObjects.findIndex(obj => obj.year === String(currentYear))].active = true;
+    }
     return newYearObjects
 }
 

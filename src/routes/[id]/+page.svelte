@@ -12,7 +12,7 @@
 	let current_medium = 'movies';
 	let current_year = String(new Date().getFullYear());
 	let year_media_data: mediaObject[] = movies.data ? movies.data : [];
-	let years_in_db = getYears(year_media_data);
+	let years_in_db = getYears(year_media_data, current_year);
 	let current_suggestions: mediaObject[] = [];
 	let searchVal: string;
 	let inputTimeout = setTimeout(function () {}, 0);
@@ -48,8 +48,9 @@
 				.eq('user_id', session.user.id)
 				.eq('backlogged', 0)
 				.order('added', { ascending: false });
-			years_in_db = getYears(year_base_data.data as mediaObject[]);
-			current_year = String(new Date().getFullYear());
+			years_in_db = getYears(year_base_data.data as mediaObject[], current_year);
+			current_year =
+				years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
 			let new_data;
 			if (isNaN(Number(current_year))) {
 				new_data = year_base_data;
@@ -96,7 +97,7 @@
 		current_year = year;
 	}
 
-	async function refreshCardList() {
+	async function refreshCardList(set_year: string) {
 		try {
 			const year_base_data = await supabase
 				.from(current_medium)
@@ -104,7 +105,9 @@
 				.eq('user_id', session.user.id)
 				.eq('backlogged', 0)
 				.order('added', { ascending: false });
-			years_in_db = getYears(year_base_data.data as mediaObject[]);
+			years_in_db = getYears(year_base_data.data as mediaObject[], set_year);
+			current_year =
+				years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
 			let new_data;
 			if (isNaN(Number(current_year))) {
 				new_data = year_base_data;
@@ -149,14 +152,17 @@
 				'Content-Type': 'application/json'
 			}
 		});
-		console.log(await res.json());
-		await refreshCardList();
+		await refreshCardList(selectedDate.getFullYear().toString());
 		date_modal.checked = false;
 		form_modal.checked = false;
 	}
 
 	async function deleteMedium(event: any) {
 		const medium_id = event.detail.id;
+		const collapseInput = document.getElementById(String(medium_id));
+		if (collapseInput != null) {
+			collapseInput.checked = !collapseInput.checked;
+		}
 		const res = await fetch('/api/v1/deleteMedium', {
 			method: 'POST',
 			body: JSON.stringify({ medium_id, current_medium }),
@@ -164,8 +170,7 @@
 				'Content-Type': 'application/json'
 			}
 		});
-		console.log(await res.json());
-		await refreshCardList();
+		await refreshCardList(current_year);
 	}
 
 	function getMediaCodeString() {
