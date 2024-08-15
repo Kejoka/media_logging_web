@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Gesamte Scrollleiste */
+::-webkit-scrollbar {
+    width: 0.5vw; /* Breite der vertikalen Scrollleiste */
+    height: 0.5vw; /* Höhe der horizontalen Scrollleiste */
+}
+
+/* Schiene der Scrollleiste */
+::-webkit-scrollbar-track {
+    background: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity))); 
+    /* border-radius: 10px; */
+}
+
+/* Griff der Scrollleiste */
+::-webkit-scrollbar-thumb {
+    background: var(--fallback-b3,oklch(var(--b3)/var(--tw-bg-opacity))); 
+    border-radius: 15px;
+}
+
+/* Griff der Scrollleiste beim Hovern */
+::-webkit-scrollbar-thumb:hover {
+    background: #555; 
+}
