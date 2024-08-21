@@ -11,6 +11,8 @@
 
 	let current_medium = 'movies';
 	let current_year = String(new Date().getFullYear());
+	let current_mode = 0;
+	let headerText = getModeString();
 	let year_media_data: mediaObject[] = movies.data ? movies.data : [];
 	let years_in_db = getYears(year_media_data, current_year);
 	let current_suggestions: mediaObject[] = [];
@@ -19,7 +21,7 @@
 	let selectedDate = new Date();
 	let last_selection: mediaObject = {} as mediaObject;
 	let date_modal: HTMLInputElement;
-	let form_modal: HTMLInputElement;
+	let search_modal: HTMLInputElement;
 	let form_text: string = getMediaCodeString();
 	let loading = false;
 
@@ -39,18 +41,22 @@
 		(obj) => new Date(obj.added || 404).getFullYear() == Number(current_year)
 	);
 
-	async function handleSwitch(event: any) {
+	async function handleMediaSwitch(event: any) {
 		let medium = indexToMedium(event.detail.index);
 		try {
 			const year_base_data = await supabase
 				.from(medium)
 				.select()
 				.eq('user_id', session.user.id)
-				.eq('backlogged', 0)
+				.eq('backlogged', current_mode)
 				.order('added', { ascending: false });
-			years_in_db = getYears(year_base_data.data as mediaObject[], current_year);
-			current_year =
-				years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
+			if (current_mode == 0) {
+				years_in_db = getYears(year_base_data.data as mediaObject[], current_year);
+				current_year =
+					years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
+			} else {
+				years_in_db = years_in_db.slice(-1);
+			}
 			let new_data;
 			if (isNaN(Number(current_year))) {
 				new_data = year_base_data;
@@ -59,7 +65,7 @@
 					.from(medium)
 					.select()
 					.eq('user_id', session.user.id)
-					.eq('backlogged', 0)
+					.eq('backlogged', current_mode)
 					.lt('added', `${Number(current_year) + 1}-01-01`)
 					.gte('added', `${current_year}-01-01`)
 					.order('added', { ascending: false });
@@ -72,6 +78,17 @@
 		}
 	}
 
+	async function handleModeSwitch(event: any) {
+		current_mode = event.detail.mode;
+		headerText = getModeString();
+		if (current_mode == 0) {
+			await refreshCardList(new Date().getFullYear.toString());
+		} else {
+			await refreshCardList('Gesamt');
+			years_in_db = years_in_db.slice(-1);
+		}
+	}
+
 	async function handleYearSwitch(event: any) {
 		const year = event.detail.year.year;
 		let new_data;
@@ -80,14 +97,14 @@
 				.from(current_medium)
 				.select()
 				.eq('user_id', session.user.id)
-				.eq('backlogged', 0)
+				.eq('backlogged', current_mode)
 				.order('added', { ascending: false });
 		} else {
 			new_data = await supabase
 				.from(current_medium)
 				.select()
 				.eq('user_id', session.user.id)
-				.eq('backlogged', 0)
+				.eq('backlogged', current_mode)
 				.lt('added', `${Number(year) + 1}-01-01`)
 				.gte('added', `${year}-01-01`)
 				.order('added', { ascending: false });
@@ -103,7 +120,7 @@
 				.from(current_medium)
 				.select()
 				.eq('user_id', session.user.id)
-				.eq('backlogged', 0)
+				.eq('backlogged', current_mode)
 				.order('added', { ascending: false });
 			years_in_db = getYears(year_base_data.data as mediaObject[], set_year);
 			current_year =
@@ -116,7 +133,7 @@
 					.from(current_medium)
 					.select()
 					.eq('user_id', session.user.id)
-					.eq('backlogged', 0)
+					.eq('backlogged', current_mode)
 					.lt('added', `${Number(current_year) + 1}-01-01`)
 					.gte('added', `${current_year}-01-01`)
 					.order('added', { ascending: false });
@@ -129,6 +146,7 @@
 
 	function handleInput() {
 		loading = true;
+		current_suggestions = [];
 		clearTimeout(inputTimeout);
 		inputTimeout = setTimeout(async () => {
 			const res = await fetch('/api/v1/getSearchSuggestions', {
@@ -145,6 +163,7 @@
 
 	async function addMedium() {
 		last_selection.added = selectedDate.toISOString();
+		last_selection.backlogged = current_mode;
 		const res = await fetch('/api/v1/addMedium', {
 			method: 'POST',
 			body: JSON.stringify({ last_selection, current_medium, user_id: session.user.id }),
@@ -152,9 +171,14 @@
 				'Content-Type': 'application/json'
 			}
 		});
-		await refreshCardList(selectedDate.getFullYear().toString());
+		if (current_mode == 0) {
+			await refreshCardList(selectedDate.getFullYear().toString());
+		} else {
+			await refreshCardList('Gesamt');
+			years_in_db = years_in_db.slice(-1);
+		}
 		date_modal.checked = false;
-		form_modal.checked = false;
+		search_modal.checked = false;
 	}
 
 	async function deleteMedium(event: any) {
@@ -170,7 +194,12 @@
 				'Content-Type': 'application/json'
 			}
 		});
-		await refreshCardList(current_year);
+		if (current_mode == 0) {
+			await refreshCardList(current_year);
+		} else {
+			await refreshCardList('Gesamt');
+			years_in_db = years_in_db.slice(-1);
+		}
 	}
 
 	function getMediaCodeString() {
@@ -187,30 +216,51 @@
 				return 'Error';
 		}
 	}
+
+	function getModeString() {
+		switch (current_mode) {
+			case 0:
+				return 'Medien Log';
+			case 1:
+				return 'Backlog';
+			default:
+				return 'ERROR';
+		}
+	}
 </script>
 
 <div class="flex flex-col h-screen">
 	<TopBar
-		on:switch={handleSwitch}
-		header={`${profile.username}'s Watchlist`}
+		on:switchMedium={handleMediaSwitch}
+		on:switchMode={handleModeSwitch}
+		header={`${profile.username}'s ${headerText}`}
 		settingsButton={true}
 		navBackButton={false}
 	></TopBar>
-	<CardList {media_data} {current_medium} on:delete={deleteMedium}></CardList>
+	<CardList
+		{media_data}
+		{current_medium}
+		{current_mode}
+		on:delete={deleteMedium}
+		on:refresh={() => refreshCardList(current_year)}
+	></CardList>
 	<button
 		on:click={() => {
 			searchVal = '';
 			selectedDate = new Date();
-			form_modal.checked = true;
+			search_modal.checked = true;
 			current_suggestions = [];
 		}}
 		class="btn btn-neutral flex fixed bottom-[7.5%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
 	>
 		+
 	</button>
+
 	<YearBar on:switch={handleYearSwitch} years={years_in_db}></YearBar>
+
 	<!-- Modals from here on -->
-	<input type="checkbox" id="form_modal" class="modal-toggle" bind:this={form_modal} />
+	<!-- SearchModal -->
+	<input type="checkbox" id="search_modal" class="modal-toggle" bind:this={search_modal} />
 	<div class="modal" role="dialog">
 		<div class="modal-box">
 			<p class=" font-bold text-lg text-center mb-3">{form_text} hinzufügen</p>
@@ -241,7 +291,11 @@
 						class="btn w-full mb-3 h-fit py-2"
 						on:click={() => {
 							last_selection = suggestion;
-							date_modal.checked = true;
+							if (current_mode == 0) {
+								date_modal.checked = true;
+							} else {
+								addMedium();
+							}
 						}}
 					>
 						<div class="flex flex-col">
@@ -262,8 +316,9 @@
 				{/if}
 			</div>
 		</div>
-		<label class="modal-backdrop" for="form_modal">Close</label>
+		<label class="modal-backdrop" for="search_modal">Close</label>
 	</div>
+	<!-- DateModal -->
 	<input type="checkbox" id="date_modal" class="modal-toggle" bind:this={date_modal} />
 	<div class="modal" role="dialog">
 		<div class="modal-box flex flex-col">

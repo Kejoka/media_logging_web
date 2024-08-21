@@ -16,14 +16,14 @@
 		let new_tab_states = [false, false, false, false];
 		new_tab_states[tab_index] = true;
 		tab_states = new_tab_states;
-		dispatch('switch', {
+		dispatch('switchMedium', {
 			index: tab_index
 		});
 	}
 </script>
 
 <div class="z-10 w-full h-fit">
-	<NavBar {header} {navBackButton} {settingsButton}></NavBar>
+	<NavBar on:switchMode {header} {navBackButton} {settingsButton}></NavBar>
 	<div role="tablist" class="tabs tabs-bordered bg-base-100">
 		<button
 			role="tab"

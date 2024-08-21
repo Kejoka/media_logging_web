@@ -22,7 +22,7 @@ export async function POST({ request }) {
                     platforms: medium.platforms,
                     averagerating: Number(medium.averagerating / 10).toFixed(1),
                     rating: 0,
-                    backlogged: medium.backlog || 0,
+                    backlogged: medium.backlogged || 0,
                     added: medium.added,
                     trophy: 0
                 })
@@ -37,7 +37,7 @@ export async function POST({ request }) {
                     genres: medium.genres,
                     averagerating: medium.averagerating.toFixed(1),
                     rating: 0,
-                    backlogged: medium.backlog || 0,
+                    backlogged: medium.backlogged || 0,
                     added: medium.added
                 })
                 return new Response(JSON.stringify(error));
@@ -51,7 +51,7 @@ export async function POST({ request }) {
                     genres: medium.genres,
                     averagerating: medium.averagerating.toFixed(1),
                     rating: 0,
-                    backlogged: medium.backlog || 0,
+                    backlogged: medium.backlogged || 0,
                     added: medium.added
                 })
                 return new Response(JSON.stringify(error));
@@ -68,7 +68,7 @@ export async function POST({ request }) {
                     pagecount: medium.pagecount,
                     averagerating: Number(medium.averagerating * 2).toFixed(1),
                     rating: 0,
-                    backlogged: medium.backlog || 0,
+                    backlogged: medium.backlogged || 0,
                     added: medium.added
                 })
                 return new Response(JSON.stringify(error));

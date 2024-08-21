@@ -6,6 +6,7 @@
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
 	export let config;
+	export let current_mode;
 </script>
 
 <div class="px-2 pb-2">
@@ -40,20 +41,24 @@
 					</p>
 				</div>
 			</div>
-			<div class="px-2 h-fit my-auto">
-				<StarRating
-					{config}
-					on:change={() => dispatch('updateScore', { new_score: config.score, medium })}
-				></StarRating>
-			</div>
+			{#if current_mode == 0}
+				<div class="px-2 h-fit my-auto">
+					<StarRating
+						{config}
+						on:change={() => dispatch('updateScore', { new_score: config.score, medium })}
+					></StarRating>
+				</div>
+			{/if}
 		</div>
-		<div class="collapse-content flex flex-row justify-center pt-0 px-2">
-			<div class="w-full mt-3">
-				<button
-					class="btn min-h-[100%] h-[100%] btn-error font-bold w-full"
-					on:click={() => dispatch('delete', medium)}>Karte löschen</button
-				>
-			</div>
+		<div class="collapse-content pt-0 px-2">
+			<button
+				class="btn min-h-[45%] h-[45%] btn-warning font-bold w-full my-2"
+				on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
+			>
+			<button
+				class="btn min-h-[45%] h-[45%] btn-error font-bold w-full mb-2"
+				on:click={() => dispatch('delete', medium)}>Karte löschen</button
+			>
 		</div>
 	</div>
 </div>
