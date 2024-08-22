@@ -39,7 +39,7 @@ export async function POST({ request }) {
                     added: toEdit.added && toEdit.added.trim().length > 0 ? toEdit.added : new Date().toISOString(),
                     notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null,
                     seasons: toEdit.seasons && toEdit.seasons.trim().length > 0 ? toEdit.seasons : null,
-                    episode: toEdit.episode && toEdit.episode.trim().length > 0 ? toEdit.episode : null
+                    episode: toEdit.episode && toEdit.episode.trim().length > 0 ? toEdit.episode : 0
                 }).eq('id', toEdit.id)
                 return new Response(JSON.stringify(error));
             case 'books':
