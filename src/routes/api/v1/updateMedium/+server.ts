@@ -11,47 +11,47 @@ export async function POST({ request }) {
         switch (current_medium) {
             case 'games':
                 error = await supabase.from(current_medium).update({
-                    title: toEdit.title,
-                    image: toEdit.image,
-                    release: toEdit.release,
-                    genres: toEdit.genres,
-                    platforms: toEdit.platforms,
-                    added: toEdit.added,
-                    notes: toEdit.notes
+                    title: toEdit.title.trim().length > 0 ? toEdit.title.trim() : 'Kein Titel angegeben',
+                    image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image.trim() : null,
+                    release: toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release.trim() : null,
+                    genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres.trim() : null,
+                    platforms: toEdit.platforms && toEdit.platforms.trim().length > 0 ? toEdit.platforms.trim() : null,
+                    added: toEdit.added && toEdit.added.trim().length > 0 ? toEdit.added.trim() : new Date().toISOString(),
+                    notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes.trim() : null
                 }).eq('id', toEdit.id)
                 return new Response(JSON.stringify(error));
             case 'movies':
                 error = await supabase.from(current_medium).update({
-                    title: toEdit.title,
-                    image: toEdit.image,
-                    release: toEdit.release,
-                    genres: toEdit.genres,
-                    added: toEdit.added,
-                    notes: toEdit.notes
+                    title: toEdit.title && toEdit.title.trim().length > 0 ? toEdit.title.trim() : 'Kein Titel angegeben',
+                    image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image.trim() : null,
+                    release: toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release.trim() : null,
+                    genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres.trim() : null,
+                    added: toEdit.added && toEdit.added.trim().length > 0 ? toEdit.added.trim() : new Date().toISOString(),
+                    notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes.trim() : null
                 }).eq('id', toEdit.id)
                 return new Response(JSON.stringify(error));
             case 'shows':
                 error = await supabase.from(current_medium).update({
-                    title: toEdit.title,
-                    image: toEdit.image,
-                    release: toEdit.release,
-                    genres: toEdit.genres,
-                    added: toEdit.added,
-                    notes: toEdit.notes,
-                    seasons: toEdit.seasons,
-                    episode: toEdit.episode
+                    title: toEdit.title && toEdit.title.trim().length > 0 ? toEdit.title : 'Kein Titel angegeben',
+                    image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image : null,
+                    release: toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release : null,
+                    genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres : null,
+                    added: toEdit.added && toEdit.added.trim().length > 0 ? toEdit.added : new Date().toISOString(),
+                    notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null,
+                    seasons: toEdit.seasons && toEdit.seasons.trim().length > 0 ? toEdit.seasons : null,
+                    episode: toEdit.episode && toEdit.episode.trim().length > 0 ? toEdit.episode : null
                 }).eq('id', toEdit.id)
                 return new Response(JSON.stringify(error));
             case 'books':
                 error = await supabase.from(current_medium).update({
-                    title: toEdit.title,
-                    author: toEdit.author,
-                    image: toEdit.image,
-                    release: toEdit.release,
-                    genres: toEdit.genres,
-                    pagecount: toEdit.pagecount,
-                    added: toEdit.added,
-                    notes: toEdit.notes
+                    title: toEdit.title && toEdit.title.trim().length > 0 ? toEdit.title : 'Kein Titel angegeben',
+                    author: toEdit.author && toEdit.author.trim().length > 0 ? toEdit.author : null,
+                    image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image : null,
+                    release: toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release : null,
+                    genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres : null,
+                    pagecount: toEdit.pagecount && toEdit.pagecount.trim().length > 0 ? toEdit.pagecount : null,
+                    added: toEdit.added && toEdit.added.trim().length > 0 ? toEdit.added : new Date().toISOString(),
+                    notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null
                 }).eq('id', toEdit.id)
                 return new Response(JSON.stringify(error));
             default:

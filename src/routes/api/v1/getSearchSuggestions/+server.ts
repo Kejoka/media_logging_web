@@ -1,8 +1,7 @@
 import { PRIVATE_IGDB_CLIENT, PRIVATE_IGDB_TOKEN, PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import type { mediaObject, MovieResult, TvResult } from '$lib/dbUtils.js';
-import movieGenres from '$lib/UI/movieGenres.js';
-import tvGenres from '$lib/UI/tvGenres.js';
-import { delay } from '$lib/utils.js';
+import movieGenres from '$lib/movieGenres.js';
+import tvGenres from '$lib/tvGenres.js';
 import { id, search } from '@chewhx/google-books';
 
 
@@ -36,7 +35,7 @@ export async function POST({ request }) {
 							'Authorization': `Bearer ${PRIVATE_IGDB_TOKEN}`,
 							'Accept': 'application/json'
 						},
-						body: `fields name, cover.image_id, platforms.abbreviation, genres.name, first_release_date, total_rating; where (name ~ *\"${searchVal}\"* & category = (0,2,4,8,9,10,11) & version_parent = 'null' & cover != 'null); sort first_release_date desc; limit 20;`
+						body: `fields name, cover.image_id, platforms.abbreviation, genres.name, first_release_date, total_rating; where (name ~ *\"${searchVal}\"* & category = (0,2,4,8,9,10,11) & version_parent = 'null' & cover != 'null); sort first_release_date desc; limit 20; offset ${(searchPage - 1) * 20};`
 					})
 					const igdb_res: any[] = await res.json();
 					igdb_res.forEach(result => {
@@ -80,7 +79,9 @@ export async function POST({ request }) {
 						}
 						let genres: string[] = []
 						result.genre_ids?.forEach(genre_id => {
-							genres.push(movieGenres.genres[movieGenres.genres.findIndex(obj => obj.id == genre_id)].name)
+							if (movieGenres.genres[movieGenres.genres.findIndex(obj => obj.id == genre_id)]) {
+								genres.push(movieGenres.genres[movieGenres.genres.findIndex(obj => obj.id == genre_id)].name)
+							}
 						})
 						searchResults.push(
 							{
@@ -97,6 +98,7 @@ export async function POST({ request }) {
 				case 'shows':
 					raw_res = await fetch(`https://api.themoviedb.org/3/search/tv?query=${params.query}&include_adult=${params.adult}&language=${params.language}&page=${params.page}&api_key=${PRIVATE_TMDB_V3_KEY}`)
 					res = await raw_res.json();
+					console.log(res.results);
 					(res.results as TvResult[]).forEach(result => {
 						let iso_release;
 						if (result.first_air_date && !isNaN(new Date(result.first_air_date).getTime())) {
@@ -106,7 +108,9 @@ export async function POST({ request }) {
 						}
 						let genres: string[] = []
 						result.genre_ids?.forEach(genre_id => {
-							genres.push(tvGenres.genres[tvGenres.genres.findIndex(obj => obj.id == genre_id)].name)
+							if (tvGenres.genres[tvGenres.genres.findIndex(obj => obj.id == genre_id)]) {
+								genres.push(tvGenres.genres[tvGenres.genres.findIndex(obj => obj.id == genre_id)].name)
+							}
 						})
 						searchResults.push(
 							{
@@ -121,7 +125,7 @@ export async function POST({ request }) {
 					})
 					return new Response(JSON.stringify(searchResults));
 				case 'books':
-					const book_res = await search({ q: searchVal }, { maxResults: 20, orderBy: 'relevance', projection: 'full' })
+					const book_res = await search({ q: searchVal }, { maxResults: 20, startIndex: (searchPage - 1) * 20, orderBy: 'relevance', projection: 'full' })
 					book_res.items?.forEach(book => {
 						let iso_release;
 						if (book.volumeInfo?.publishedDate && !isNaN(new Date(book.volumeInfo?.publishedDate).getTime())) {

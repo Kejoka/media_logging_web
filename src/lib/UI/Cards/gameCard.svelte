@@ -64,14 +64,22 @@
 				>
 					<div>
 						<p class="card-title text-base font-bold line-clamp-1">{medium.title}</p>
-						<p class="text-sm line-clamp-1 font-light max-w-fit">{medium.genres}</p>
-						<p class="text-sm line-clamp-1 font-light max-w-fit">{medium.platforms}</p>
-						<p class="text-sm line-clamp-1 font-light">
-							Erschienen: {new Date(medium.release || 404).toLocaleDateString('de-DE')}
-						</p>
-						<p class="text-sm line-clamp-1 font-light">
-							Nutzerbewertung: {medium.averagerating}
-						</p>
+						{#if medium.genres}
+							<p class="text-sm line-clamp-1 font-light max-w-fit">{medium.genres}</p>
+						{/if}
+						{#if medium.platforms}
+							<p class="text-sm line-clamp-1 font-light max-w-fit">{medium.platforms}</p>
+						{/if}
+						{#if medium.release}
+							<p class="text-sm line-clamp-1 font-light">
+								Erschienen: {new Date(medium.release || 404).toLocaleDateString('de-DE')}
+							</p>
+						{/if}
+						{#if medium.averagerating && !isNaN(medium.averagerating)}
+							<p class="text-sm line-clamp-1 font-light">
+								Nutzerbewertung: {medium.averagerating}
+							</p>
+						{/if}
 					</div>
 				</div>
 				{#if current_mode == 0}
@@ -84,12 +92,22 @@
 				{/if}
 			</div>
 			<div class="collapse-content pt-0 px-2">
+				{#if medium.notes}
+					<div class="chat-header mt-3">Notiz:</div>
+					{#each medium.notes.split('\n') as note}
+						<div class="chat chat-start">
+							<div class="chat-bubble w-fit">
+								{note}
+							</div>
+						</div>
+					{/each}
+				{/if}
 				<button
-					class="btn min-h-[45%] h-[45%] btn-warning font-bold w-full my-2"
+					class="btn btn-warning font-bold w-full my-2 min-h-8 h-8"
 					on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
 				>
 				<button
-					class="btn min-h-[45%] h-[45%] btn-error font-bold w-full mb-2"
+					class="btn btn-error font-bold w-full min-h-8 h-8 -mb-4"
 					on:click={() => dispatch('delete', medium)}>Karte löschen</button
 				>
 			</div>

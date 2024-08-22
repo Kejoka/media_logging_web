@@ -24,6 +24,8 @@
 	let search_modal: HTMLInputElement;
 	let form_text: string = getMediaCodeString();
 	let loading = false;
+	let suggestionBox: HTMLElement;
+	let lastSearchPage = 1;
 
 	// years_in_db = [
 	// 	{ year: String(2000), active: false },
@@ -149,9 +151,10 @@
 		current_suggestions = [];
 		clearTimeout(inputTimeout);
 		inputTimeout = setTimeout(async () => {
+			lastSearchPage = 1;
 			const res = await fetch('/api/v1/getSearchSuggestions', {
 				method: 'POST',
-				body: JSON.stringify({ searchVal, page: 1, current_medium }),
+				body: JSON.stringify({ searchVal, page: lastSearchPage, current_medium }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
@@ -159,6 +162,45 @@
 			loading = false;
 			current_suggestions = await res.json();
 		}, 1000);
+	}
+
+	async function handleSuggestionScroll() {
+		const scrollProgress =
+			suggestionBox.scrollTop / (suggestionBox.scrollHeight - suggestionBox.clientHeight);
+		if (scrollProgress == 1 && !loading && lastSearchPage != -1) {
+			loading = true;
+			lastSearchPage += 1;
+			const res = await fetch('/api/v1/getSearchSuggestions', {
+				method: 'POST',
+				body: JSON.stringify({ searchVal, page: lastSearchPage, current_medium }),
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			const jsonRes = await res.json();
+			const filteredRes = jsonRes.filter((suggestion: mediaObject) => {
+				switch (current_medium) {
+					case 'games':
+						!current_suggestions.some((item) => item.igdbid === suggestion.igdbid);
+						break;
+					case 'movies' || 'shows':
+						!current_suggestions.some((item) => item.tmdbid === suggestion.id);
+						break;
+					case 'books':
+						!current_suggestions.some((item) => item.gbid === suggestion.id);
+						break;
+					default:
+						break;
+				}
+			});
+			if (jsonRes.length != 0) {
+				current_suggestions = [...current_suggestions, ...jsonRes];
+			} else {
+				lastSearchPage = -1;
+			}
+			console.log(current_suggestions);
+			loading = false;
+		}
 	}
 
 	async function addMedium() {
@@ -285,7 +327,11 @@
 					/>
 				</svg>
 			</label>
-			<div class=" overflow-y-auto max-h-[50vh]">
+			<div
+				bind:this={suggestionBox}
+				class="overflow-y-auto max-h-[50vh]"
+				on:scroll={handleSuggestionScroll}
+			>
 				{#each current_suggestions as suggestion}
 					<button
 						class="btn w-full mb-3 h-fit py-2"

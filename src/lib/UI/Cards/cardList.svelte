@@ -191,7 +191,7 @@
 				<div class="label">
 					<span class="label-text">Notizen</span>
 				</div>
-				<textarea class="textarea textarea-bordered h-24" value={toEdit.notes}></textarea>
+				<textarea class="textarea textarea-bordered h-24" bind:value={toEdit.notes}></textarea>
 			</label>
 			{#if current_medium === 'games'}
 				<!-- Platforms	 -->
