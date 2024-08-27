@@ -1,13 +1,16 @@
-import { supabase } from '$lib/supabaseClient.js';
-
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request }) {
+export async function POST({ request, locals: { supabase, safeGetSession } }) {
     const reqBody = await request.json();
     const current_medium = reqBody['current_medium'];
     const toEdit = reqBody['toEdit'];
+    const { session } = await safeGetSession();
     console.log(toEdit)
     let error;
     try {
+        error = await supabase.from('profiles').upsert({
+            id: session?.user.id,
+            updated_at: new Date()
+        });
         switch (current_medium) {
             case 'games':
                 error = await supabase.from(current_medium).update({
@@ -39,7 +42,7 @@ export async function POST({ request }) {
                     added: toEdit.added && toEdit.added.trim().length > 0 ? toEdit.added : new Date().toISOString(),
                     notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null,
                     seasons: toEdit.seasons && toEdit.seasons.trim().length > 0 ? toEdit.seasons : null,
-                    episode: toEdit.episode && toEdit.episode.trim().length > 0 ? toEdit.episode : null
+                    episode: toEdit.episode && toEdit.episode.toString().trim().length > 0 ? toEdit.episode : 0
                 }).eq('id', toEdit.id)
                 return new Response(JSON.stringify(error));
             case 'books':
@@ -49,7 +52,7 @@ export async function POST({ request }) {
                     image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image : null,
                     release: toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release : null,
                     genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres : null,
-                    pagecount: toEdit.pagecount && toEdit.pagecount.trim().length > 0 ? toEdit.pagecount : null,
+                    pagecount: toEdit.pagecount && toEdit.pagecount.toString().trim().length > 0 ? toEdit.pagecount : null,
                     added: toEdit.added && toEdit.added.trim().length > 0 ? toEdit.added : new Date().toISOString(),
                     notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null
                 }).eq('id', toEdit.id)
@@ -58,7 +61,7 @@ export async function POST({ request }) {
                 throw 'Switch Statement failed'
         }
     } catch (error) {
-        console.log(`Error on Endpoint addMedium: \n ${error}`);
+        console.log(`Error on Endpoint updateMedium: \n ${error}`);
         return new Response(String(error));
     }
 }

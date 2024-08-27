@@ -2,7 +2,8 @@ import { PRIVATE_IGDB_CLIENT, PRIVATE_IGDB_TOKEN, PRIVATE_TMDB_V3_KEY } from '$e
 import type { mediaObject, MovieResult, TvResult } from '$lib/dbUtils.js';
 import movieGenres from '$lib/movieGenres.js';
 import tvGenres from '$lib/tvGenres.js';
-import { id, search } from '@chewhx/google-books';
+import { delay } from '$lib/utils.js';
+import { search } from '@chewhx/google-books';
 
 
 
@@ -11,16 +12,16 @@ const RETRIES: number = 3;
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
 	const reqBody = await request.json();
-	const searchVal = reqBody['searchVal'];
-	const searchPage = reqBody['page'];
+	const search_val = reqBody['search_val'];
+	const search_page = reqBody['last_search_page'];
 	const current_medium = reqBody['current_medium'];
 	let searchResults: mediaObject[] = [];
 
 	const params = {
 		adult: false,
-		query: searchVal,
+		query: search_val,
 		language: 'de-DE',
-		page: searchPage
+		page: search_page
 	}
 	let try_count = 0;
 	let res, raw_res;
@@ -35,7 +36,7 @@ export async function POST({ request }) {
 							'Authorization': `Bearer ${PRIVATE_IGDB_TOKEN}`,
 							'Accept': 'application/json'
 						},
-						body: `fields name, cover.image_id, platforms.abbreviation, genres.name, first_release_date, total_rating; where (name ~ *\"${searchVal}\"* & category = (0,2,4,8,9,10,11) & version_parent = 'null' & cover != 'null); sort first_release_date desc; limit 20; offset ${(searchPage - 1) * 20};`
+						body: `fields name, cover.image_id, platforms.abbreviation, genres.name, first_release_date, total_rating; where (name ~ *\"${search_val}\"* & category = (0,2,4,8,9,10,11) & version_parent = 'null' & cover != 'null); sort first_release_date desc; limit 20; offset ${(search_page - 1) * 20};`
 					})
 					const igdb_res: any[] = await res.json();
 					igdb_res.forEach(result => {
@@ -53,7 +54,6 @@ export async function POST({ request }) {
 						result.platforms?.forEach((platform: { id: number, abbreviation: string }) => {
 							platforms.push(platform.abbreviation)
 						})
-						console.log(result)
 						searchResults.push(
 							{
 								igdbid: result.id,
@@ -98,7 +98,6 @@ export async function POST({ request }) {
 				case 'shows':
 					raw_res = await fetch(`https://api.themoviedb.org/3/search/tv?query=${params.query}&include_adult=${params.adult}&language=${params.language}&page=${params.page}&api_key=${PRIVATE_TMDB_V3_KEY}`)
 					res = await raw_res.json();
-					console.log(res.results);
 					(res.results as TvResult[]).forEach(result => {
 						let iso_release;
 						if (result.first_air_date && !isNaN(new Date(result.first_air_date).getTime())) {
@@ -125,7 +124,7 @@ export async function POST({ request }) {
 					})
 					return new Response(JSON.stringify(searchResults));
 				case 'books':
-					const book_res = await search({ q: searchVal }, { maxResults: 20, startIndex: (searchPage - 1) * 20, orderBy: 'relevance', projection: 'full' })
+					const book_res = await search({ q: search_val }, { maxResults: 20, startIndex: (search_page - 1) * 20, orderBy: 'relevance', projection: 'full' })
 					book_res.items?.forEach(book => {
 						let iso_release;
 						if (book.volumeInfo?.publishedDate && !isNaN(new Date(book.volumeInfo?.publishedDate).getTime())) {

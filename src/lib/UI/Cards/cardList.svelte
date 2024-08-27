@@ -1,6 +1,6 @@
 <script lang="ts">
 	import TvCard from './tvCard.svelte';
-	import type { mediaObject } from '$lib/dbUtils';
+	import { dexieDB, type mediaObject } from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import GameCard from './gameCard.svelte';
 	import MovieCard from './movieCard.svelte';
@@ -44,6 +44,24 @@
 
 	async function updateScore(event: CustomEvent) {
 		try {
+			// DexieDB
+			switch (current_medium) {
+				case 'games':
+					await dexieDB.games.update(event.detail.medium.id, { rating: event.detail.new_score });
+					break;
+				case 'movies':
+					await dexieDB.movies.update(event.detail.medium.id, { rating: event.detail.new_score });
+					break;
+				case 'shows':
+					await dexieDB.shows.update(event.detail.medium.id, { rating: event.detail.new_score });
+					break;
+				case 'books':
+					await dexieDB.books.update(event.detail.medium.id, { rating: event.detail.new_score });
+					break;
+				default:
+					break;
+			}
+			// Supabase
 			const res = await fetch('/api/v1/updateScore', {
 				method: 'POST',
 				body: JSON.stringify({
@@ -55,7 +73,9 @@
 					'Content-Type': 'application/json'
 				}
 			});
-		} catch (error) {}
+		} catch (error) {
+			console.log(error);
+		}
 	}
 
 	function askDelete(event: CustomEvent) {
@@ -73,7 +93,84 @@
 	async function updateMedium() {
 		toEdit.release = toEditRelease.toISOString();
 		toEdit.added = toEditAdded.toISOString();
-		console.log(toEdit);
+		// DexieDB
+		switch (current_medium) {
+			case 'games':
+				await dexieDB.games.update(toEdit.id, {
+					title:
+						toEdit.title && toEdit.title.trim().length > 0
+							? toEdit.title.trim()
+							: 'Kein Titel angegeben',
+					image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image.trim() : null,
+					release:
+						toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release.trim() : null,
+					genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres.trim() : null,
+					platforms:
+						toEdit.platforms && toEdit.platforms.trim().length > 0 ? toEdit.platforms.trim() : null,
+					added:
+						toEdit.added && toEdit.added.trim().length > 0
+							? toEdit.added.trim()
+							: new Date().toISOString(),
+					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes.trim() : null
+				});
+				break;
+			case 'movies':
+				await dexieDB.movies.update(toEdit.id, {
+					title:
+						toEdit.title && toEdit.title.trim().length > 0
+							? toEdit.title.trim()
+							: 'Kein Titel angegeben',
+					image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image.trim() : null,
+					release:
+						toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release.trim() : null,
+					genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres.trim() : null,
+					added:
+						toEdit.added && toEdit.added.trim().length > 0
+							? toEdit.added.trim()
+							: new Date().toISOString(),
+					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes.trim() : null
+				});
+				break;
+			case 'shows':
+				await dexieDB.shows.update(toEdit.id, {
+					title:
+						toEdit.title && toEdit.title.trim().length > 0 ? toEdit.title : 'Kein Titel angegeben',
+					image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image : null,
+					release: toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release : null,
+					genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres : null,
+					added:
+						toEdit.added && toEdit.added.trim().length > 0
+							? toEdit.added
+							: new Date().toISOString(),
+					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null,
+					seasons: toEdit.seasons && toEdit.seasons.trim().length > 0 ? toEdit.seasons : null,
+					episode:
+						toEdit.episode && toEdit.episode.toString().trim().length > 0 ? toEdit.episode : 0
+				});
+				break;
+			case 'books':
+				await dexieDB.books.update(toEdit.id, {
+					title:
+						toEdit.title && toEdit.title.trim().length > 0 ? toEdit.title : 'Kein Titel angegeben',
+					author: toEdit.author && toEdit.author.trim().length > 0 ? toEdit.author : null,
+					image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image : null,
+					release: toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release : null,
+					genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres : null,
+					pagecount:
+						toEdit.pagecount && toEdit.pagecount.toString().trim().length > 0
+							? toEdit.pagecount
+							: null,
+					added:
+						toEdit.added && toEdit.added.trim().length > 0
+							? toEdit.added
+							: new Date().toISOString(),
+					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null
+				});
+				break;
+			default:
+				break;
+		}
+		// Supabase
 		const error = await fetch('/api/v1/updateMedium', {
 			method: 'POST',
 			body: JSON.stringify({ toEdit, current_medium }),
@@ -82,7 +179,7 @@
 			}
 		});
 		const collapseInput = document.getElementById(String(toEdit.id));
-		if (collapseInput != null) {
+		if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
 			collapseInput.checked = !collapseInput.checked;
 		}
 		dispatch('refresh');
@@ -131,7 +228,7 @@
 			></BookCard>
 		{/if}
 	{/each}
-	<div class="h-[6%]"></div>
+	<div class="h-[9.5%]"></div>
 	<!-- DeleteModal -->
 	<input type="checkbox" id="deleteModal" class="modal-toggle" bind:this={deleteModal} />
 	<div class="modal" role="dialog">

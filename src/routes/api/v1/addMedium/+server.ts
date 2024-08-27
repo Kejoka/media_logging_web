@@ -1,15 +1,16 @@
-import { supabase } from '$lib/supabaseClient.js';
-
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request }) {
+export async function POST({ request, locals: { supabase, safeGetSession } }) {
     const reqBody = await request.json();
     const current_medium = reqBody['current_medium'];
     const user_id = reqBody['user_id'];
     const medium = reqBody['last_selection'];
-    console.log(current_medium, user_id, medium)
-
+    const { session } = await safeGetSession();
     let error;
     try {
+        error = await supabase.from('profiles').upsert({
+            id: session?.user.id,
+            updated_at: new Date()
+        });
         switch (current_medium) {
             case 'games':
                 error = await supabase.from(current_medium).insert({
@@ -25,7 +26,7 @@ export async function POST({ request }) {
                     backlogged: medium.backlogged || 0,
                     added: medium.added,
                     trophy: 0
-                })
+                }).select('id').single()
                 return new Response(JSON.stringify(error));
             case 'movies':
                 error = await supabase.from(current_medium).insert({
@@ -39,7 +40,7 @@ export async function POST({ request }) {
                     rating: 0,
                     backlogged: medium.backlogged || 0,
                     added: medium.added
-                })
+                }).select('id').single()
                 return new Response(JSON.stringify(error));
             case 'shows':
                 error = await supabase.from(current_medium).insert({
@@ -52,8 +53,9 @@ export async function POST({ request }) {
                     averagerating: medium.averagerating.toFixed(1),
                     rating: 0,
                     backlogged: medium.backlogged || 0,
-                    added: medium.added
-                })
+                    added: medium.added,
+                    episode: 0
+                }).select('id').single()
                 return new Response(JSON.stringify(error));
             case 'books':
                 error = await supabase.from(current_medium).insert({
@@ -66,11 +68,10 @@ export async function POST({ request }) {
                     release: medium.release,
                     genres: medium.genres,
                     pagecount: medium.pagecount,
-                    averagerating: Number(medium.averagerating * 2).toFixed(1),
                     rating: 0,
                     backlogged: medium.backlogged || 0,
                     added: medium.added
-                })
+                }).select('id').single()
                 return new Response(JSON.stringify(error));
             default:
                 throw 'Switch Statement failed'

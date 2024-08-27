@@ -13,7 +13,7 @@ export const load: PageServerLoad = async ({
 
     const { data: profile } = await supabase
         .from('profiles')
-        .select(`username, last_synced`)
+        .select(`username`)
         .eq('id', session.user.id)
         .single();
 
@@ -22,8 +22,10 @@ export const load: PageServerLoad = async ({
         // as soon as public user profiles have been implemented
         redirect(303, `/${profile?.username}`);
     }
+    const games = await supabase.from('games').select().eq('user_id', session.user.id).order('added', { ascending: false });
+    const movies = await supabase.from('movies').select().eq('user_id', session.user.id).order('added', { ascending: false });
+    const shows = await supabase.from('shows').select().eq('user_id', session.user.id).order('added', { ascending: false });
+    const books = await supabase.from('books').select().eq('user_id', session.user.id).order('added', { ascending: false });
 
-    const movies = await supabase.from('movies').select().eq('user_id', session.user.id).eq('backlogged', 0).order('added', { ascending: false });
-
-    return { session, profile, movies };
+    return { session, profile, games, movies, shows, books };
 };

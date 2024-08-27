@@ -2,77 +2,114 @@
 	import CardList from '$lib/UI/Cards/cardList.svelte';
 	import TopBar from '$lib/UI/topBar.svelte';
 	import YearBar from '$lib/UI/yearBar.svelte';
-	import { getYears, indexToMedium, type mediaObject } from '$lib/dbUtils.js';
-	import { supabase } from '$lib/supabaseClient.js';
+	import { dexieDB, getYears, indexToMedium, type mediaObject } from '$lib/dbUtils.js';
 	import { DatePicker } from 'date-picker-svelte';
+	import { onMount } from 'svelte';
 	export let data;
-	let { session, profile, movies } = data;
-	$: ({ session, profile, movies } = data);
+	let { session, profile, games, movies, shows, books } = data;
+	$: ({ session, profile, games, movies, shows, books } = data);
 
 	let current_medium = 'movies';
 	let current_year = String(new Date().getFullYear());
 	let current_mode = 0;
-	let headerText = getModeString();
-	let year_media_data: mediaObject[] = movies.data ? movies.data : [];
-	let years_in_db = getYears(year_media_data, current_year);
+	let header_text = getModeString();
+	let year_media_data: mediaObject[] = [];
+	let years_in_db: { year: string; active: boolean }[] = [];
+	let media_data: mediaObject[] = [];
 	let current_suggestions: mediaObject[] = [];
-	let searchVal: string;
-	let inputTimeout = setTimeout(function () {}, 0);
-	let selectedDate = new Date();
+	let search_val: string;
+	let input_timeout = setTimeout(function () {}, 0);
+	let selected_date = new Date();
 	let last_selection: mediaObject = {} as mediaObject;
 	let date_modal: HTMLInputElement;
 	let search_modal: HTMLInputElement;
 	let form_text: string = getMediaCodeString();
 	let loading = false;
-	let suggestionBox: HTMLElement;
-	let lastSearchPage = 1;
+	let suggestion_box: HTMLElement;
+	let last_search_page = 1;
 
-	// years_in_db = [
-	// 	{ year: String(2000), active: false },
-	// 	{ year: String(2000), active: false },
-	// 	{ year: String(2001), active: false },
-	// 	{ year: String(2002), active: false },
-	// 	{ year: String(2003), active: false },
-	// 	{ year: String(2004), active: false },
-	// 	{ year: String(2005), active: false },
-	// 	{ year: String(2006), active: false },
-	// 	{ year: String(2007), active: true }
-	// ];
-
-	let media_data = year_media_data.filter(
-		(obj) => new Date(obj.added || 404).getFullYear() == Number(current_year)
-	);
+	onMount(async () => {
+		if ((await dexieDB.games.toArray()).length != games.data?.length) {
+			await dexieDB.games.clear();
+			await dexieDB.games.bulkAdd(games.data || []);
+		}
+		if ((await dexieDB.movies.toArray()).length != movies.data?.length) {
+			await dexieDB.movies.clear();
+			await dexieDB.movies.bulkAdd(movies.data || []);
+		}
+		if ((await dexieDB.shows.toArray()).length != shows.data?.length) {
+			await dexieDB.shows.clear();
+			await dexieDB.shows.bulkAdd(shows.data || []);
+		}
+		if ((await dexieDB.books.toArray()).length != books.data?.length) {
+			await dexieDB.books.clear();
+			await dexieDB.books.bulkAdd(books.data || []);
+		}
+		year_media_data = await dexieDB.movies.where({ backlogged: 0 }).reverse().sortBy('added');
+		media_data = year_media_data.filter((obj) => obj.added?.substring(0, 4) == current_year);
+		years_in_db = getYears(year_media_data, current_year);
+		// years_in_db = [
+		// 	{ year: String(2000), active: false },
+		// 	{ year: String(2000), active: false },
+		// 	{ year: String(2001), active: false },
+		// 	{ year: String(2002), active: false },
+		// 	{ year: String(2003), active: false },
+		// 	{ year: String(2004), active: false },
+		// 	{ year: String(2005), active: false },
+		// 	{ year: String(2006), active: false },
+		// 	{ year: String(2007), active: true }
+		// ];
+	});
 
 	async function handleMediaSwitch(event: any) {
 		let medium = indexToMedium(event.detail.index);
 		try {
-			const year_base_data = await supabase
-				.from(medium)
-				.select()
-				.eq('user_id', session.user.id)
-				.eq('backlogged', current_mode)
-				.order('added', { ascending: false });
+			// Fetch data
+			let year_base_data;
+			switch (medium) {
+				case 'games':
+					year_base_data = await dexieDB.games
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				case 'movies':
+					year_base_data = await dexieDB.movies
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				case 'shows':
+					year_base_data = await dexieDB.shows
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				case 'books':
+					year_base_data = await dexieDB.books
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				default:
+					console.log('ERROR', medium);
+					break;
+			}
+			// YearBar Data
 			if (current_mode == 0) {
-				years_in_db = getYears(year_base_data.data as mediaObject[], current_year);
+				years_in_db = getYears(year_base_data as mediaObject[], current_year);
 				current_year =
 					years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
 			} else {
 				years_in_db = years_in_db.slice(-1);
 			}
-			let new_data;
+			// Year Filter
 			if (isNaN(Number(current_year))) {
-				new_data = year_base_data;
+				media_data = year_base_data || [];
 			} else {
-				new_data = await supabase
-					.from(medium)
-					.select()
-					.eq('user_id', session.user.id)
-					.eq('backlogged', current_mode)
-					.lt('added', `${Number(current_year) + 1}-01-01`)
-					.gte('added', `${current_year}-01-01`)
-					.order('added', { ascending: false });
+				media_data =
+					year_base_data?.filter((obj) => obj.added?.substring(0, 4) == current_year) || [];
 			}
-			media_data = new_data.data ? new_data.data : [];
 			current_medium = medium;
 			form_text = getMediaCodeString();
 		} catch (error) {
@@ -82,7 +119,7 @@
 
 	async function handleModeSwitch(event: any) {
 		current_mode = event.detail.mode;
-		headerText = getModeString();
+		header_text = getModeString();
 		if (current_mode == 0) {
 			await refreshCardList(new Date().getFullYear.toString());
 		} else {
@@ -94,53 +131,88 @@
 	async function handleYearSwitch(event: any) {
 		const year = event.detail.year.year;
 		let new_data;
-		if (isNaN(year)) {
-			new_data = await supabase
-				.from(current_medium)
-				.select()
-				.eq('user_id', session.user.id)
-				.eq('backlogged', current_mode)
-				.order('added', { ascending: false });
-		} else {
-			new_data = await supabase
-				.from(current_medium)
-				.select()
-				.eq('user_id', session.user.id)
-				.eq('backlogged', current_mode)
-				.lt('added', `${Number(year) + 1}-01-01`)
-				.gte('added', `${year}-01-01`)
-				.order('added', { ascending: false });
-			console.log(new_data.data);
+		try {
+			switch (current_medium) {
+				case 'games':
+					new_data = await dexieDB.games
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				case 'movies':
+					new_data = await dexieDB.movies
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				case 'shows':
+					new_data = await dexieDB.shows
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				case 'books':
+					new_data = await dexieDB.books
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				default:
+					console.log('ERROR', current_medium);
+					break;
+			}
+			if (isNaN(year)) {
+				media_data = new_data || [];
+			} else {
+				media_data = new_data?.filter((obj) => obj.added?.substring(0, 4) == year) || [];
+			}
+		} catch (error) {
+			console.log(error);
 		}
-		media_data = new_data.data ? new_data.data : [];
 		current_year = year;
 	}
 
 	async function refreshCardList(set_year: string) {
 		try {
-			const year_base_data = await supabase
-				.from(current_medium)
-				.select()
-				.eq('user_id', session.user.id)
-				.eq('backlogged', current_mode)
-				.order('added', { ascending: false });
-			years_in_db = getYears(year_base_data.data as mediaObject[], set_year);
+			let new_data;
+			switch (current_medium) {
+				case 'games':
+					new_data = await dexieDB.games
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				case 'movies':
+					new_data = await dexieDB.movies
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				case 'shows':
+					new_data = await dexieDB.shows
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				case 'books':
+					new_data = await dexieDB.books
+						.where({ backlogged: current_mode })
+						.reverse()
+						.sortBy('added');
+					break;
+				default:
+					console.log('ERROR', current_medium);
+					break;
+			}
+			years_in_db = getYears(new_data as mediaObject[], set_year);
 			current_year =
 				years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
-			let new_data;
+
 			if (isNaN(Number(current_year))) {
-				new_data = year_base_data;
+				media_data = new_data || [];
 			} else {
-				new_data = await supabase
-					.from(current_medium)
-					.select()
-					.eq('user_id', session.user.id)
-					.eq('backlogged', current_mode)
-					.lt('added', `${Number(current_year) + 1}-01-01`)
-					.gte('added', `${current_year}-01-01`)
-					.order('added', { ascending: false });
+				media_data = new_data?.filter((obj) => obj.added?.substring(0, 4) == current_year) || [];
 			}
-			media_data = new_data.data ? new_data.data : [];
 		} catch (error) {
 			console.log(error);
 		}
@@ -149,12 +221,12 @@
 	function handleInput() {
 		loading = true;
 		current_suggestions = [];
-		clearTimeout(inputTimeout);
-		inputTimeout = setTimeout(async () => {
-			lastSearchPage = 1;
+		clearTimeout(input_timeout);
+		input_timeout = setTimeout(async () => {
+			last_search_page = 1;
 			const res = await fetch('/api/v1/getSearchSuggestions', {
 				method: 'POST',
-				body: JSON.stringify({ searchVal, page: lastSearchPage, current_medium }),
+				body: JSON.stringify({ search_val, last_search_page, current_medium }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
@@ -166,13 +238,13 @@
 
 	async function handleSuggestionScroll() {
 		const scrollProgress =
-			suggestionBox.scrollTop / (suggestionBox.scrollHeight - suggestionBox.clientHeight);
-		if (scrollProgress == 1 && !loading && lastSearchPage != -1) {
+			suggestion_box.scrollTop / (suggestion_box.scrollHeight - suggestion_box.clientHeight);
+		if (scrollProgress == 1 && !loading && last_search_page != -1) {
 			loading = true;
-			lastSearchPage += 1;
+			last_search_page += 1;
 			const res = await fetch('/api/v1/getSearchSuggestions', {
 				method: 'POST',
-				body: JSON.stringify({ searchVal, page: lastSearchPage, current_medium }),
+				body: JSON.stringify({ search_val, last_search_page, current_medium }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
@@ -196,7 +268,7 @@
 			if (jsonRes.length != 0) {
 				current_suggestions = [...current_suggestions, ...jsonRes];
 			} else {
-				lastSearchPage = -1;
+				last_search_page = -1;
 			}
 			console.log(current_suggestions);
 			loading = false;
@@ -204,8 +276,9 @@
 	}
 
 	async function addMedium() {
-		last_selection.added = selectedDate.toISOString();
+		last_selection.added = selected_date.toISOString();
 		last_selection.backlogged = current_mode;
+		// Supabase
 		const res = await fetch('/api/v1/addMedium', {
 			method: 'POST',
 			body: JSON.stringify({ last_selection, current_medium, user_id: session.user.id }),
@@ -213,8 +286,37 @@
 				'Content-Type': 'application/json'
 			}
 		});
+		// DexieDB
+		console.log(last_selection);
+		last_selection.id = (await res.json()).data.id;
+		last_selection.rating = 0;
+		console.log(last_selection);
+		switch (current_medium) {
+			case 'games':
+				last_selection.averagerating = Number(
+					((last_selection.averagerating || 0) / 10).toFixed(1)
+				);
+				last_selection.trophy = 0;
+				dexieDB.games.add(last_selection);
+				break;
+			case 'movies':
+				last_selection.averagerating = Number((last_selection.averagerating || 0).toFixed(1));
+				dexieDB.movies.add(last_selection);
+				break;
+			case 'shows':
+				last_selection.averagerating = Number((last_selection.averagerating || 0).toFixed(1));
+				last_selection.episode = 0;
+				dexieDB.shows.add(last_selection);
+				break;
+			case 'books':
+				dexieDB.books.add(last_selection);
+				break;
+			default:
+				console.log('DexieDB Error');
+				break;
+		}
 		if (current_mode == 0) {
-			await refreshCardList(selectedDate.getFullYear().toString());
+			await refreshCardList(selected_date.getFullYear().toString());
 		} else {
 			await refreshCardList('Gesamt');
 			years_in_db = years_in_db.slice(-1);
@@ -226,9 +328,28 @@
 	async function deleteMedium(event: any) {
 		const medium_id = event.detail.id;
 		const collapseInput = document.getElementById(String(medium_id));
-		if (collapseInput != null) {
+		if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
 			collapseInput.checked = !collapseInput.checked;
 		}
+		//DexieDB
+		switch (current_medium) {
+			case 'games':
+				dexieDB.games.delete(medium_id);
+				break;
+			case 'movies':
+				dexieDB.movies.delete(medium_id);
+				break;
+			case 'shows':
+				dexieDB.shows.delete(medium_id);
+				break;
+			case 'books':
+				dexieDB.books.delete(medium_id);
+				break;
+			default:
+				console.log('Error deleting DexieDB Entry');
+				break;
+		}
+		//Supabase
 		const res = await fetch('/api/v1/deleteMedium', {
 			method: 'POST',
 			body: JSON.stringify({ medium_id, current_medium }),
@@ -236,6 +357,7 @@
 				'Content-Type': 'application/json'
 			}
 		});
+		console.log(res);
 		if (current_mode == 0) {
 			await refreshCardList(current_year);
 		} else {
@@ -269,13 +391,27 @@
 				return 'ERROR';
 		}
 	}
+
+	async function listDexie() {
+		console.log('GAMES', await dexieDB.games.toArray());
+		console.log('MOVIES', await dexieDB.movies.toArray());
+		console.log('SHOWS', await dexieDB.shows.toArray());
+		console.log('BOOKS', await dexieDB.books.toArray());
+	}
+
+	async function clearDexie() {
+		await dexieDB.games.clear();
+		await dexieDB.movies.clear();
+		await dexieDB.shows.clear();
+		await dexieDB.books.clear();
+	}
 </script>
 
 <div class="flex flex-col h-screen">
 	<TopBar
 		on:switchMedium={handleMediaSwitch}
 		on:switchMode={handleModeSwitch}
-		header={`${profile.username}'s ${headerText}`}
+		header={`${profile.username}'s ${header_text}`}
 		settingsButton={true}
 		navBackButton={false}
 	></TopBar>
@@ -286,10 +422,18 @@
 		on:delete={deleteMedium}
 		on:refresh={() => refreshCardList(current_year)}
 	></CardList>
+	<!-- <button
+		class="btn btn-neutral flex fixed bottom-[19.5%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
+		on:click={clearDexie}>DEXIE CLEAR</button
+	>
+	<button
+		class="btn btn-neutral flex fixed bottom-[13.5%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
+		on:click={listDexie}>DEXIE DEBUG</button
+	> -->
 	<button
 		on:click={() => {
-			searchVal = '';
-			selectedDate = new Date();
+			search_val = '';
+			selected_date = new Date();
 			search_modal.checked = true;
 			current_suggestions = [];
 		}}
@@ -311,7 +455,7 @@
 					type="text"
 					class="grow"
 					placeholder="Search"
-					bind:value={searchVal}
+					bind:value={search_val}
 					on:input={handleInput}
 				/>
 				<svg
@@ -328,7 +472,7 @@
 				</svg>
 			</label>
 			<div
-				bind:this={suggestionBox}
+				bind:this={suggestion_box}
 				class="overflow-y-auto max-h-[50vh]"
 				on:scroll={handleSuggestionScroll}
 			>
@@ -370,7 +514,7 @@
 		<div class="modal-box flex flex-col">
 			<p class="font-bold text-lg text-center mb-1">{last_selection.title}</p>
 			<p class="text-center text-base font-semibold mb-3">gesehen:</p>
-			<DatePicker bind:value={selectedDate} max={new Date()} browseWithoutSelecting={true}
+			<DatePicker bind:value={selected_date} max={new Date()} browseWithoutSelecting={true}
 			></DatePicker>
 			<button class="btn btn-neutral mt-3" on:click={addMedium}>Hinzufügen</button>
 		</div>

@@ -1,3 +1,5 @@
+import Dexie, { type EntityTable } from "dexie";
+
 export function getYears(db_data: mediaObject[], active_year: string) {
     const currentYear = new Date().getFullYear()
     let uniqueYears = [...new Set(db_data.map(obj => new Date(obj.added || 404).getFullYear()))].sort()
@@ -21,6 +23,79 @@ export function getYears(db_data: mediaObject[], active_year: string) {
 export function indexToMedium(index: number) {
     return ["games", "movies", "shows", "books"][index]
 }
+
+export const dexieDB = new Dexie('MediaDatabase') as Dexie & {
+    games: EntityTable<mediaObject, 'id'>;
+    movies: EntityTable<mediaObject, 'id'>;
+    shows: EntityTable<mediaObject, 'id'>;
+    books: EntityTable<mediaObject, 'id'>;
+};
+
+dexieDB.version(1).stores({
+    games: `
+    ++id,
+    user_id,
+    igdbid,
+    title,
+    image,
+    release,
+    genres,
+    platforms,
+    averagerating,
+    trophy,
+    added,
+    rating,
+    backlogged,
+    notes
+  `,
+    movies: `
+    ++id,
+    user_id,
+    tmdbid,
+    title,
+    image,
+    release,
+    genres,
+    averagerating,
+    added,
+    rating,
+    backlogged,
+    notes
+  `,
+    shows: `
+    ++id,
+    user_id,
+    tmdbid,
+    title,
+    image,
+    release,
+    genres,
+    seasons,
+    episode,
+    averagerating,
+    added,
+    rating,
+    backlogged,
+    notes
+  `,
+    books: `
+    ++id,
+    user_id,
+    gbid,
+    title,
+    subtitle,
+    image,
+    author,
+    pagecount,
+    release,
+    averagerating,
+    added,
+    rating,
+    backlogged,
+    notes,
+    genres
+  `
+});
 
 export type mediaObject = {
     id?: number,

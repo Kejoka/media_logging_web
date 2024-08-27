@@ -7,8 +7,6 @@
 	export let medium: mediaObject;
 	export let config;
 	export let current_mode;
-
-	console.log(medium);
 </script>
 
 <div class="px-2 pb-2">

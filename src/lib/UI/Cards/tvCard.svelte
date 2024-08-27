@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { mediaObject } from '$lib/dbUtils';
+	import { dexieDB, type mediaObject } from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
 	import { press, tap } from 'svelte-gestures';
@@ -19,6 +19,10 @@
 		} else if (medium.episode != undefined && event.type == 'press') {
 			medium.episode = Math.max(medium.episode - 1, 0);
 		}
+		// DexieDB
+		await dexieDB.shows.update(medium.id, { episode: medium.episode });
+		restart();
+		// Supabase
 		const res = await fetch('/api/v1/updateEpisode', {
 			method: 'POST',
 			body: JSON.stringify({
@@ -27,7 +31,6 @@
 			})
 		});
 		console.log(await res.json());
-		restart();
 	}
 </script>
 
