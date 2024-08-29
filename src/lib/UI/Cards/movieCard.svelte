@@ -25,12 +25,12 @@
 				use:tap
 				on:tap={() => {
 					const collapseInput = document.getElementById(String(medium.id));
-					if (collapseInput != null) {
+					if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
 						collapseInput.checked = !collapseInput.checked;
 					}
 				}}
 			>
-				<div>
+				<div class="w-[115%]">
 					<p class="card-title text-base font-bold line-clamp-1">{medium.title}</p>
 					{#if medium.genres}
 						<p class="text-sm line-clamp-1 font-light">{medium.genres}</p>

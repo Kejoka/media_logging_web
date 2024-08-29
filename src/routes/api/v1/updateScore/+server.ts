@@ -8,6 +8,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const new_score = reqBody['score'];
 	const current_medium = reqBody['current_medium'];
 	const update_id = reqBody['medium']['id'];
+	const syncTimestamp = reqBody['syncTimestamp'];
 	const { session } = await safeGetSession();
 
 	let try_count = 0;
@@ -15,7 +16,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		try {
 			const error = await supabase.from('profiles').upsert({
 				id: session?.user.id,
-				updated_at: new Date()
+				updated_at: syncTimestamp
 			});
 			const res = await supabase.from(current_medium).update({ rating: new_score }).eq('id', update_id);
 			return new Response(JSON.stringify(res));

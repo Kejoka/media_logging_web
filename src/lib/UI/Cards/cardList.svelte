@@ -1,11 +1,17 @@
 <script lang="ts">
 	import TvCard from './tvCard.svelte';
-	import { dexieDB, type mediaObject } from '$lib/dbUtils';
+	import {
+		dexieDB,
+		redoDexieChanges,
+		type mediaObject,
+		type OfflineChangeObject
+	} from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import GameCard from './gameCard.svelte';
 	import MovieCard from './movieCard.svelte';
 	import BookCard from './bookCard.svelte';
 	import { DateInput } from 'date-picker-svelte';
+	import { swipe, type SwipeCustomEvent } from 'svelte-gestures';
 	export let media_data: mediaObject[];
 	export let current_medium: string;
 	export let current_mode: number;
@@ -44,6 +50,7 @@
 
 	async function updateScore(event: CustomEvent) {
 		try {
+			const syncTimestamp = new Date();
 			// DexieDB
 			switch (current_medium) {
 				case 'games':
@@ -61,18 +68,42 @@
 				default:
 					break;
 			}
+			await dexieDB.prefs.update(0, { updated_at: syncTimestamp.toISOString() });
 			// Supabase
-			const res = await fetch('/api/v1/updateScore', {
-				method: 'POST',
-				body: JSON.stringify({
-					score: event.detail.new_score,
-					medium: event.detail.medium,
-					current_medium
-				}),
-				headers: {
-					'Content-Type': 'application/json'
+			try {
+				const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+				if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+					redoDexieChanges();
 				}
-			});
+				const res = await fetch('/api/v1/updateScore', {
+					method: 'POST',
+					body: JSON.stringify({
+						score: event.detail.new_score,
+						medium: event.detail.medium,
+						current_medium,
+						syncTimestamp
+					}),
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
+			} catch (error) {
+				console.log(error);
+				let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+				if (dexiePrefs) {
+					if (!navigator.onLine) {
+						const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+						tmp.push({
+							event: 'score',
+							medium: current_medium,
+							card: { id: event.detail.medium.id, rating: event.detail.new_score } as mediaObject
+						});
+						dexiePrefs.changed_offline = JSON.stringify(tmp);
+					}
+					dexiePrefs.updated_at = syncTimestamp.toISOString();
+					await dexieDB.prefs.update(0, dexiePrefs);
+				}
+			}
 		} catch (error) {
 			console.log(error);
 		}
@@ -93,6 +124,7 @@
 	async function updateMedium() {
 		toEdit.release = toEditRelease.toISOString();
 		toEdit.added = toEditAdded.toISOString();
+		const syncTimestamp = new Date();
 		// DexieDB
 		switch (current_medium) {
 			case 'games':
@@ -112,7 +144,7 @@
 							? toEdit.added.trim()
 							: new Date().toISOString(),
 					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes.trim() : null
-				});
+				} as mediaObject);
 				break;
 			case 'movies':
 				await dexieDB.movies.update(toEdit.id, {
@@ -129,7 +161,7 @@
 							? toEdit.added.trim()
 							: new Date().toISOString(),
 					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes.trim() : null
-				});
+				} as mediaObject);
 				break;
 			case 'shows':
 				await dexieDB.shows.update(toEdit.id, {
@@ -146,7 +178,7 @@
 					seasons: toEdit.seasons && toEdit.seasons.trim().length > 0 ? toEdit.seasons : null,
 					episode:
 						toEdit.episode && toEdit.episode.toString().trim().length > 0 ? toEdit.episode : 0
-				});
+				} as mediaObject);
 				break;
 			case 'books':
 				await dexieDB.books.update(toEdit.id, {
@@ -165,19 +197,38 @@
 							? toEdit.added
 							: new Date().toISOString(),
 					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null
-				});
+				} as mediaObject);
 				break;
 			default:
 				break;
 		}
+		await dexieDB.prefs.update(0, { updated_at: syncTimestamp.toISOString() });
 		// Supabase
-		const error = await fetch('/api/v1/updateMedium', {
-			method: 'POST',
-			body: JSON.stringify({ toEdit, current_medium }),
-			headers: {
-				'Content-Type': 'application/json'
+		try {
+			const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+			if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+				redoDexieChanges();
 			}
-		});
+			const res = await fetch('/api/v1/updateMedium', {
+				method: 'POST',
+				body: JSON.stringify({ toEdit, current_medium, syncTimestamp }),
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+		} catch (error) {
+			console.log(error);
+			let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+			if (dexiePrefs) {
+				if (!navigator.onLine) {
+					const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+					tmp.push({ event: 'update', medium: current_medium, card: toEdit });
+					dexiePrefs.changed_offline = JSON.stringify(tmp);
+				}
+				dexiePrefs.updated_at = syncTimestamp.toISOString();
+				await dexieDB.prefs.update(0, dexiePrefs);
+			}
+		}
 		const collapseInput = document.getElementById(String(toEdit.id));
 		if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
 			collapseInput.checked = !collapseInput.checked;
@@ -187,7 +238,11 @@
 	}
 </script>
 
-<div class="bg-base-300 overflow-x-hidden overflow-y-auto flex-grow mb-[10%] pt-2">
+<div
+	class="bg-base-300 overflow-x-hidden overflow-y-auto flex-grow mb-[10%] pt-2"
+	use:swipe={{ timeframe: 300, minSwipeDistance: 60, touchAction: 'pan-y' }}
+	on:swipe={(e) => dispatch('swipe', e.detail.direction)}
+>
 	{#each media_data as medium}
 		{@const config = getRatingConfig(medium.rating || 0)}
 		{#if current_medium === 'games'}

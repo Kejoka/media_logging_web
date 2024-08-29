@@ -8,14 +8,11 @@
 	export let header: string;
 	export let navBackButton: boolean;
 	export let settingsButton: boolean;
-
-	let tab_states = [false, true, false, false];
+	export let tabIndex: number;
 	const dispatch = createEventDispatcher();
 
 	function mediaSwitch(tab_index: number) {
-		let new_tab_states = [false, false, false, false];
-		new_tab_states[tab_index] = true;
-		tab_states = new_tab_states;
+		tabIndex = tab_index;
 		dispatch('switchMedium', {
 			index: tab_index
 		});
@@ -27,28 +24,28 @@
 	<div role="tablist" class="tabs tabs-bordered bg-base-100">
 		<button
 			role="tab"
-			class="tab {tab_states[0] ? 'tab-active' : ''}"
+			class="tab {tabIndex == 0 ? 'tab-active' : ''}"
 			on:click={() => mediaSwitch(0)}
 		>
 			<Controller></Controller>
 		</button>
 		<button
 			role="tab"
-			class="tab {tab_states[1] ? 'tab-active' : ''}"
+			class="tab {tabIndex == 1 ? 'tab-active' : ''}"
 			on:click={() => mediaSwitch(1)}
 		>
 			<Movie></Movie>
 		</button>
 		<button
 			role="tab"
-			class="tab {tab_states[2] ? 'tab-active' : ''}"
+			class="tab {tabIndex == 2 ? 'tab-active' : ''}"
 			on:click={() => mediaSwitch(2)}
 		>
 			<Tv></Tv>
 		</button>
 		<button
 			role="tab"
-			class="tab {tab_states[3] ? 'tab-active' : ''}"
+			class="tab {tabIndex == 3 ? 'tab-active' : ''}"
 			on:click={() => mediaSwitch(3)}
 		>
 			<Book></Book>

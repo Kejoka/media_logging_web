@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { dexieDB, type mediaObject } from '$lib/dbUtils';
+	import {
+		dexieDB,
+		redoDexieChanges,
+		type mediaObject,
+		type OfflineChangeObject
+	} from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
 	import { press, tap } from 'svelte-gestures';
@@ -16,18 +21,43 @@
 
 	async function handleImageTap(medium: mediaObject) {
 		medium.trophy = 1 - (medium.trophy || 0);
+		const syncTimestamp = new Date();
 		// DexieDB
 		await dexieDB.games.update(medium.id, { trophy: medium.trophy });
+		await dexieDB.prefs.update(0, { updated_at: syncTimestamp.toISOString() });
 		restart();
 		// Supabase
-		const res = await fetch('/api/v1/updateTrophy', {
-			method: 'POST',
-			body: JSON.stringify({
-				new_value: medium.trophy,
-				id: medium.id
-			})
-		});
-		console.log(await res.json());
+		try {
+			const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+			if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+				redoDexieChanges();
+			}
+			const res = await fetch('/api/v1/updateTrophy', {
+				method: 'POST',
+				body: JSON.stringify({
+					new_value: medium.trophy,
+					id: medium.id,
+					syncTimestamp
+				})
+			});
+			console.log(await res.json());
+		} catch (error) {
+			console.log(error);
+			let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+			if (dexiePrefs) {
+				if (!navigator.onLine) {
+					const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+					tmp.push({
+						event: 'trophy',
+						medium: 'games',
+						card: { id: medium.id, trophy: medium.trophy } as mediaObject
+					});
+					dexiePrefs.changed_offline = JSON.stringify(tmp);
+				}
+				dexiePrefs.updated_at = syncTimestamp.toISOString();
+				await dexieDB.prefs.update(0, dexiePrefs);
+			}
+		}
 	}
 </script>
 
@@ -60,12 +90,12 @@
 					use:tap
 					on:tap={() => {
 						const collapseInput = document.getElementById(String(medium.id));
-						if (collapseInput != null) {
+						if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
 							collapseInput.checked = !collapseInput.checked;
 						}
 					}}
 				>
-					<div>
+					<div class="w-[115%]">
 						<p class="card-title text-base font-bold line-clamp-1">{medium.title}</p>
 						{#if medium.genres}
 							<p class="text-sm line-clamp-1 font-light max-w-fit">{medium.genres}</p>

@@ -3,13 +3,13 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
     const reqBody = await request.json();
     const current_medium = reqBody['current_medium'];
     const toEdit = reqBody['toEdit'];
+    const syncTimestamp = reqBody['syncTimestamp'];
     const { session } = await safeGetSession();
-    console.log(toEdit)
     let error;
     try {
         error = await supabase.from('profiles').upsert({
             id: session?.user.id,
-            updated_at: new Date()
+            updated_at: syncTimestamp
         });
         switch (current_medium) {
             case 'games':

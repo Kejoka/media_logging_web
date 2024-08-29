@@ -2,19 +2,19 @@
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
     const reqBody = await request.json();
     const current_medium = reqBody['current_medium'];
-    const user_id = reqBody['user_id'];
     const medium = reqBody['last_selection'];
+    const syncTimestamp = reqBody['syncTimestamp']
     const { session } = await safeGetSession();
     let error;
     try {
         error = await supabase.from('profiles').upsert({
             id: session?.user.id,
-            updated_at: new Date()
+            updated_at: syncTimestamp
         });
         switch (current_medium) {
             case 'games':
                 error = await supabase.from(current_medium).insert({
-                    user_id: user_id,
+                    user_id: session?.user.id,
                     igdbid: medium.igdbid,
                     title: medium.title,
                     image: medium.image,
@@ -30,7 +30,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                 return new Response(JSON.stringify(error));
             case 'movies':
                 error = await supabase.from(current_medium).insert({
-                    user_id: user_id,
+                    user_id: session?.user.id,
                     tmdbid: medium.tmdbid,
                     title: medium.title,
                     image: medium.image,
@@ -44,7 +44,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                 return new Response(JSON.stringify(error));
             case 'shows':
                 error = await supabase.from(current_medium).insert({
-                    user_id: user_id,
+                    user_id: session?.user.id,
                     tmdbid: medium.tmdbid,
                     title: medium.title,
                     image: medium.image,
@@ -59,7 +59,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                 return new Response(JSON.stringify(error));
             case 'books':
                 error = await supabase.from(current_medium).insert({
-                    user_id: user_id,
+                    user_id: session?.user.id,
                     gbid: medium.gbid,
                     title: medium.title,
                     subtitle: medium.subtitle,

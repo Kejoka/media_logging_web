@@ -23,7 +23,5 @@ export const load: PageServerLoad = async ({ url, locals: { safeGetSession } }) 
 
 	}
 
-	console.log(PUBLIC_SUPABASE_URL)
-
 	return { url: url.origin };
 };

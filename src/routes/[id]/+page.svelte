@@ -2,14 +2,24 @@
 	import CardList from '$lib/UI/Cards/cardList.svelte';
 	import TopBar from '$lib/UI/topBar.svelte';
 	import YearBar from '$lib/UI/yearBar.svelte';
-	import { dexieDB, getYears, indexToMedium, type mediaObject } from '$lib/dbUtils.js';
+	import {
+		dexieDB,
+		getYears,
+		indexToMedium,
+		redoDexieChanges,
+		type mediaObject,
+		type OfflineChangeObject
+	} from '$lib/dbUtils.js';
 	import { DatePicker } from 'date-picker-svelte';
 	import { onMount } from 'svelte';
+	import { onlineStatus } from '../../stores/onlineStatus';
 	export let data;
 	let { session, profile, games, movies, shows, books } = data;
+	$: isOnline = $onlineStatus;
 	$: ({ session, profile, games, movies, shows, books } = data);
 
 	let current_medium = 'movies';
+	let currentTabIndex = 1;
 	let current_year = String(new Date().getFullYear());
 	let current_mode = 0;
 	let header_text = getModeString();
@@ -29,21 +39,40 @@
 	let last_search_page = 1;
 
 	onMount(async () => {
-		if ((await dexieDB.games.toArray()).length != games.data?.length) {
-			await dexieDB.games.clear();
-			await dexieDB.games.bulkAdd(games.data || []);
-		}
-		if ((await dexieDB.movies.toArray()).length != movies.data?.length) {
-			await dexieDB.movies.clear();
-			await dexieDB.movies.bulkAdd(movies.data || []);
-		}
-		if ((await dexieDB.shows.toArray()).length != shows.data?.length) {
-			await dexieDB.shows.clear();
-			await dexieDB.shows.bulkAdd(shows.data || []);
-		}
-		if ((await dexieDB.books.toArray()).length != books.data?.length) {
-			await dexieDB.books.clear();
-			await dexieDB.books.bulkAdd(books.data || []);
+		if (isOnline) {
+			// Online and no DexieDB yet
+			if ((await dexieDB.prefs.toArray()).length == 0) {
+				await dexieDB.prefs.add({
+					id: 0,
+					updated_at: new Date(profile.updated_at).toISOString(),
+					changed_offline: '[]'
+				});
+				await cloneSupabase();
+			} else {
+				// Online, not in sync, dexie most recent
+				if (
+					new Date((await dexieDB.prefs.toArray())[0].updated_at) > new Date(profile.updated_at)
+				) {
+					console.log('NOT IN SYNC, NEW CHANGES IN DEXIE');
+					await redoDexieChanges();
+				}
+				// Online, not in sync, supabase most recent
+				else if (
+					new Date((await dexieDB.prefs.toArray())[0].updated_at) < new Date(profile.updated_at)
+				) {
+					console.log('NOT IN SYNC, NEW CHANGES IN SUPABASE');
+					await cloneSupabase();
+					await dexieDB.prefs.update(0, { updated_at: new Date(profile.updated_at).toISOString() });
+				}
+			}
+		} else {
+			if ((await dexieDB.prefs.toArray()).length == 0) {
+				await dexieDB.prefs.add({
+					id: 0,
+					updated_at: new Date('01.01.2000').toISOString(),
+					changed_offline: '[]'
+				});
+			}
 		}
 		year_media_data = await dexieDB.movies.where({ backlogged: 0 }).reverse().sortBy('added');
 		media_data = year_media_data.filter((obj) => obj.added?.substring(0, 4) == current_year);
@@ -61,12 +90,38 @@
 		// ];
 	});
 
+	async function cloneSupabase() {
+		if ((await dexieDB.games.toArray()).length != games.data?.length) {
+			await dexieDB.games.clear();
+			await dexieDB.games.bulkAdd(games.data || []);
+		}
+		if ((await dexieDB.movies.toArray()).length != movies.data?.length) {
+			await dexieDB.movies.clear();
+			await dexieDB.movies.bulkAdd(movies.data || []);
+		}
+		if ((await dexieDB.shows.toArray()).length != shows.data?.length) {
+			await dexieDB.shows.clear();
+			await dexieDB.shows.bulkAdd(shows.data || []);
+		}
+		if ((await dexieDB.books.toArray()).length != books.data?.length) {
+			await dexieDB.books.clear();
+			await dexieDB.books.bulkAdd(books.data || []);
+		}
+	}
+
 	async function handleMediaSwitch(event: any) {
-		let medium = indexToMedium(event.detail.index);
+		if (event.detail === 'right') {
+			currentTabIndex = Math.max(0, currentTabIndex - 1);
+		} else if (event.detail === 'left') {
+			currentTabIndex = Math.min(3, currentTabIndex + 1);
+		} else {
+			currentTabIndex = event.detail.index;
+		}
+		current_medium = indexToMedium(currentTabIndex);
 		try {
 			// Fetch data
 			let year_base_data;
-			switch (medium) {
+			switch (current_medium) {
 				case 'games':
 					year_base_data = await dexieDB.games
 						.where({ backlogged: current_mode })
@@ -92,7 +147,7 @@
 						.sortBy('added');
 					break;
 				default:
-					console.log('ERROR', medium);
+					console.log('ERROR', current_medium);
 					break;
 			}
 			// YearBar Data
@@ -110,7 +165,6 @@
 				media_data =
 					year_base_data?.filter((obj) => obj.added?.substring(0, 4) == current_year) || [];
 			}
-			current_medium = medium;
 			form_text = getMediaCodeString();
 		} catch (error) {
 			console.log(error);
@@ -219,6 +273,10 @@
 	}
 
 	function handleInput() {
+		if (!isOnline) {
+			current_suggestions = [{ title: search_val, release: new Date().toISOString() }];
+			return;
+		}
 		loading = true;
 		current_suggestions = [];
 		clearTimeout(input_timeout);
@@ -278,42 +336,63 @@
 	async function addMedium() {
 		last_selection.added = selected_date.toISOString();
 		last_selection.backlogged = current_mode;
+		const syncTimestamp = new Date();
 		// Supabase
-		const res = await fetch('/api/v1/addMedium', {
-			method: 'POST',
-			body: JSON.stringify({ last_selection, current_medium, user_id: session.user.id }),
-			headers: {
-				'Content-Type': 'application/json'
+		try {
+			const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+			if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+				redoDexieChanges();
 			}
-		});
+			const res = await fetch('/api/v1/addMedium', {
+				method: 'POST',
+				body: JSON.stringify({
+					last_selection,
+					current_medium,
+					syncTimestamp
+				}),
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			last_selection.id = (await res.json()).data.id;
+		} catch (error) {
+			console.log(error);
+		}
 		// DexieDB
-		console.log(last_selection);
-		last_selection.id = (await res.json()).data.id;
 		last_selection.rating = 0;
-		console.log(last_selection);
 		switch (current_medium) {
 			case 'games':
 				last_selection.averagerating = Number(
 					((last_selection.averagerating || 0) / 10).toFixed(1)
 				);
 				last_selection.trophy = 0;
-				dexieDB.games.add(last_selection);
+				await dexieDB.games.add(last_selection);
 				break;
 			case 'movies':
 				last_selection.averagerating = Number((last_selection.averagerating || 0).toFixed(1));
-				dexieDB.movies.add(last_selection);
+				await dexieDB.movies.add(last_selection);
 				break;
 			case 'shows':
 				last_selection.averagerating = Number((last_selection.averagerating || 0).toFixed(1));
 				last_selection.episode = 0;
-				dexieDB.shows.add(last_selection);
+				await dexieDB.shows.add(last_selection);
 				break;
 			case 'books':
-				dexieDB.books.add(last_selection);
+				await dexieDB.books.add(last_selection);
 				break;
 			default:
 				console.log('DexieDB Error');
 				break;
+		}
+		let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+		if (dexiePrefs) {
+			if (!isOnline) {
+				const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+				tmp.push({ event: 'add', medium: current_medium, card: last_selection });
+				dexiePrefs.changed_offline = JSON.stringify(tmp);
+			}
+			dexiePrefs.updated_at = syncTimestamp.toISOString();
+			await dexieDB.prefs.update(0, dexiePrefs);
 		}
 		if (current_mode == 0) {
 			await refreshCardList(selected_date.getFullYear().toString());
@@ -327,6 +406,7 @@
 
 	async function deleteMedium(event: any) {
 		const medium_id = event.detail.id;
+		const syncTimestamp = new Date();
 		const collapseInput = document.getElementById(String(medium_id));
 		if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
 			collapseInput.checked = !collapseInput.checked;
@@ -349,15 +429,38 @@
 				console.log('Error deleting DexieDB Entry');
 				break;
 		}
+		await dexieDB.prefs.update(0, { updated_at: syncTimestamp.toISOString() });
 		//Supabase
-		const res = await fetch('/api/v1/deleteMedium', {
-			method: 'POST',
-			body: JSON.stringify({ medium_id, current_medium }),
-			headers: {
-				'Content-Type': 'application/json'
+		try {
+			const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+			if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+				redoDexieChanges();
 			}
-		});
-		console.log(res);
+			const res = await fetch('/api/v1/deleteMedium', {
+				method: 'POST',
+				body: JSON.stringify({ medium_id, current_medium, syncTimestamp }),
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+			console.log(res);
+		} catch (error) {
+			console.log(error);
+			let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+			if (dexiePrefs) {
+				if (!isOnline) {
+					const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+					tmp.push({
+						event: 'delete',
+						medium: current_medium,
+						card: { id: medium_id } as mediaObject
+					});
+					dexiePrefs.changed_offline = JSON.stringify(tmp);
+				}
+				dexiePrefs.updated_at = syncTimestamp.toISOString();
+				await dexieDB.prefs.update(0, dexiePrefs);
+			}
+		}
 		if (current_mode == 0) {
 			await refreshCardList(current_year);
 		} else {
@@ -397,6 +500,7 @@
 		console.log('MOVIES', await dexieDB.movies.toArray());
 		console.log('SHOWS', await dexieDB.shows.toArray());
 		console.log('BOOKS', await dexieDB.books.toArray());
+		console.log('PREFS', await dexieDB.prefs.toArray());
 	}
 
 	async function clearDexie() {
@@ -404,6 +508,7 @@
 		await dexieDB.movies.clear();
 		await dexieDB.shows.clear();
 		await dexieDB.books.clear();
+		await dexieDB.prefs.clear();
 	}
 </script>
 
@@ -414,6 +519,7 @@
 		header={`${profile.username}'s ${header_text}`}
 		settingsButton={true}
 		navBackButton={false}
+		tabIndex={currentTabIndex}
 	></TopBar>
 	<CardList
 		{media_data}
@@ -421,6 +527,7 @@
 		{current_mode}
 		on:delete={deleteMedium}
 		on:refresh={() => refreshCardList(current_year)}
+		on:swipe={handleMediaSwitch}
 	></CardList>
 	<!-- <button
 		class="btn btn-neutral flex fixed bottom-[19.5%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
@@ -449,7 +556,12 @@
 	<input type="checkbox" id="search_modal" class="modal-toggle" bind:this={search_modal} />
 	<div class="modal" role="dialog">
 		<div class="modal-box">
-			<p class=" font-bold text-lg text-center mb-3">{form_text} hinzufügen</p>
+			{#if isOnline}
+				<p class=" font-bold text-lg text-center mb-3">{form_text} hinzufügen</p>
+			{:else}
+				<p class=" font-bold text-xl text-center mb-3">Offline Modus</p>
+				<p class=" font-bold text-lg text-center mb-3">Titel manuell hinzufügen</p>
+			{/if}
 			<label class="input input-bordered flex items-center gap-2 mb-3">
 				<input
 					type="text"
@@ -499,7 +611,7 @@
 						</div>
 					</button>
 				{/each}
-				{#if loading}
+				{#if loading && isOnline}
 					<div class="flex">
 						<span class="loading loading-dots loading-md m-auto mt-3"></span>
 					</div>
