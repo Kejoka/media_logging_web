@@ -655,7 +655,7 @@
 	<title>Media-Logging</title>
 </svelte:head>
 
-<div class="flex flex-col h-screen">
+<div class="flex flex-col h-[100vh]">
 	<TopBar
 		on:switch_medium={handleMediaSwitch}
 		on:switch_mode={handleModeSwitch}

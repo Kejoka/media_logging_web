@@ -25,7 +25,7 @@
 	<title>Passwort-Reset</title>
 </svelte:head>
 
-<div class="flex flex-col h-screen bg-base-200">
+<div class="flex flex-col h-[100vh] bg-base-200">
 	<NavBar
 		header={'Passwort'}
 		settings_button={false}

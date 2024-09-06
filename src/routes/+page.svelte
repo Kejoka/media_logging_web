@@ -20,7 +20,7 @@
 <svelte:head>
 	<title>Media Logging Login</title>
 </svelte:head>
-<div class="w-screen h-screen bg-base-100">
+<div class="w-[100vw] h-[100vh] bg-base-100">
 	{#if is_online}
 		<div class="flex flex-col text-center w-[80%] m-auto h-[100vh] justify-center">
 			<img class="max-w-[30%] mx-auto" src="/icon-512x512.png" alt="Icon" />
