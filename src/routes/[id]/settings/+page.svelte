@@ -59,7 +59,7 @@
 	<title>Profile Settings</title>
 </svelte:head>
 
-<div class="h-screen bg-base-100">
+<div class="h-[100vh] bg-base-100">
 	<NavBar
 		header={'Nutzereinstellungen'}
 		settings_button={false}

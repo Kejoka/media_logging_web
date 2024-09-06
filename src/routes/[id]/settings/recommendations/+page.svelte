@@ -84,7 +84,7 @@
 	<title>Movie Recommendations</title>
 </svelte:head>
 
-<div class="flex flex-col h-screen bg-base-200">
+<div class="flex flex-col h-[100vh] bg-base-200">
 	<NavBar
 		header={'Empfehlungen'}
 		settings_button={false}
