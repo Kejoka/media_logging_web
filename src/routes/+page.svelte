@@ -2,8 +2,8 @@
 <script lang="ts">
 	import { Auth } from '@supabase/auth-ui-svelte';
 	import { ThemeSupa } from '@supabase/auth-ui-shared';
-	import { onlineStatus } from '../stores/onlineStatus.js';
-	$: is_online = $onlineStatus;
+	import { online_status } from '../stores/onlineStatus.js';
+	$: is_online = $online_status;
 	export let data;
 	let { supabase } = data;
 	$: ({ supabase } = data);

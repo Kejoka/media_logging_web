@@ -1,6 +1,8 @@
-import { PRIVATE_IGDB_CLIENT, PRIVATE_IGDB_TOKEN, PRIVATE_TMDB_V3_KEY } from '$env/static/private';
+import { PRIVATE_IGDB_CLIENT, PRIVATE_IGDB_SECRET, PRIVATE_IGDB_TOKEN, PRIVATE_TMDB_V3_KEY } from '$env/static/private';
+import { PUBLIC_IGDB_SUPABASE } from '$env/static/public';
 import type { mediaObject, MovieResult, TvResult } from '$lib/dbUtils.js';
 import movieGenres from '$lib/movieGenres.js';
+import { supabase } from '$lib/supabaseClient.js';
 import tvGenres from '$lib/tvGenres.js';
 import { delay } from '$lib/utils.js';
 import { search } from '@chewhx/google-books';
@@ -8,7 +10,8 @@ import { search } from '@chewhx/google-books';
 const RETRIES: number = 3;
 
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request }) {
+export async function POST({ request, locals: { supabase, safeGetSession } }) {
+    const { session } = await safeGetSession();
     const req_body = await request.json();
     const search_val = req_body['search_val'];
     const search_page = req_body['last_search_page'];
@@ -27,11 +30,68 @@ export async function POST({ request }) {
         try {
             switch (current_medium) {
                 case 'games':
+                    let igdb_token: string = '';
+                    if (PUBLIC_IGDB_SUPABASE == 'true') {
+                        const sync_timestamp = new Date();
+                        const igdb_res: { id: number, token: string, created: string, expires_in: number } = (await supabase.from('igdb_store').select().single()).data
+                        if (!igdb_res) {
+                            console.log("No igdb data stored yet, requesting new token..")
+                            const token_req = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${PRIVATE_IGDB_CLIENT}&client_secret=${PRIVATE_IGDB_SECRET}&grant_type=client_credentials`, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json'
+                                }
+                            }).then(async res => await res.json())
+                            try {
+                                console.log("New token received - ", token_req)
+                                const res = await supabase.from('igdb_store').insert({
+                                    token: token_req.access_token,
+                                    created: sync_timestamp.toISOString(),
+                                    expires_in: token_req.expires_in
+                                })
+                                console.log("Added new token to supabase")
+                                igdb_token = token_req.access_token
+                            } catch (error) {
+                                console.log(error)
+                            }
+                        } else {
+                            console.log("Stored idgb token found")
+                            const expire_date_check = new Date(igdb_res.created)
+                            expire_date_check.setSeconds(expire_date_check.getSeconds() + igdb_res.expires_in)
+                            if (expire_date_check < sync_timestamp) {
+                                console.log("Token has already expired. Requesting new token...")
+                                const token_req = await fetch(`https://id.twitch.tv/oauth2/token?client_id=${PRIVATE_IGDB_CLIENT}&client_secret=${PRIVATE_IGDB_SECRET}&grant_type=client_credentials`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Accept': 'application/json'
+                                    }
+                                }).then(async res => await res.json())
+                                try {
+                                    console.log("Received new token - ", token_req)
+                                    const res = await supabase.from('igdb_store').update({
+                                        token: token_req.access_token,
+                                        created: sync_timestamp.toISOString(),
+                                        expires_in: token_req.expires_in
+                                    }).eq('id', igdb_res.id)
+                                    console.log("Supabase Token has been updated")
+                                    igdb_token = token_req.access_token
+                                } catch (error) {
+                                    console.log(error)
+                                }
+                            } else {
+                                console.log("Supabase token has not expired yet. Using said token..")
+                                igdb_token = igdb_res.token
+                            }
+                        }
+                    }
+                    else {
+                        igdb_token = PRIVATE_IGDB_TOKEN
+                    }
                     res = await fetch('https://api.igdb.com/v4/games', {
                         method: 'POST',
                         headers: {
                             'Client-ID': PRIVATE_IGDB_CLIENT,
-                            'Authorization': `Bearer ${PRIVATE_IGDB_TOKEN}`,
+                            'Authorization': `Bearer ${igdb_token}`,
                             'Accept': 'application/json'
                         },
                         body: `fields name, cover.image_id, platforms.abbreviation, genres.name, first_release_date, total_rating; where (name ~ *\"${search_val}\"* & category = (0,2,4,8,9,10,11) & version_parent = 'null' & cover != 'null); sort first_release_date desc; limit 20; offset ${(search_page - 1) * 20};`
