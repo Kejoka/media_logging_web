@@ -6,10 +6,12 @@
 		<link rel="manifest" href="/manifest.json" />
 		%sveltekit.head%
 		<meta name="theme-color" content="var(--fallback-b3,oklch(var(--b3)/var(--tw-bg-opacity)))" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black" />
 	</head>
 
-	<body data-sveltekit-preload-data="hover">
+	<body class="bg-base-300" data-sveltekit-preload-data="hover">
 		<div style="display: contents">%sveltekit.body%</div>
 	</body>
 </html>

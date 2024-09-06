@@ -125,7 +125,7 @@
 			<h2 class="card-title justify-center mt-2">{chart_title}</h2>
 			{#if chart_type === 'genre_pie'}
 				<Pie
-					class="mb-2 h-fit max-h-fit flex flex-col m-auto justify-center align-middle"
+					class="mb-2 h-fit max-h-fit min-h-fit flex flex-col m-auto justify-center align-middle"
 					{data}
 					options={{ responsive: true }}
 				></Pie>

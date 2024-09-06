@@ -235,7 +235,9 @@
 				await dexieDB.prefs.update(0, dexiePrefs);
 			}
 		}
-		const collapseInput = document.getElementById(String(toEdit.id));
+		const collapseInput = document.getElementById(
+			String(toEdit.id) + `_${current_medium.charAt(0)}`
+		);
 		if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
 			collapseInput.checked = !collapseInput.checked;
 		}

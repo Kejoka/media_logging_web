@@ -19,7 +19,6 @@
 	$: isOnline = $onlineStatus;
 	$: ({ session, profile, user_id, games, movies, shows, books } = data);
 	const own_profile = profile.id == user_id;
-	console.log('TEST', own_profile);
 	let current_medium = 'movies';
 	let currentTabIndex = 1;
 	let current_year = String(new Date().getFullYear());
@@ -538,7 +537,9 @@
 	async function deleteMedium(event: any) {
 		const medium_id = event.detail.id;
 		const syncTimestamp = new Date();
-		const collapseInput = document.getElementById(String(medium_id));
+		const collapseInput = document.getElementById(
+			String(medium_id) + `_${current_medium.charAt(0)}`
+		);
 		if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
 			collapseInput.checked = !collapseInput.checked;
 		}
@@ -715,7 +716,7 @@
 				search_modal.checked = true;
 				current_suggestions = [];
 			}}
-			class="btn btn-neutral-content shadow-lg shadow-base-300 absolute bottom-[5.85%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
+			class="btn btn-neutral-content shadow-lg shadow-base-300 absolute bottom-[8%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
 		>
 			+
 		</button>

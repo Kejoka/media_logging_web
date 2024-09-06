@@ -12,7 +12,7 @@
 
 <div class="px-2 pb-2">
 	<div class="collapse bg-base-100">
-		<input id={String(medium.id)} type="radio" name="movie-accordion" class="hidden" />
+		<input id={String(medium.id) + '_m'} type="radio" name="movie-accordion" class="hidden" />
 		<div class="card bg-base-100 card-side select-none min-h-[15vh] h-[15vh] max-h-[15vh]">
 			<figure class="min-w-[11.25vh] w-[11.25vh] max-w-[11.25vh]">
 				{#if medium.image != null}
@@ -25,7 +25,7 @@
 				class="card-body justify-center pl-2"
 				use:tap
 				on:tap={() => {
-					const collapseInput = document.getElementById(String(medium.id));
+					const collapseInput = document.getElementById(String(medium.id) + '_m');
 					if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
 						collapseInput.checked = !collapseInput.checked;
 					}

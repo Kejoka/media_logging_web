@@ -13,14 +13,14 @@
 	}
 </script>
 
-<div class="btm-nav h-[5%] mt-3 overflow-x-auto">
+<div class="btm-nav h-[7%] mt-3 pb-3 overflow-x-auto">
 	{#each years as { year, active }, i}
 		{#if active}
-			<button class="active font-bold text-lg min-w-16" on:click={() => yearSwitch(i)}>
+			<button class="active font-bold text-lg min-w-20" on:click={() => yearSwitch(i)}>
 				{year}
 			</button>
 		{:else}
-			<button class="text-sm min-w-16" on:click={() => yearSwitch(i)}>
+			<button class="text-sm min-w-20" on:click={() => yearSwitch(i)}>
 				{year}
 			</button>
 		{/if}
