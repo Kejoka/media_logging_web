@@ -111,8 +111,13 @@
 	<title>MovieSwiper</title>
 </svelte:head>
 
-<div>
-	<NavBar header={'MovieSwiper'} settingsButton={false} navBackButton={true} staticHeader={true}
+<div class="h-full bg-base-100">
+	<NavBar
+		header={'MovieSwiper'}
+		settingsButton={false}
+		navBackButton={true}
+		staticHeader={true}
+		own_profile={undefined}
 	></NavBar>
 	<div class="w-[80%] h-[60vh] mx-auto">
 		<div class="w-full h-full mt-5 relative">

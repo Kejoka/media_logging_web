@@ -81,8 +81,13 @@
 	<title>Movie Recommendations</title>
 </svelte:head>
 
-<div class="flex flex-col h-screen">
-	<NavBar header={'Empfehlungen'} settingsButton={false} navBackButton={true} staticHeader={true}
+<div class="flex flex-col h-screen bg-base-200">
+	<NavBar
+		header={'Empfehlungen'}
+		settingsButton={false}
+		navBackButton={true}
+		staticHeader={true}
+		own_profile={undefined}
 	></NavBar>
 	<div class="overflow-y-auto w-[90%] items-center m-auto mt-3" on:scroll={handleScroll}>
 		{#if !isLoading && recommendations.length < 20}

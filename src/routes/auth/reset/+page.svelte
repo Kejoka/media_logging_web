@@ -25,8 +25,13 @@
 	<title>Passwort-Reset</title>
 </svelte:head>
 
-<div class="flex flex-col h-screen">
-	<NavBar header={'Passwort'} settingsButton={false} navBackButton={true} staticHeader={true}
+<div class="flex flex-col h-screen bg-base-200">
+	<NavBar
+		header={'Passwort'}
+		settingsButton={false}
+		navBackButton={true}
+		staticHeader={true}
+		own_profile={undefined}
 	></NavBar>
 	<div class="flex flex-col text-center m-auto w-[80%] justify-center">
 		<img class="max-w-[30%] mx-auto" src="/icon-512x512.png" alt="Icon" />

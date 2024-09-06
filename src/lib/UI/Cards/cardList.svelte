@@ -292,7 +292,7 @@
 				></BookCard>
 			{/if}
 		{/each}
-		<div class="h-[12.25%]"></div>
+		<div class="h-[15%]"></div>
 		<!-- Stats -->
 	{:else}
 		{#key media_data}
