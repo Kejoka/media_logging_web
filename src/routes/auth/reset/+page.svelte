@@ -28,9 +28,9 @@
 <div class="flex flex-col h-screen bg-base-200">
 	<NavBar
 		header={'Passwort'}
-		settingsButton={false}
-		navBackButton={true}
-		staticHeader={true}
+		settings_button={false}
+		nav_back_button={true}
+		static_header={true}
 		own_profile={undefined}
 	></NavBar>
 	<div class="flex flex-col text-center m-auto w-[80%] justify-center">

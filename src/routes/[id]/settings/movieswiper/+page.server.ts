@@ -32,12 +32,12 @@ export const load: PageServerLoad = async ({
 		.eq('name', url.searchParams.get('profile'))
 		.single();
 	const movies = [];
-	const swipedIds: number[] = [];
+	const swiped_ids: number[] = [];
 	for (let i = 0; i < 5; i++) {
 		try {
 			const res = await fetch('/api/v1/randomMovie', {
 				method: 'POST',
-				body: JSON.stringify({ swipedIds }),
+				body: JSON.stringify({ swiped_ids }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
@@ -45,7 +45,7 @@ export const load: PageServerLoad = async ({
 			console.log(res);
 			const movie: TmdbMovie = await res.json();
 			console.log(`Loaded: ${movie.title}`);
-			swipedIds.push(movie.id);
+			swiped_ids.push(movie.id);
 			movies.push(movie);
 		} catch (error) {
 			console.log(`Error on page load: ${error}`);

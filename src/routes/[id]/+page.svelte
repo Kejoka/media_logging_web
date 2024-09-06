@@ -12,49 +12,56 @@
 	} from '$lib/dbUtils.js';
 	import { DatePicker } from 'date-picker-svelte';
 	import { onMount } from 'svelte';
-	import { onlineStatus } from '../../stores/onlineStatus';
+	import { online_status } from '../../stores/onlineStatus';
 	import Fuse, { type IFuseOptions } from 'fuse.js';
 	export let data;
 	let { session, profile, user_id, games, movies, shows, books } = data;
-	$: isOnline = $onlineStatus;
+	$: is_online = $online_status;
 	$: ({ session, profile, user_id, games, movies, shows, books } = data);
-	const own_profile = profile.id == user_id;
-	let current_medium = 'movies';
-	let currentTabIndex = 1;
-	let current_year = String(new Date().getFullYear());
-	let current_mode = 0;
-	let header_text = getModeString();
-	let total_media_data: mediaObject[][] = [];
-	let years_in_db: { year: string; active: boolean }[] = [];
-	let media_data: mediaObject[][] = [[], [], [], []];
-	let current_suggestions: mediaObject[] = [];
-	let search_val: string;
-	let input_timeout = setTimeout(function () {}, 0);
-	let selected_date = new Date();
-	let last_selection: mediaObject = {} as mediaObject;
+	// HTML bind variables
 	let date_modal: HTMLInputElement;
 	let search_modal: HTMLInputElement;
 	let backlog_modal: HTMLInputElement;
-	let form_text: string = getMediaCodeString();
-	let loading = false;
 	let suggestion_box: HTMLElement;
 	let carousel: HTMLElement;
 	let backlog_button_1: HTMLButtonElement;
 	let backlog_button_2: HTMLButtonElement;
 	let backlog_button_3: HTMLButtonElement;
 	let add_button: HTMLButtonElement;
+	// State variables
+	const own_profile = profile.id == user_id;
+	let current_medium = 'movies';
+	let current_tab_index = 1;
+	let current_year = String(new Date().getFullYear());
+	let current_mode = 0;
+	let current_suggestions: mediaObject[] = [];
+	let last_selection: mediaObject = {} as mediaObject;
+	let selected_date = new Date();
+	let search_val: string;
+	let form_text: string = getMediaCodeString();
+	let loading = false;
 	let last_search_page = 1;
+	// Media data variables
+	let total_media_data: mediaObject[][] = [];
+	let years_in_db: { year: string; active: boolean }[] = [];
+	let media_data: mediaObject[][] = [[], [], [], []];
+	let media_data_unfiltered: mediaObject[][] = [];
 	let backlog_matches: mediaObject[];
+	// Misc variables
+	let header_text = getModeString();
+	let input_timeout = setTimeout(function () {}, 0);
 	const fuse_options: IFuseOptions<mediaObject> = {
 		keys: ['title'],
 		isCaseSensitive: false,
 		minMatchCharLength: 3
 	};
-	let media_data_unfiltered: mediaObject[][] = [];
 
+	// Load data and set up inital states depending on online status and sync status
 	onMount(async () => {
-		carousel.scrollLeft = currentTabIndex * carousel.clientWidth;
-		if (isOnline) {
+		// Set inital carousel state
+		carousel.scrollLeft = current_tab_index * carousel.clientWidth;
+		// If user is online
+		if (is_online) {
 			if (!own_profile) {
 				await cloneSupabase(true);
 			} else {
@@ -86,7 +93,10 @@
 					}
 				}
 			}
-		} else {
+		}
+		// If user is offline
+		else {
+			// Unlikely state that ensures supabase will be clones next time the user is online
 			if ((await dexieDB.prefs.toArray()).length == 0) {
 				await dexieDB.prefs.add({
 					id: 0,
@@ -95,6 +105,7 @@
 				});
 			}
 		}
+		// Handle data from visited user profile
 		if (!own_profile) {
 			total_media_data.push(
 				await dexieDB.games_other.where({ backlogged: 0 }).reverse().sortBy('added')
@@ -108,7 +119,9 @@
 			total_media_data.push(
 				await dexieDB.books_other.where({ backlogged: 0 }).reverse().sortBy('added')
 			);
-		} else {
+		}
+		// Handle own data
+		else {
 			total_media_data.push(await dexieDB.games.where({ backlogged: 0 }).reverse().sortBy('added'));
 			total_media_data.push(
 				await dexieDB.movies.where({ backlogged: 0 }).reverse().sortBy('added')
@@ -125,6 +138,7 @@
 		years_in_db = getYears(total_media_data[getMediaCodeIndex()], current_year);
 	});
 
+	// Clones supabase contents depending on whether or not the user is on their own profile
 	async function cloneSupabase(other: boolean) {
 		if (!other) {
 			if ((await dexieDB.games.toArray()).length != games.data?.length) {
@@ -162,21 +176,21 @@
 			}
 		}
 	}
-
+	// Handles the switches between games, movies, shows and books
 	async function handleMediaSwitch(event: any) {
 		clearTimeout(input_timeout);
 		input_timeout = setTimeout(() => {
 			if (event.type == 'scroll') {
 				if (Number.isInteger((carousel.scrollLeft / carousel.scrollWidth) * 4)) {
-					currentTabIndex = (carousel.scrollLeft / carousel.scrollWidth) * 4;
+					current_tab_index = (carousel.scrollLeft / carousel.scrollWidth) * 4;
 				} else {
 					return;
 				}
 			} else {
-				currentTabIndex = event.detail.index;
+				current_tab_index = event.detail.index;
 				carousel.scrollLeft = event.detail.index * carousel.clientWidth;
 			}
-			current_medium = indexToMedium(currentTabIndex);
+			current_medium = indexToMedium(current_tab_index);
 			// YearBar Data
 			if (current_mode != 1) {
 				years_in_db = getYears(total_media_data[getMediaCodeIndex()], current_year);
@@ -201,7 +215,7 @@
 			}
 		}, 20);
 	}
-
+	// Handle the switch between the modes Media-Log, Backlog and Stats
 	async function handleModeSwitch(event: any) {
 		current_mode = event.detail.mode;
 		header_text = getModeString();
@@ -212,7 +226,7 @@
 			years_in_db = years_in_db.slice(-1);
 		}
 	}
-
+	// HAndle the switch between individual years
 	async function handleYearSwitch(event: any) {
 		const year = event.detail.year.year;
 		let new_data;
@@ -231,7 +245,7 @@
 		}
 		current_year = year;
 	}
-
+	// Refreshes the current card list to visualize recent changes
 	async function refreshCardList(set_year: string) {
 		if (!own_profile) {
 			total_media_data[0] = await dexieDB.games_other
@@ -285,9 +299,9 @@
 			media_data_unfiltered[index] = media;
 		}
 	}
-
+	// Handles input changes in the add medium form
 	function handleInput() {
-		if (!isOnline) {
+		if (!is_online) {
 			current_suggestions = [{ title: search_val, release: new Date().toISOString() }];
 			return;
 		}
@@ -307,7 +321,7 @@
 			current_suggestions = await res.json();
 		}, 1000);
 	}
-
+	// Handles input changes in the search bar filter
 	async function handleFilter(event: CustomEvent) {
 		if (event.detail.trim().length == 0) {
 			for (let [index, media] of media_data.entries()) {
@@ -315,7 +329,6 @@
 			}
 		} else {
 			let fuses: Fuse<mediaObject>[] = [];
-			console.log('NIX');
 			for (let media of media_data_unfiltered) {
 				fuses.push(new Fuse(media, fuse_options));
 			}
@@ -326,11 +339,11 @@
 			}
 		}
 	}
-
+	// Handles reaching the end of the current suggestions and lazy loads more suggestions
 	async function handleSuggestionScroll() {
-		const scrollProgress =
+		const scroll_progress =
 			suggestion_box.scrollTop / (suggestion_box.scrollHeight - suggestion_box.clientHeight);
-		if (scrollProgress == 1 && !loading && last_search_page != -1) {
+		if (scroll_progress == 1 && !loading && last_search_page != -1) {
 			loading = true;
 			last_search_page += 1;
 			const res = await fetch('/api/v1/getSearchSuggestions', {
@@ -340,24 +353,9 @@
 					'Content-Type': 'application/json'
 				}
 			});
-			const jsonRes = await res.json();
-			const filteredRes = jsonRes.filter((suggestion: mediaObject) => {
-				switch (current_medium) {
-					case 'games':
-						!current_suggestions.some((item) => item.igdbid === suggestion.igdbid);
-						break;
-					case 'movies' || 'shows':
-						!current_suggestions.some((item) => item.tmdbid === suggestion.id);
-						break;
-					case 'books':
-						!current_suggestions.some((item) => item.gbid === suggestion.id);
-						break;
-					default:
-						break;
-				}
-			});
-			if (jsonRes.length != 0) {
-				current_suggestions = [...current_suggestions, ...jsonRes];
+			const json_res = await res.json();
+			if (json_res.length != 0) {
+				current_suggestions = [...current_suggestions, ...json_res];
 			} else {
 				last_search_page = -1;
 			}
@@ -365,7 +363,7 @@
 			loading = false;
 		}
 	}
-
+	// Checks if an item that is about to be added already exists in the backlog
 	async function checkBacklog() {
 		// Check for item in Backlog
 		switch (current_medium) {
@@ -409,7 +407,7 @@
 		backlog_modal.checked = false;
 		last_selection.added = selected_date.toISOString();
 		last_selection.backlogged = current_mode;
-		const syncTimestamp = new Date();
+		const sync_timestamp = new Date();
 		// Handle Backlog Events
 		let backlog_notes: string = '';
 		if (backlog_event in [0, 1]) {
@@ -443,7 +441,7 @@
 						body: JSON.stringify({
 							medium_id: backlog_match.id,
 							current_medium,
-							syncTimestamp
+							sync_timestamp
 						}),
 						headers: {
 							'Content-Type': 'application/json'
@@ -451,19 +449,19 @@
 					});
 				} catch (error) {
 					console.log(error);
-					let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-					if (dexiePrefs) {
-						if (!isOnline) {
-							const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+					let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+					if (dexie_prefs) {
+						if (!is_online) {
+							const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
 							tmp.push({
 								event: 'delete',
 								medium: current_medium,
 								card: { id: backlog_match.id } as mediaObject
 							});
-							dexiePrefs.changed_offline = JSON.stringify(tmp);
+							dexie_prefs.changed_offline = JSON.stringify(tmp);
 						}
-						dexiePrefs.updated_at = syncTimestamp.toISOString();
-						await dexieDB.prefs.update(0, dexiePrefs);
+						dexie_prefs.updated_at = sync_timestamp.toISOString();
+						await dexieDB.prefs.update(0, dexie_prefs);
 					}
 				}
 			}
@@ -473,8 +471,8 @@
 		}
 		// Supabase
 		try {
-			const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-			if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
 				redoDexieChanges();
 			}
 			const res = await fetch('/api/v1/addMedium', {
@@ -482,7 +480,7 @@
 				body: JSON.stringify({
 					last_selection,
 					current_medium,
-					syncTimestamp
+					sync_timestamp
 				}),
 				headers: {
 					'Content-Type': 'application/json'
@@ -518,15 +516,15 @@
 				console.log('DexieDB Error');
 				break;
 		}
-		let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-		if (dexiePrefs) {
-			if (!isOnline) {
-				const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+		let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+		if (dexie_prefs) {
+			if (!is_online) {
+				const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
 				tmp.push({ event: 'add', medium: current_medium, card: last_selection });
-				dexiePrefs.changed_offline = JSON.stringify(tmp);
+				dexie_prefs.changed_offline = JSON.stringify(tmp);
 			}
-			dexiePrefs.updated_at = syncTimestamp.toISOString();
-			await dexieDB.prefs.update(0, dexiePrefs);
+			dexie_prefs.updated_at = sync_timestamp.toISOString();
+			await dexieDB.prefs.update(0, dexie_prefs);
 		}
 		if (current_mode == 0) {
 			await refreshCardList(selected_date.getFullYear().toString());
@@ -544,12 +542,12 @@
 
 	async function deleteMedium(event: any) {
 		const medium_id = event.detail.id;
-		const syncTimestamp = new Date();
-		const collapseInput = document.getElementById(
+		const sync_timestamp = new Date();
+		const collapse_input = document.getElementById(
 			String(medium_id) + `_${current_medium.charAt(0)}`
 		);
-		if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
-			collapseInput.checked = !collapseInput.checked;
+		if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
+			collapse_input.checked = !collapse_input.checked;
 		}
 		//DexieDB
 		switch (current_medium) {
@@ -569,16 +567,16 @@
 				console.log('Error deleting DexieDB Entry');
 				break;
 		}
-		await dexieDB.prefs.update(0, { updated_at: syncTimestamp.toISOString() });
+		await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
 		//Supabase
 		try {
-			const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-			if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
 				redoDexieChanges();
 			}
 			const res = await fetch('/api/v1/deleteMedium', {
 				method: 'POST',
-				body: JSON.stringify({ medium_id, current_medium, syncTimestamp }),
+				body: JSON.stringify({ medium_id, current_medium, sync_timestamp }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
@@ -586,19 +584,19 @@
 			console.log(res);
 		} catch (error) {
 			console.log(error);
-			let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-			if (dexiePrefs) {
-				if (!isOnline) {
-					const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+			let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+			if (dexie_prefs) {
+				if (!is_online) {
+					const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
 					tmp.push({
 						event: 'delete',
 						medium: current_medium,
 						card: { id: medium_id } as mediaObject
 					});
-					dexiePrefs.changed_offline = JSON.stringify(tmp);
+					dexie_prefs.changed_offline = JSON.stringify(tmp);
 				}
-				dexiePrefs.updated_at = syncTimestamp.toISOString();
-				await dexieDB.prefs.update(0, dexiePrefs);
+				dexie_prefs.updated_at = sync_timestamp.toISOString();
+				await dexieDB.prefs.update(0, dexie_prefs);
 			}
 		}
 		if (current_mode == 0) {
@@ -659,14 +657,14 @@
 
 <div class="flex flex-col h-screen">
 	<TopBar
-		on:switchMedium={handleMediaSwitch}
-		on:switchMode={handleModeSwitch}
+		on:switch_medium={handleMediaSwitch}
+		on:switch_mode={handleModeSwitch}
 		on:filter={handleFilter}
 		header={header_text}
-		settingsButton={true}
-		navBackButton={false}
-		staticHeader={false}
-		tabIndex={currentTabIndex}
+		settings_button={true}
+		nav_back_button={false}
+		static_header={false}
+		tab_index={current_tab_index}
 		{current_mode}
 		{own_profile}
 	></TopBar>
@@ -737,7 +735,7 @@
 	<input type="checkbox" id="search_modal" class="modal-toggle" bind:this={search_modal} />
 	<div class="modal" role="dialog">
 		<div class="modal-box">
-			{#if isOnline}
+			{#if is_online}
 				<p class=" font-bold text-lg text-center mb-3">{form_text} hinzufügen</p>
 			{:else}
 				<p class=" font-bold text-xl text-center mb-3">Offline Modus</p>
@@ -792,7 +790,7 @@
 						</div>
 					</button>
 				{/each}
-				{#if loading && isOnline}
+				{#if loading && is_online}
 					<div class="flex">
 						<span class="loading loading-dots loading-md m-auto mt-3"></span>
 					</div>

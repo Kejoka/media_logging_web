@@ -18,12 +18,12 @@
 	export let current_medium: string;
 	export let current_mode: number;
 	export let own_profile: boolean;
-	let deleteModal: HTMLInputElement;
+	let delete_modal: HTMLInputElement;
 	let edit_modal: HTMLInputElement;
-	let toDelete: mediaObject = { title: '' };
-	let toEdit: mediaObject = { title: '' };
-	let toEditRelease: Date = new Date();
-	let toEditAdded: Date = new Date();
+	let to_delete: mediaObject = { title: '' };
+	let to_edit: mediaObject = { title: '' };
+	let to_editRelease: Date = new Date();
+	let to_editAdded: Date = new Date();
 	const dispatch = createEventDispatcher();
 
 	function getRatingConfig(score: number) {
@@ -53,7 +53,7 @@
 
 	async function updateScore(event: CustomEvent) {
 		try {
-			const syncTimestamp = new Date();
+			const sync_timestamp = new Date();
 			// DexieDB
 			switch (current_medium) {
 				case 'games':
@@ -73,11 +73,11 @@
 			}
 			media_data[media_data.findIndex((obj) => obj.id == event.detail.medium.id)].rating =
 				event.detail.new_score;
-			await dexieDB.prefs.update(0, { updated_at: syncTimestamp.toISOString() });
+			await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
 			// Supabase
 			try {
-				const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-				if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+				const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+				if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
 					redoDexieChanges();
 				}
 				const res = await fetch('/api/v1/updateScore', {
@@ -86,7 +86,7 @@
 						score: event.detail.new_score,
 						medium: event.detail.medium,
 						current_medium,
-						syncTimestamp
+						sync_timestamp
 					}),
 					headers: {
 						'Content-Type': 'application/json'
@@ -94,19 +94,19 @@
 				});
 			} catch (error) {
 				console.log(error);
-				let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-				if (dexiePrefs) {
+				let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+				if (dexie_prefs) {
 					if (!navigator.onLine) {
-						const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+						const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
 						tmp.push({
 							event: 'score',
 							medium: current_medium,
 							card: { id: event.detail.medium.id, rating: event.detail.new_score } as mediaObject
 						});
-						dexiePrefs.changed_offline = JSON.stringify(tmp);
+						dexie_prefs.changed_offline = JSON.stringify(tmp);
 					}
-					dexiePrefs.updated_at = syncTimestamp.toISOString();
-					await dexieDB.prefs.update(0, dexiePrefs);
+					dexie_prefs.updated_at = sync_timestamp.toISOString();
+					await dexieDB.prefs.update(0, dexie_prefs);
 				}
 			}
 		} catch (error) {
@@ -115,131 +115,137 @@
 	}
 
 	function askDelete(event: CustomEvent) {
-		toDelete = event.detail;
-		deleteModal.checked = true;
+		to_delete = event.detail;
+		delete_modal.checked = true;
 	}
 
 	function showEditForm(event: CustomEvent) {
-		toEdit = event.detail;
-		toEditRelease = new Date(toEdit.release || '');
-		toEditAdded = new Date(toEdit.added || '');
+		to_edit = event.detail;
+		to_editRelease = new Date(to_edit.release || '');
+		to_editAdded = new Date(to_edit.added || '');
 		edit_modal.checked = true;
 	}
 
 	async function updateMedium() {
-		media_data[media_data.findIndex((obj) => obj.id == toEdit.id)] = toEdit;
-		toEdit.release = toEditRelease.toISOString();
-		toEdit.added = toEditAdded.toISOString();
-		const syncTimestamp = new Date();
+		media_data[media_data.findIndex((obj) => obj.id == to_edit.id)] = to_edit;
+		to_edit.release = to_editRelease.toISOString();
+		to_edit.added = to_editAdded.toISOString();
+		const sync_timestamp = new Date();
 		// DexieDB
 		switch (current_medium) {
 			case 'games':
-				await dexieDB.games.update(toEdit.id, {
+				await dexieDB.games.update(to_edit.id, {
 					title:
-						toEdit.title && toEdit.title.trim().length > 0
-							? toEdit.title.trim()
+						to_edit.title && to_edit.title.trim().length > 0
+							? to_edit.title.trim()
 							: 'Kein Titel angegeben',
-					image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image.trim() : null,
+					image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image.trim() : null,
 					release:
-						toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release.trim() : null,
-					genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres.trim() : null,
+						to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release.trim() : null,
+					genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres.trim() : null,
 					platforms:
-						toEdit.platforms && toEdit.platforms.trim().length > 0 ? toEdit.platforms.trim() : null,
+						to_edit.platforms && to_edit.platforms.trim().length > 0
+							? to_edit.platforms.trim()
+							: null,
 					added:
-						toEdit.added && toEdit.added.trim().length > 0
-							? toEdit.added.trim()
+						to_edit.added && to_edit.added.trim().length > 0
+							? to_edit.added.trim()
 							: new Date().toISOString(),
-					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes.trim() : null
+					notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes.trim() : null
 				} as mediaObject);
 				break;
 			case 'movies':
-				await dexieDB.movies.update(toEdit.id, {
+				await dexieDB.movies.update(to_edit.id, {
 					title:
-						toEdit.title && toEdit.title.trim().length > 0
-							? toEdit.title.trim()
+						to_edit.title && to_edit.title.trim().length > 0
+							? to_edit.title.trim()
 							: 'Kein Titel angegeben',
-					image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image.trim() : null,
+					image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image.trim() : null,
 					release:
-						toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release.trim() : null,
-					genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres.trim() : null,
+						to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release.trim() : null,
+					genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres.trim() : null,
 					added:
-						toEdit.added && toEdit.added.trim().length > 0
-							? toEdit.added.trim()
+						to_edit.added && to_edit.added.trim().length > 0
+							? to_edit.added.trim()
 							: new Date().toISOString(),
-					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes.trim() : null
+					notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes.trim() : null
 				} as mediaObject);
 				break;
 			case 'shows':
-				await dexieDB.shows.update(toEdit.id, {
+				await dexieDB.shows.update(to_edit.id, {
 					title:
-						toEdit.title && toEdit.title.trim().length > 0 ? toEdit.title : 'Kein Titel angegeben',
-					image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image : null,
-					release: toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release : null,
-					genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres : null,
+						to_edit.title && to_edit.title.trim().length > 0
+							? to_edit.title
+							: 'Kein Titel angegeben',
+					image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image : null,
+					release: to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release : null,
+					genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres : null,
 					added:
-						toEdit.added && toEdit.added.trim().length > 0
-							? toEdit.added
+						to_edit.added && to_edit.added.trim().length > 0
+							? to_edit.added
 							: new Date().toISOString(),
-					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null,
-					seasons: toEdit.seasons && toEdit.seasons.trim().length > 0 ? toEdit.seasons : null,
+					notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes : null,
+					seasons: to_edit.seasons && to_edit.seasons.trim().length > 0 ? to_edit.seasons : null,
 					episode:
-						toEdit.episode && toEdit.episode.toString().trim().length > 0 ? toEdit.episode : 0
+						to_edit.episode && to_edit.episode.toString().trim().length > 0 ? to_edit.episode : 0
 				} as mediaObject);
 				break;
 			case 'books':
-				await dexieDB.books.update(toEdit.id, {
+				await dexieDB.books.update(to_edit.id, {
 					title:
-						toEdit.title && toEdit.title.trim().length > 0 ? toEdit.title : 'Kein Titel angegeben',
-					author: toEdit.author && toEdit.author.trim().length > 0 ? toEdit.author : null,
-					image: toEdit.image && toEdit.image.trim().length > 0 ? toEdit.image : null,
-					release: toEdit.release && toEdit.release.trim().length > 0 ? toEdit.release : null,
-					genres: toEdit.genres && toEdit.genres.trim().length > 0 ? toEdit.genres : null,
+						to_edit.title && to_edit.title.trim().length > 0
+							? to_edit.title
+							: 'Kein Titel angegeben',
+					author: to_edit.author && to_edit.author.trim().length > 0 ? to_edit.author : null,
+					image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image : null,
+					release: to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release : null,
+					genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres : null,
 					pagecount:
-						toEdit.pagecount && toEdit.pagecount.toString().trim().length > 0
-							? toEdit.pagecount
+						to_edit.pagecount && to_edit.pagecount.toString().trim().length > 0
+							? to_edit.pagecount
 							: null,
 					added:
-						toEdit.added && toEdit.added.trim().length > 0
-							? toEdit.added
+						to_edit.added && to_edit.added.trim().length > 0
+							? to_edit.added
 							: new Date().toISOString(),
-					notes: toEdit.notes && toEdit.notes.trim().length > 0 ? toEdit.notes : null
+					notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes : null
 				} as mediaObject);
 				break;
 			default:
 				break;
 		}
-		await dexieDB.prefs.update(0, { updated_at: syncTimestamp.toISOString() });
+		await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
 		// Supabase
 		try {
-			const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-			if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
 				redoDexieChanges();
 			}
 			const res = await fetch('/api/v1/updateMedium', {
 				method: 'POST',
-				body: JSON.stringify({ toEdit, current_medium, syncTimestamp }),
+				body: JSON.stringify({ to_edit, current_medium, sync_timestamp }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
 			});
 		} catch (error) {
 			console.log(error);
-			let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-			if (dexiePrefs) {
+			let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+			if (dexie_prefs) {
 				if (!navigator.onLine) {
-					const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
-					tmp.push({ event: 'update', medium: current_medium, card: toEdit });
-					dexiePrefs.changed_offline = JSON.stringify(tmp);
+					const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
+					tmp.push({ event: 'update', medium: current_medium, card: to_edit });
+					dexie_prefs.changed_offline = JSON.stringify(tmp);
 				}
-				dexiePrefs.updated_at = syncTimestamp.toISOString();
-				await dexieDB.prefs.update(0, dexiePrefs);
+				dexie_prefs.updated_at = sync_timestamp.toISOString();
+				await dexieDB.prefs.update(0, dexie_prefs);
 			}
 		}
-		const collapseInput = document.getElementById(
-			String(toEdit.id) + `_${current_medium.charAt(0)}`
+		const collapse_input = document.getElementById(
+			String(to_edit.id) + `_${current_medium.charAt(0)}`
 		);
-		if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
-			collapseInput.checked = !collapseInput.checked;
+		if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
+			collapse_input.checked = !collapse_input.checked;
 		}
 		dispatch('refresh');
 		edit_modal.checked = false;
@@ -254,7 +260,7 @@
 				<GameCard
 					on:delete={askDelete}
 					on:edit={showEditForm}
-					on:updateScore={updateScore}
+					on:update_score={updateScore}
 					{own_profile}
 					{medium}
 					{config}
@@ -264,7 +270,7 @@
 				<MovieCard
 					on:delete={askDelete}
 					on:edit={showEditForm}
-					on:updateScore={updateScore}
+					on:update_score={updateScore}
 					{own_profile}
 					{medium}
 					{config}
@@ -274,7 +280,7 @@
 				<TvCard
 					on:delete={askDelete}
 					on:edit={showEditForm}
-					on:updateScore={updateScore}
+					on:update_score={updateScore}
 					{own_profile}
 					{medium}
 					{config}
@@ -284,7 +290,7 @@
 				<BookCard
 					on:delete={askDelete}
 					on:edit={showEditForm}
-					on:updateScore={updateScore}
+					on:update_score={updateScore}
 					{own_profile}
 					{medium}
 					{config}
@@ -453,25 +459,25 @@
 	{/if}
 </div>
 <!-- DeleteModal -->
-<input type="checkbox" id="deleteModal" class="modal-toggle" bind:this={deleteModal} />
+<input type="checkbox" id="delete_modal" class="modal-toggle" bind:this={delete_modal} />
 <div class="modal" role="dialog">
 	<div class="modal-box flex flex-col">
-		<p class="font-semibold text-lg mb-3">{toDelete.title} wirklich löschen?</p>
+		<p class="font-semibold text-lg mb-3">{to_delete.title} wirklich löschen?</p>
 		<button
 			class="btn btn-error font-bold"
 			on:click={() => {
-				dispatch('delete', toDelete);
-				deleteModal.checked = false;
+				dispatch('delete', to_delete);
+				delete_modal.checked = false;
 			}}>Löschen</button
 		>
 	</div>
 	<label
 		use:tap
 		on:tap={() => {
-			deleteModal.checked = false;
+			delete_modal.checked = false;
 		}}
 		class="modal-backdrop"
-		for="deleteModal">Close</label
+		for="delete_modal">Close</label
 	>
 </div>
 <!-- Edit_modal -->
@@ -483,38 +489,38 @@
 			<div class="label">
 				<span class="label-text">Titel</span>
 			</div>
-			<input type="text" bind:value={toEdit.title} class="input input-bordered w-full max-w-xs" />
+			<input type="text" bind:value={to_edit.title} class="input input-bordered w-full max-w-xs" />
 		</label>
 		<!-- Image -->
 		<label class="form-control w-full max-w-xs">
 			<div class="label">
 				<span class="label-text">Bild-URL</span>
 			</div>
-			<input type="text" bind:value={toEdit.image} class="input input-bordered w-full max-w-xs" />
+			<input type="text" bind:value={to_edit.image} class="input input-bordered w-full max-w-xs" />
 		</label>
 		<!-- Release  -->
 		<div class="label">
 			<span class="label-text">Release-Datum</span>
 		</div>
-		<DateInput bind:value={toEditRelease} />
+		<DateInput bind:value={to_editRelease} />
 		<!-- Genres -->
 		<label class="form-control w-full max-w-xs">
 			<div class="label">
 				<span class="label-text">Genre-Liste</span>
 			</div>
-			<input type="text" bind:value={toEdit.genres} class="input input-bordered w-full max-w-xs" />
+			<input type="text" bind:value={to_edit.genres} class="input input-bordered w-full max-w-xs" />
 		</label>
 		<!-- Added -->
 		<div class="label">
 			<span class="label-text">Hinzugefügt</span>
 		</div>
-		<DateInput bind:value={toEditAdded} />
+		<DateInput bind:value={to_editAdded} />
 		<!-- Notes -->
 		<label class="form-control">
 			<div class="label">
 				<span class="label-text">Notizen</span>
 			</div>
-			<textarea class="textarea textarea-bordered h-24" bind:value={toEdit.notes}></textarea>
+			<textarea class="textarea textarea-bordered h-24" bind:value={to_edit.notes}></textarea>
 		</label>
 		{#if current_medium === 'games'}
 			<!-- Platforms	 -->
@@ -524,7 +530,7 @@
 				</div>
 				<input
 					type="text"
-					bind:value={toEdit.platforms}
+					bind:value={to_edit.platforms}
 					class="input input-bordered w-full max-w-xs"
 				/>
 			</label>
@@ -536,7 +542,7 @@
 				</div>
 				<input
 					type="text"
-					bind:value={toEdit.seasons}
+					bind:value={to_edit.seasons}
 					class="input input-bordered w-full max-w-xs"
 				/>
 			</label>
@@ -547,7 +553,7 @@
 				</div>
 				<input
 					type="text"
-					bind:value={toEdit.episode}
+					bind:value={to_edit.episode}
 					class="input input-bordered w-full max-w-xs"
 				/>
 			</label>
@@ -559,7 +565,7 @@
 				</div>
 				<input
 					type="text"
-					bind:value={toEdit.author}
+					bind:value={to_edit.author}
 					class="input input-bordered w-full max-w-xs"
 				/>
 			</label>
@@ -570,7 +576,7 @@
 				</div>
 				<input
 					type="text"
-					bind:value={toEdit.pagecount}
+					bind:value={to_edit.pagecount}
 					class="input input-bordered w-full max-w-xs"
 				/>
 			</label>

@@ -22,8 +22,8 @@ export const load: PageServerLoad = async ({ locals: { supabase, safeGetSession 
 
 export const actions: Actions = {
 	update: async ({ request, locals: { supabase, safeGetSession } }) => {
-		const formData = await request.formData();
-		const username = formData.get('username') as string;
+		const form_data = await request.formData();
+		const username = form_data.get('username') as string;
 
 		const { session } = await safeGetSession();
 

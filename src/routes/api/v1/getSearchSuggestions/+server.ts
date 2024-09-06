@@ -5,17 +5,15 @@ import tvGenres from '$lib/tvGenres.js';
 import { delay } from '$lib/utils.js';
 import { search } from '@chewhx/google-books';
 
-
-
 const RETRIES: number = 3;
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
-    const reqBody = await request.json();
-    const search_val = reqBody['search_val'];
-    const search_page = reqBody['last_search_page'];
-    const current_medium = reqBody['current_medium'];
-    let searchResults: mediaObject[] = [];
+    const req_body = await request.json();
+    const search_val = req_body['search_val'];
+    const search_page = req_body['last_search_page'];
+    const current_medium = req_body['current_medium'];
+    let search_results: mediaObject[] = [];
 
     const params = {
         adult: false,
@@ -54,7 +52,7 @@ export async function POST({ request }) {
                         result.platforms?.forEach((platform: { id: number, abbreviation: string }) => {
                             platforms.push(platform.abbreviation)
                         })
-                        searchResults.push(
+                        search_results.push(
                             {
                                 igdbid: result.id,
                                 title: result.name,
@@ -66,7 +64,7 @@ export async function POST({ request }) {
                             } as mediaObject
                         )
                     })
-                    return new Response(JSON.stringify(searchResults));
+                    return new Response(JSON.stringify(search_results));
                 case 'movies':
                     raw_res = await fetch(`https://api.themoviedb.org/3/search/movie?query=${params.query}&include_adult=${params.adult}&language=${params.language}&page=${params.page}&api_key=${PRIVATE_TMDB_V3_KEY}`);
                     res = await raw_res.json();
@@ -83,7 +81,7 @@ export async function POST({ request }) {
                                 genres.push(movieGenres.genres[movieGenres.genres.findIndex(obj => obj.id == genre_id)].name)
                             }
                         })
-                        searchResults.push(
+                        search_results.push(
                             {
                                 tmdbid: result.id,
                                 title: result.title,
@@ -94,7 +92,7 @@ export async function POST({ request }) {
                             } as mediaObject
                         )
                     })
-                    return new Response(JSON.stringify(searchResults));
+                    return new Response(JSON.stringify(search_results));
                 case 'shows':
                     raw_res = await fetch(`https://api.themoviedb.org/3/search/tv?query=${params.query}&include_adult=${params.adult}&language=${params.language}&page=${params.page}&api_key=${PRIVATE_TMDB_V3_KEY}`)
                     res = await raw_res.json();
@@ -111,7 +109,7 @@ export async function POST({ request }) {
                                 genres.push(tvGenres.genres[tvGenres.genres.findIndex(obj => obj.id == genre_id)].name)
                             }
                         })
-                        searchResults.push(
+                        search_results.push(
                             {
                                 tmdbid: result.id,
                                 title: result.name,
@@ -122,7 +120,7 @@ export async function POST({ request }) {
                             } as mediaObject
                         )
                     })
-                    return new Response(JSON.stringify(searchResults));
+                    return new Response(JSON.stringify(search_results));
                 case 'books':
                     const book_res = await search({ q: search_val }, { maxResults: 20, startIndex: (search_page - 1) * 20, orderBy: 'relevance', projection: 'full' })
                     book_res.items?.forEach(book => {
@@ -132,7 +130,7 @@ export async function POST({ request }) {
                         } else {
                             iso_release = null;
                         }
-                        searchResults.push(
+                        search_results.push(
                             {
                                 gbid: book.id,
                                 title: book.volumeInfo?.title,
@@ -146,7 +144,7 @@ export async function POST({ request }) {
                             } as mediaObject
                         )
                     })
-                    return new Response(JSON.stringify(searchResults));
+                    return new Response(JSON.stringify(search_results));
                 default:
                     break;
             }

@@ -8,11 +8,11 @@
 	import { page } from '$app/stores';
 	import { supabase } from '$lib/supabaseClient.js';
 	import AutoComplete from '$lib/UI/AutoComplete.svelte';
-	import { onlineStatus } from '../../../stores/onlineStatus.js';
+	import { online_status } from '../../../stores/onlineStatus.js';
 
 	export let data;
 	export let form;
-	$: isOnline = $onlineStatus;
+	$: is_online = $online_status;
 	let { session, profile } = data;
 	$: ({ session, profile } = data);
 
@@ -62,13 +62,13 @@
 <div class="h-screen bg-base-100">
 	<NavBar
 		header={'Nutzereinstellungen'}
-		settingsButton={false}
-		navBackButton={true}
-		staticHeader={true}
+		settings_button={false}
+		nav_back_button={true}
+		static_header={true}
 		own_profile={undefined}
 	></NavBar>
 	<div class="flex flex-col h-[90%] items-center justify-center">
-		{#if isOnline}
+		{#if is_online}
 			<div class="w-[90%] flex flex-col justify-center items-center mx-auto">
 				<AutoComplete></AutoComplete>
 				<form

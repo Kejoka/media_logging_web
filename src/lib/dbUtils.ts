@@ -1,23 +1,23 @@
 import Dexie, { type EntityTable } from "dexie";
 
 export function getYears(db_data: mediaObject[], active_year: string) {
-    const currentYear = new Date().getFullYear()
-    let uniqueYears = [...new Set(db_data.map(obj => new Date(obj.added || 404).getFullYear()))].sort()
-    if (uniqueYears.indexOf(currentYear) == -1) {
-        uniqueYears.push(currentYear)
+    const current_year = new Date().getFullYear()
+    let unique_years = [...new Set(db_data.map(obj => new Date(obj.added || 404).getFullYear()))].sort()
+    if (unique_years.indexOf(current_year) == -1) {
+        unique_years.push(current_year)
     }
-    const newYearObjects = uniqueYears.map(value => ({
+    const new_year_objects = unique_years.map(value => ({
         year: value.toString(),
         active: false
     }));
-    newYearObjects.push({ year: 'Gesamt', active: false })
-    if (newYearObjects.some(obj => obj.year === active_year)) {
-        newYearObjects[newYearObjects.findIndex(obj => obj.year === active_year)].active = true;
+    new_year_objects.push({ year: 'Gesamt', active: false })
+    if (new_year_objects.some(obj => obj.year === active_year)) {
+        new_year_objects[new_year_objects.findIndex(obj => obj.year === active_year)].active = true;
     }
     else {
-        newYearObjects[newYearObjects.findIndex(obj => obj.year === String(currentYear))].active = true;
+        new_year_objects[new_year_objects.findIndex(obj => obj.year === String(current_year))].active = true;
     }
-    return newYearObjects
+    return new_year_objects
 }
 
 export function indexToMedium(index: number) {
@@ -26,15 +26,15 @@ export function indexToMedium(index: number) {
 
 export async function redoDexieChanges() {
     const changes: OfflineChangeObject[] = JSON.parse((await dexieDB.prefs.toArray()).at(0)?.changed_offline || '')
-    const syncTimestamp = new Date();
-    let failedChanges: OfflineChangeObject[] = [];
+    const sync_timestamp = new Date();
+    let failed_changes: OfflineChangeObject[] = [];
     let res;
-    let idChanges = [];
+    let id_changes = [];
     for (const change of changes) {
         console.log(change)
-        idChanges.forEach(idChange => {
-            if (idChange.medium === change.medium && idChange.old == change.card.id) {
-                change.card.id = idChange.new
+        id_changes.forEach(id_change => {
+            if (id_change.medium === change.medium && id_change.old == change.card.id) {
+                change.card.id = id_change.new
             }
         })
         switch (change.event) {
@@ -45,62 +45,62 @@ export async function redoDexieChanges() {
                         body: JSON.stringify({
                             last_selection: change.card,
                             current_medium: change.medium,
-                            syncTimestamp
+                            sync_timestamp
                         }),
                         headers: {
                             'Content-Type': 'application/json'
                         }
                     });
-                    const supabaseRes = await res.json()
+                    const supabase_res = await res.json()
                     switch (change.medium) {
                         case 'games':
-                            await dexieDB.games.update(change.card.id, { id: supabaseRes.data.id })
+                            await dexieDB.games.update(change.card.id, { id: supabase_res.data.id })
                             break;
                         case 'movies':
-                            await dexieDB.movies.update(change.card.id, { id: supabaseRes.data.id })
+                            await dexieDB.movies.update(change.card.id, { id: supabase_res.data.id })
                             break;
                         case 'shows':
-                            await dexieDB.shows.update(change.card.id, { id: supabaseRes.data.id })
+                            await dexieDB.shows.update(change.card.id, { id: supabase_res.data.id })
                             break;
                         case 'books':
-                            await dexieDB.books.update(change.card.id, { id: supabaseRes.data.id })
+                            await dexieDB.books.update(change.card.id, { id: supabase_res.data.id })
                             break;
                         default:
                             break;
                     }
-                    idChanges.push({ old: change.card.id, new: supabaseRes.data.id, medium: change.medium })
+                    id_changes.push({ old: change.card.id, new: supabase_res.data.id, medium: change.medium })
 
                 } catch (error) {
                     console.log(error);
-                    failedChanges.push(change)
+                    failed_changes.push(change)
                 }
                 break;
             case 'delete':
                 try {
                     res = await fetch('/api/v1/deleteMedium', {
                         method: 'POST',
-                        body: JSON.stringify({ medium_id: change.card.id, current_medium: change.medium, syncTimestamp }),
+                        body: JSON.stringify({ medium_id: change.card.id, current_medium: change.medium, sync_timestamp }),
                         headers: {
                             'Content-Type': 'application/json'
                         }
                     });
                 } catch (error) {
                     console.log(error)
-                    failedChanges.push(change)
+                    failed_changes.push(change)
                 }
                 break;
             case 'update':
                 try {
                     res = await fetch('/api/v1/updateMedium', {
                         method: 'POST',
-                        body: JSON.stringify({ toEdit: change.card, current_medium: change.medium, syncTimestamp }),
+                        body: JSON.stringify({ to_edit: change.card, current_medium: change.medium, sync_timestamp }),
                         headers: {
                             'Content-Type': 'application/json'
                         }
                     });
                 } catch (error) {
                     console.log(error)
-                    failedChanges.push(change)
+                    failed_changes.push(change)
                 }
                 break;
             case 'score':
@@ -111,7 +111,7 @@ export async function redoDexieChanges() {
                             score: change.card.rating,
                             medium: change.card,
                             current_medium: change.medium,
-                            syncTimestamp
+                            sync_timestamp
                         }),
                         headers: {
                             'Content-Type': 'application/json'
@@ -119,7 +119,7 @@ export async function redoDexieChanges() {
                     });
                 } catch (error) {
                     console.log(error)
-                    failedChanges.push(change)
+                    failed_changes.push(change)
                 }
                 break;
             case 'episode':
@@ -129,12 +129,12 @@ export async function redoDexieChanges() {
                         body: JSON.stringify({
                             new_value: change.card.episode,
                             id: change.card.id,
-                            syncTimestamp
+                            sync_timestamp
                         })
                     });
                 } catch (error) {
                     console.log(error)
-                    failedChanges.push(change)
+                    failed_changes.push(change)
                 }
                 break;
             case 'trophy':
@@ -144,19 +144,19 @@ export async function redoDexieChanges() {
                         body: JSON.stringify({
                             new_value: change.card.trophy,
                             id: change.card.id,
-                            syncTimestamp
+                            sync_timestamp
                         })
                     });
                 } catch (error) {
                     console.log(error)
-                    failedChanges.push(change)
+                    failed_changes.push(change)
                 }
                 break;
             default:
                 break;
         }
     }
-    await dexieDB.prefs.update(0, { updated_at: syncTimestamp.toISOString(), changed_offline: JSON.stringify(failedChanges) });
+    await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString(), changed_offline: JSON.stringify(failed_changes) });
 }
 
 export const dexieDB = new Dexie('MediaDatabase') as Dexie & {
@@ -329,6 +329,7 @@ export type mediaObject = {
     platforms?: string,
     trophy?: number,
     notes?: string,
+    // Duplicate types used to allow porting from the Flutter .db files to the new structure used in supabase and indexedDB
     averageRating?: number,
     addedIn?: number,
     pageCount?: number

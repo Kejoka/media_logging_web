@@ -7,8 +7,8 @@ const RETRIES: number = 3;
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
-	const reqBody = await request.json();
-	const search_val = reqBody['search_val'];
+	const req_body = await request.json();
+	const search_val = req_body['search_val'];
 
 	let try_count = 0;
 	while (try_count < RETRIES) {

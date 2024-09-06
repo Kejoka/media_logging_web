@@ -11,8 +11,8 @@
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
 	export let config;
-	export let current_mode;
-	export let own_profile;
+	export let current_mode: number;
+	export let own_profile: boolean;
 	let unique = {};
 
 	function restart() {
@@ -25,15 +25,15 @@
 		} else if (medium.episode != undefined && event.type == 'press') {
 			medium.episode = Math.max(medium.episode - 1, 0);
 		}
-		const syncTimestamp = new Date();
+		const sync_timestamp = new Date();
 		// DexieDB
 		await dexieDB.shows.update(medium.id, { episode: medium.episode });
-		await dexieDB.prefs.update(0, { updated_at: syncTimestamp.toISOString() });
+		await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
 		restart();
 		// Supabase
 		try {
-			const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-			if (JSON.parse(dexiePrefs?.changed_offline || '').length != 0) {
+			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
 				redoDexieChanges();
 			}
 			const res = await fetch('/api/v1/updateEpisode', {
@@ -41,25 +41,25 @@
 				body: JSON.stringify({
 					new_value: medium.episode,
 					id: medium.id,
-					syncTimestamp
+					sync_timestamp
 				})
 			});
 			console.log(await res.json());
 		} catch (error) {
 			console.log(error);
-			let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
-			if (dexiePrefs) {
+			let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+			if (dexie_prefs) {
 				if (!navigator.onLine) {
-					const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+					const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
 					tmp.push({
 						event: 'episode',
 						medium: 'shows',
 						card: { id: medium.id, episode: medium.episode }
 					});
-					dexiePrefs.changed_offline = JSON.stringify(tmp);
+					dexie_prefs.changed_offline = JSON.stringify(tmp);
 				}
-				dexiePrefs.updated_at = syncTimestamp.toISOString();
-				await dexieDB.prefs.update(0, dexiePrefs);
+				dexie_prefs.updated_at = sync_timestamp.toISOString();
+				await dexieDB.prefs.update(0, dexie_prefs);
 			}
 		}
 	}
@@ -67,7 +67,7 @@
 
 {#key unique}
 	<div class="px-2 pb-2">
-		<div class="collapse bg-base-100">
+		<div class="{own_profile || medium.notes ? 'collapse' : ''} bg-base-100">
 			<input id={String(medium.id) + '_s'} type="radio" name="movie-accordion" class="hidden" />
 			<!-- Card here -->
 			<div class="card bg-base-100 card-side select-none min-h-[15vh] h-[15vh] max-h-[15vh]">
@@ -97,9 +97,9 @@
 					class="card-body justify-center pl-2"
 					use:tap
 					on:tap={() => {
-						const collapseInput = document.getElementById(String(medium.id) + '_s');
-						if (collapseInput != null && collapseInput instanceof HTMLInputElement) {
-							collapseInput.checked = !collapseInput.checked;
+						const collapse_input = document.getElementById(String(medium.id) + '_s');
+						if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
+							collapse_input.checked = !collapse_input.checked;
 						}
 					}}
 				>
@@ -127,7 +127,7 @@
 					<div class="px-2 h-fit my-auto">
 						<StarRating
 							{config}
-							on:change={() => dispatch('updateScore', { new_score: config.score, medium })}
+							on:change={() => dispatch('update_score', { new_score: config.score, medium })}
 						></StarRating>
 					</div>
 				{/if}

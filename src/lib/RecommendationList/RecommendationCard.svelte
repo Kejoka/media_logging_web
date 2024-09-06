@@ -2,7 +2,7 @@
 	export let title: string = '';
 	export let image: string | undefined = undefined;
 
-	let hoverText = title;
+	let hover_text = title;
 </script>
 
 <div class="relative inline-block">
@@ -14,6 +14,6 @@
 	<div
 		class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 text-white opacity-0 transition-opacity duration-300 ease-in-out hover:opacity-100 text-center"
 	>
-		<span class="text-ellipsis overflow-hidden">{hoverText}</span>
+		<span class="text-ellipsis overflow-hidden">{hover_text}</span>
 	</div>
 </div>

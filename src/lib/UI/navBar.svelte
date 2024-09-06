@@ -5,37 +5,37 @@
 	import Back from '$lib/Icons/back.svelte';
 	import { createEventDispatcher } from 'svelte';
 	export let header: string;
-	export let navBackButton: boolean;
-	export let settingsButton: boolean;
-	export let staticHeader: boolean;
+	export let nav_back_button: boolean;
+	export let settings_button: boolean;
+	export let static_header: boolean;
 	export let own_profile: boolean | undefined;
 	const dispatch = createEventDispatcher();
 
-	const settingsLink = $page.url.pathname + '/settings';
-	let relativeBackLink: string;
+	const settings_link = $page.url.pathname + '/settings';
+	let relative_back_link: string;
 	if (own_profile != undefined && !own_profile) {
-		relativeBackLink = '/';
+		relative_back_link = '/';
 	} else {
-		relativeBackLink = $page.url.pathname.split('/').slice(0, -1).join('/');
+		relative_back_link = $page.url.pathname.split('/').slice(0, -1).join('/');
 	}
-	let dropdownOpen = false;
+	let dropdown_open = false;
 </script>
 
 <div class="navbar z-10 bg-base-300">
 	<div class="navbar-start">
-		{#if navBackButton || !own_profile}
-			<a class="btn" href={relativeBackLink} data-sveltekit-reload>
+		{#if nav_back_button || !own_profile}
+			<a class="btn" href={relative_back_link} data-sveltekit-reload>
 				<Back></Back>
 			</a>
 		{/if}
 	</div>
-	{#if staticHeader}
+	{#if static_header}
 		<p class="font-bold text-lg">{header}</p>
 	{:else}
-		<details id="dropdown-content" class="dropdown navbar-center" bind:open={dropdownOpen}>
+		<details id="dropdown-content" class="dropdown navbar-center" bind:open={dropdown_open}>
 			<summary tabindex="0" class="btn text-lg font-semibold"
 				>{header}
-				{#if dropdownOpen}
+				{#if dropdown_open}
 					<svg
 						class="w-5 h-5 inset-x-0 -scale-100"
 						fill="none"
@@ -63,8 +63,8 @@
 				<li>
 					<button
 						on:click={(e) => {
-							dropdownOpen = false;
-							dispatch('switchMode', { mode: 0 });
+							dropdown_open = false;
+							dispatch('switch_mode', { mode: 0 });
 						}}
 						class="w-full text-left">Medien-Log</button
 					>
@@ -72,8 +72,8 @@
 				<li>
 					<button
 						on:click={(e) => {
-							dropdownOpen = false;
-							dispatch('switchMode', { mode: 1 });
+							dropdown_open = false;
+							dispatch('switch_mode', { mode: 1 });
 						}}
 						class="w-full text-left">Backlog</button
 					>
@@ -81,8 +81,8 @@
 				<li>
 					<button
 						on:click={(e) => {
-							dropdownOpen = false;
-							dispatch('switchMode', { mode: 2 });
+							dropdown_open = false;
+							dispatch('switch_mode', { mode: 2 });
 						}}
 						class="w-full text-left">Statistiken</button
 					>
@@ -91,11 +91,11 @@
 		</details>
 	{/if}
 	<div class="navbar-end">
-		{#if settingsButton && own_profile}
+		{#if settings_button && own_profile}
 			<button
 				class="btn"
 				on:click={() => {
-					goto(settingsLink);
+					goto(settings_link);
 				}}
 			>
 				<Settings></Settings>

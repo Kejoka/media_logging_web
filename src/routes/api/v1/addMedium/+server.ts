@@ -1,15 +1,15 @@
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
-    const reqBody = await request.json();
-    const current_medium = reqBody['current_medium'];
-    const medium = reqBody['last_selection'];
-    const syncTimestamp = reqBody['syncTimestamp']
+    const req_body = await request.json();
+    const current_medium = req_body['current_medium'];
+    const medium = req_body['last_selection'];
+    const sync_timestamp = req_body['sync_timestamp']
     const { session } = await safeGetSession();
     let error;
     try {
         error = await supabase.from('profiles').upsert({
             id: session?.user.id,
-            updated_at: syncTimestamp
+            updated_at: sync_timestamp
         });
         switch (current_medium) {
             case 'games':

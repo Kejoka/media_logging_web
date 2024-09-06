@@ -7,10 +7,10 @@
 	import NavBar from './navBar.svelte';
 	import { tap } from 'svelte-gestures';
 	export let header: string;
-	export let navBackButton: boolean;
-	export let settingsButton: boolean;
-	export let tabIndex: number;
-	export let staticHeader: boolean;
+	export let nav_back_button: boolean;
+	export let settings_button: boolean;
+	export let tab_index: number;
+	export let static_header: boolean;
 	export let current_mode: number;
 	export let own_profile: boolean;
 	const dispatch = createEventDispatcher();
@@ -20,9 +20,9 @@
 	let input_timeout = setTimeout(function () {}, 0);
 
 	function mediaSwitch(tab_index: number) {
-		tabIndex = tab_index;
+		tab_index = tab_index;
 		search_filter = '';
-		dispatch('switchMedium', {
+		dispatch('switch_medium', {
 			index: tab_index
 		});
 	}
@@ -36,34 +36,34 @@
 </script>
 
 <div class="z-10 w-full h-fit">
-	<NavBar on:switchMode {staticHeader} {header} {navBackButton} {settingsButton} {own_profile}
+	<NavBar on:switch_mode {static_header} {header} {nav_back_button} {settings_button} {own_profile}
 	></NavBar>
 	<div>
 		<div role="tablist" class="tabs tabs-bordered bg-base-100">
 			<button
 				role="tab"
-				class="tab {tabIndex == 0 ? 'tab-active' : ''}"
+				class="tab {tab_index == 0 ? 'tab-active' : ''}"
 				on:click={() => mediaSwitch(0)}
 			>
 				<Controller></Controller>
 			</button>
 			<button
 				role="tab"
-				class="tab {tabIndex == 1 ? 'tab-active' : ''}"
+				class="tab {tab_index == 1 ? 'tab-active' : ''}"
 				on:click={() => mediaSwitch(1)}
 			>
 				<Movie></Movie>
 			</button>
 			<button
 				role="tab"
-				class="tab {tabIndex == 2 ? 'tab-active' : ''}"
+				class="tab {tab_index == 2 ? 'tab-active' : ''}"
 				on:click={() => mediaSwitch(2)}
 			>
 				<Tv></Tv>
 			</button>
 			<button
 				role="tab"
-				class="tab {tabIndex == 3 ? 'tab-active' : ''}"
+				class="tab {tab_index == 3 ? 'tab-active' : ''}"
 				on:click={() => mediaSwitch(3)}
 			>
 				<Book></Book>

@@ -1,12 +1,12 @@
 import { writable } from 'svelte/store';
 
-const isClient = typeof window !== 'undefined'; // Überprüfen, ob der Code im Browser läuft
+const is_client = typeof window !== 'undefined'; // Überprüfen, ob der Code im Browser läuft
 
-export const onlineStatus = writable(isClient ? navigator.onLine : true); // Standardmäßig 'true', wenn auf dem Server
+export const online_status = writable(is_client ? navigator.onLine : true); // Standardmäßig 'true', wenn auf dem Server
 
-if (isClient) {
+if (is_client) {
     function updateOnlineStatus() {
-        onlineStatus.set(navigator.onLine);
+        online_status.set(navigator.onLine);
     }
 
     window.addEventListener('online', updateOnlineStatus);

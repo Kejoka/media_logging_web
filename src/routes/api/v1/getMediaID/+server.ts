@@ -2,8 +2,8 @@ import { PRIVATE_IGDB_CLIENT, PRIVATE_IGDB_TOKEN, PRIVATE_TMDB_V3_KEY } from '$e
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, url }) {
-    const reqBody = await request.json();
-    const title = reqBody['title'];
+    const req_body = await request.json();
+    const title = req_body['title'];
     const params = {
         adult: false,
         query: title,
@@ -11,7 +11,7 @@ export async function POST({ request, url }) {
         page: 1
     }
     try {
-        if (reqBody['type'] === "movies") {
+        if (req_body['type'] === "movies") {
             const raw_res = await fetch(`https://api.themoviedb.org/3/search/movie?query=${params.query}&include_adult=${params.adult}&language=${params.language}&page=${params.page}&api_key=${PRIVATE_TMDB_V3_KEY}`);
             const res = await raw_res.json();
             const response = {
@@ -20,7 +20,7 @@ export async function POST({ request, url }) {
             }
             return new Response(JSON.stringify(response));
         }
-        else if (reqBody['type'] === "shows") {
+        else if (req_body['type'] === "shows") {
             const raw_res = await fetch(`https://api.themoviedb.org/3/search/tv?query=${params.query}&include_adult=${params.adult}&language=${params.language}&page=${params.page}&api_key=${PRIVATE_TMDB_V3_KEY}`)
             const res = await raw_res.json();
             const response = {
@@ -29,7 +29,7 @@ export async function POST({ request, url }) {
             }
             return new Response(JSON.stringify(response));
         }
-        else if ((reqBody['type'] === "games")) {
+        else if ((req_body['type'] === "games")) {
             try {
                 const res = await fetch('https://api.igdb.com/v4/games', {
                     method: 'POST',

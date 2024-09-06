@@ -12,19 +12,19 @@
 	export let data: PageServerData;
 
 	let swipe: (direction?: Direction) => void;
-	let thresholdPassed = 0;
-	let swipeCount = 0;
-	let swipedIds: number[] = [];
-	let loadedMovies = data.movies;
+	let threshold_passed = 0;
+	let swipe_count = 0;
+	let swiped_ids: number[] = [];
+	let loaded_movies = data.movies;
 
 	async function loadNewCard() {
 		let res: Response;
 		let try_count = 0;
 		while (try_count < 10) {
-			if (swipeCount++ % 2 == 0) {
+			if (swipe_count++ % 2 == 0) {
 				res = await fetch(`/api/v1/randomMovieFromKeyword?user_pref_id=${Number(data.data?.id)}`, {
 					method: 'POST',
-					body: JSON.stringify({ swipedIds }),
+					body: JSON.stringify({ swiped_ids }),
 					headers: {
 						'Content-Type': 'application/json'
 					}
@@ -32,7 +32,7 @@
 			} else {
 				res = await fetch('/api/v1/randomMovie', {
 					method: 'POST',
-					body: JSON.stringify({ swipedIds }),
+					body: JSON.stringify({ swiped_ids }),
 					headers: {
 						'Content-Type': 'application/json'
 					}
@@ -40,9 +40,9 @@
 			}
 			const movie: TmdbMovie = await res.json();
 			// console.log(`Loaded: ${movie.title}`);
-			swipedIds.push(movie.id);
+			swiped_ids.push(movie.id);
 			if (movie.id != undefined) {
-				loadedMovies = [...loadedMovies, movie];
+				loaded_movies = [...loaded_movies, movie];
 				break;
 			}
 			try_count++;
@@ -50,34 +50,34 @@
 	}
 
 	async function fillMovies(index: number) {
-		// console.log(`INDEX: ${index} | MOVIELIST LENGTH: ${loadedMovies.length}`);
-		if (loadedMovies.length - index < 10) {
-			for (let i = 0; i < 10 - loadedMovies.length - index; i++) {
+		// console.log(`INDEX: ${index} | MOVIELIST LENGTH: ${loaded_movies.length}`);
+		if (loaded_movies.length - index < 10) {
+			for (let i = 0; i < 10 - loaded_movies.length - index; i++) {
 				await loadNewCard();
 			}
 		}
 	}
 
-	async function swipeHandler(cardDetails: {
+	async function swipeHandler(card_details: {
 		direction: string;
 		index: number;
 		element: HTMLElement;
 		data: CardData;
 	}) {
-		if (cardDetails.data.id != undefined) {
-			// cardDetails:
+		if (card_details.data.id != undefined) {
+			// card_details:
 			// direction: 'left' | 'right' | 'up'
 			// index: number
 			// element: HTMLElement
 			// data: CardData
-			switch (cardDetails.direction) {
+			switch (card_details.direction) {
 				case 'left':
-					modifyKeywordPreferences(Number(cardDetails.data.id), -1);
+					modifyKeywordPreferences(Number(card_details.data.id), -1);
 					break;
 				case 'up':
 					break;
 				case 'right':
-					modifyKeywordPreferences(Number(cardDetails.data.id), 1);
+					modifyKeywordPreferences(Number(card_details.data.id), 1);
 					break;
 				default:
 					break;
@@ -86,7 +86,7 @@
 		} else {
 			alert('An error has ocurred. This swipe has not been counted');
 			await loadNewCard();
-			// console.log(cardDetails, loadedMovies, loadedMovies[cardDetails.index]['id']);
+			// console.log(card_details, loaded_movies, loaded_movies[card_details.index]['id']);
 		}
 	}
 
@@ -114,9 +114,9 @@
 <div class="h-full bg-base-100">
 	<NavBar
 		header={'MovieSwiper'}
-		settingsButton={false}
-		navBackButton={true}
-		staticHeader={true}
+		settings_button={false}
+		nav_back_button={true}
+		static_header={true}
 		own_profile={undefined}
 	></NavBar>
 	<div class="w-[80%] h-[60vh] mx-auto">
@@ -124,18 +124,18 @@
 			<div class="h-full overflow-x-hidden">
 				<CardSwiper
 					bind:swipe
-					cardData={(index) => {
+					card_data={(index) => {
 						return {
-							title: loadedMovies[index].title,
-							image: `https://image.tmdb.org/t/p/w500/${loadedMovies[index].poster_path}`,
-							id: loadedMovies[index].id
+							title: loaded_movies[index].title,
+							image: `https://image.tmdb.org/t/p/w500/${loaded_movies[index].poster_path}`,
+							id: loaded_movies[index].id
 						};
 					}}
 					on:swiped={async (e) => {
 						await fillMovies(e.detail.index);
 						await swipeHandler(e.detail);
 					}}
-					bind:thresholdPassed
+					bind:threshold_passed
 				/>
 			</div>
 			<div class="absolute flex -bottom-8 w-full justify-evenly order-first">
@@ -149,16 +149,16 @@
 					<ThumbUp></ThumbUp>
 				</button>
 			</div>
-			{#if thresholdPassed !== 0}
+			{#if threshold_passed !== 0}
 				<div
 					transition:fade={{ duration: 200 }}
 					class="absolute w-full h-full inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center text-9xl pointer-events-none z-0"
 				>
-					{#if thresholdPassed === 1}
+					{#if threshold_passed === 1}
 						<ThumbUp></ThumbUp>
-					{:else if thresholdPassed === -1}
+					{:else if threshold_passed === -1}
 						<ThumbDown></ThumbDown>
-					{:else if thresholdPassed === 2}
+					{:else if threshold_passed === 2}
 						<ThumbsUpDown></ThumbsUpDown>
 					{/if}
 				</div>
