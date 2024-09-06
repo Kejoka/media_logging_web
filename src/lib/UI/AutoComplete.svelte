@@ -38,12 +38,12 @@
 
 <div class="dropdown mt-3 w-[75%]">
 	<label class="input input-bordered flex items-center gap-2">
-		<input on:input={handleInput} placeholder="Andere Nutzer finden" bind:value={input_value} />
+		<input on:input={handleInput} placeholder="Andere Nutzer finden..." bind:value={input_value} />
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			viewBox="0 0 16 16"
 			fill="currentColor"
-			class="h-4 w-4 opacity-70"
+			class="h-4 w-4 opacity-70 right-5 absolute"
 		>
 			<path
 				fill-rule="evenodd"
@@ -54,7 +54,7 @@
 	</label>
 	<ul
 		tabindex="0"
-		class="dropdown-content z-[1] menu p-2 shadow bg-base-100 rounded-box w-52 max-h-80 flex-nowrap overflow-auto"
+		class="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-full max-h-80 flex-nowrap overflow-auto"
 	>
 		{#each filtered_items as item}
 			<li>

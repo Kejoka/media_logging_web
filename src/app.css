@@ -34,3 +34,15 @@
 .scrollbar-hide {
     scrollbar-width: none;
 }
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: var(--fallback-n,oklch(var(--b3)/var(--tw-bg-opacity)));
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    body {
+        background-color: var(--fallback-n,oklch(var(--b3)/var(--tw-bg-opacity)));
+    }
+}

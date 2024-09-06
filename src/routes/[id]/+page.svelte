@@ -38,9 +38,13 @@
 	let form_text: string = getMediaCodeString();
 	let loading = false;
 	let suggestion_box: HTMLElement;
+	let carousel: HTMLElement;
+	let backlog_button_1: HTMLButtonElement;
+	let backlog_button_2: HTMLButtonElement;
+	let backlog_button_3: HTMLButtonElement;
+	let add_button: HTMLButtonElement;
 	let last_search_page = 1;
 	let backlog_matches: mediaObject[];
-	let carousel: HTMLElement;
 	const fuse_options: IFuseOptions<mediaObject> = {
 		keys: ['title'],
 		isCaseSensitive: false,
@@ -532,6 +536,10 @@
 		}
 		date_modal.checked = false;
 		search_modal.checked = false;
+		add_button.disabled = false;
+		backlog_button_1.disabled = false;
+		backlog_button_2.disabled = false;
+		backlog_button_3.disabled = false;
 	}
 
 	async function deleteMedium(event: any) {
@@ -801,7 +809,14 @@
 			<p class="text-center text-base font-semibold mb-3">gesehen:</p>
 			<DatePicker bind:value={selected_date} max={new Date()} browseWithoutSelecting={true}
 			></DatePicker>
-			<button class="btn btn-neutral mt-3" on:click={checkBacklog}>Hinzufügen</button>
+			<button
+				bind:this={add_button}
+				class="btn btn-neutral mt-3"
+				on:click={() => {
+					add_button.disabled = true;
+					checkBacklog();
+				}}>Hinzufügen</button
+			>
 		</div>
 		<label class="modal-backdrop" for="date_modal">Close</label>
 	</div>
@@ -815,14 +830,29 @@
 			<p class="text-center text-base font-semibold mb-3">
 				Soll der Titel aus dem Backlog entfernt werden?
 			</p>
-			<button class="btn btn-success mt-3" on:click={() => addMedium(0)}
-				>Entfernen und Notizen übernehmen</button
+			<button
+				bind:this={backlog_button_1}
+				class="btn btn-success mt-3"
+				on:click={() => {
+					backlog_button_1.disabled = true;
+					addMedium(0);
+				}}>Entfernen und Notizen übernehmen</button
 			>
-			<button class="btn btn-warning mt-3" on:click={() => addMedium(1)}
-				>Entfernen und Notizen verwerfen</button
+			<button
+				bind:this={backlog_button_2}
+				class="btn btn-warning mt-3"
+				on:click={() => {
+					backlog_button_2.disabled = true;
+					addMedium(1);
+				}}>Entfernen und Notizen verwerfen</button
 			>
-			<button class="btn btn-error mt-3" on:click={() => addMedium(2)}
-				>Nicht aus dem Backlog entfernen</button
+			<button
+				bind:this={backlog_button_3}
+				class="btn btn-error mt-3"
+				on:click={() => {
+					backlog_button_3.disabled = true;
+					addMedium(2);
+				}}>Nicht aus dem Backlog entfernen</button
 			>
 		</div>
 		<label class="modal-backdrop" for="backlog_modal">Close</label>
