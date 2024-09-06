@@ -7,13 +7,14 @@
 	export let medium: mediaObject;
 	export let config;
 	export let current_mode;
+	export let own_profile;
 </script>
 
 <div class="px-2 pb-2">
 	<div class="collapse bg-base-100">
 		<input id={String(medium.id)} type="radio" name="movie-accordion" class="hidden" />
-		<div class="card bg-base-100 card-side h-[30vw] select-none">
-			<figure class="min-w-[23%] w-[23%] max-w-[23%]">
+		<div class="card bg-base-100 card-side select-none min-h-[15vh] h-[15vh] max-h-[15vh]">
+			<figure class="min-w-[11.25vh] w-[11.25vh] max-w-[11.25vh]">
 				{#if medium.image != null}
 					<img src={medium.image} alt={medium.title} />
 				{:else}
@@ -67,14 +68,16 @@
 					</div>
 				{/each}
 			{/if}
-			<button
-				class="btn btn-warning font-bold w-full my-2 min-h-8 h-8"
-				on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
-			>
-			<button
-				class="btn btn-error font-bold w-full min-h-8 h-8 -mb-4"
-				on:click={() => dispatch('delete', medium)}>Karte löschen</button
-			>
+			{#if own_profile}
+				<button
+					class="btn btn-warning font-bold w-full my-2 min-h-8 h-8"
+					on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
+				>
+				<button
+					class="btn btn-error font-bold w-full min-h-8 h-8 -mb-4"
+					on:click={() => dispatch('delete', medium)}>Karte löschen</button
+				>
+			{/if}
 		</div>
 	</div>
 </div>

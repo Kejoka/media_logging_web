@@ -7,17 +7,17 @@ export const load: PageServerLoad = async ({ locals: { supabase, safeGetSession 
 		redirect(303, '/');
 	}
 
-	const { data: profile } = await supabase
-		.from('profiles')
-		.select(`username`)
-		.eq('id', session?.user.id)
-		.single();
+	// const { data: profile } = await supabase
+	// 	.from('profiles')
+	// 	.select(`username`)
+	// 	.eq('id', session?.user.id)
+	// 	.single();
 
-	if (profile?.username != null) {
-		redirect(303, `/${profile?.username}`);
-	}
+	// if (profile?.username != null && profile.username.trim().length != 0) {
+	// 	redirect(303, `/${profile?.username}`);
+	// }
 
-	return { session, profile };
+	return { session };
 };
 
 export const actions: Actions = {
@@ -33,7 +33,7 @@ export const actions: Actions = {
 			updated_at: new Date()
 		});
 
-		console.log(error)
+		console.log("ERROR:", error)
 
 		if (error) {
 			return fail(500, {

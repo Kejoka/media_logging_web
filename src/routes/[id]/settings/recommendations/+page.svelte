@@ -56,7 +56,6 @@
 	}
 
 	function handleScroll(event: Event) {
-		console.log('WHHOSH');
 		const element = event.currentTarget as HTMLElement;
 		const tolerance = 20;
 		const scrollHeight = element.scrollHeight;
@@ -82,25 +81,22 @@
 	<title>Movie Recommendations</title>
 </svelte:head>
 
-<div>
-	<NavBar header={'Empfehlungen'} settingsButton={false} navBackButton={true}></NavBar>
-	<div class="overflow-y-auto w-[90%] items-center m-auto mt-3" on:scroll={(e) => handleScroll(e)}>
-		{#if isLoading}
-			<div class="flex justify-center">
-				<span class="loading loading-spinner"></span>
-			</div>
-		{:else if recommendations.length < 20}
+<div class="flex flex-col h-screen">
+	<NavBar header={'Empfehlungen'} settingsButton={false} navBackButton={true} staticHeader={true}
+	></NavBar>
+	<div class="overflow-y-auto w-[90%] items-center m-auto mt-3" on:scroll={handleScroll}>
+		{#if !isLoading && recommendations.length < 20}
 			<div class="flex flex-col text-center">
-				<p class="text-3xl">Sorry, No recommendations yet 😓</p>
-				<p class="text-lg mt-5">Use MovieSwiper to train your recommender for a while!</p>
+				<p class="text-3xl">Sorry, es gibt noch keine Empfehlungen 😓</p>
+				<p class="text-lg mt-5">Nutze MovieSwiper eine Weile, um den Recommender zu trainieren!</p>
 			</div>
 		{:else}
 			<RecommendationList cards={recommendations} />
-			{#if isFetchingMoreMovies}
-				<div class="w-full h-full mt-5 relative">
-					<span class="loading loading-spinner"></span>
-				</div>
-			{/if}
+		{/if}
+		{#if isLoading || isFetchingMoreMovies}
+			<div class="mt-3 text-center">
+				<span class="loading loading-spinner"></span>
+			</div>
 		{/if}
 	</div>
 </div>

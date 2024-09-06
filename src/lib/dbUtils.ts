@@ -164,6 +164,10 @@ export const dexieDB = new Dexie('MediaDatabase') as Dexie & {
     movies: EntityTable<mediaObject, 'id'>;
     shows: EntityTable<mediaObject, 'id'>;
     books: EntityTable<mediaObject, 'id'>;
+    games_other: EntityTable<mediaObject, 'id'>;
+    movies_other: EntityTable<mediaObject, 'id'>;
+    shows_other: EntityTable<mediaObject, 'id'>;
+    books_other: EntityTable<mediaObject, 'id'>;
     prefs: EntityTable<UserInfo, 'id'>
 };
 
@@ -215,6 +219,69 @@ dexieDB.version(1).stores({
     notes
   `,
     books: `
+    ++id,
+    user_id,
+    gbid,
+    title,
+    subtitle,
+    image,
+    author,
+    pagecount,
+    release,
+    averagerating,
+    added,
+    rating,
+    backlogged,
+    notes,
+    genres
+  `,
+    games_other: `
+    ++id,
+    user_id,
+    igdbid,
+    title,
+    image,
+    release,
+    genres,
+    platforms,
+    averagerating,
+    trophy,
+    added,
+    rating,
+    backlogged,
+    notes
+  `,
+    movies_other: `
+    ++id,
+    user_id,
+    tmdbid,
+    title,
+    image,
+    release,
+    genres,
+    averagerating,
+    added,
+    rating,
+    backlogged,
+    notes
+  `,
+    shows_other: `
+    ++id,
+    user_id,
+    tmdbid,
+    title,
+    image,
+    release,
+    genres,
+    seasons,
+    episode,
+    averagerating,
+    added,
+    rating,
+    backlogged,
+    notes
+  `,
+    books_other: `
     ++id,
     user_id,
     gbid,

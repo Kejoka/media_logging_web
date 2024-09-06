@@ -112,7 +112,8 @@
 </svelte:head>
 
 <div>
-	<NavBar header={'MovieSwiper'} settingsButton={false} navBackButton={true}></NavBar>
+	<NavBar header={'MovieSwiper'} settingsButton={false} navBackButton={true} staticHeader={true}
+	></NavBar>
 	<div class="w-[80%] h-[60vh] mx-auto">
 		<div class="w-full h-full mt-5 relative">
 			<div class="h-full overflow-x-hidden">

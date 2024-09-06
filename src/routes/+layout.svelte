@@ -1,4 +1,3 @@
-<!-- src/routes/+layout.svelte -->
 <script lang="ts">
 	import '../app.css';
 	import { invalidate } from '$app/navigation';
@@ -10,8 +9,8 @@
 	$: ({ supabase, session } = data);
 
 	onMount(() => {
-		const { data } = supabase.auth.onAuthStateChange((event, _session) => {
-			if (_session?.expires_at !== session?.expires_at) {
+		const { data } = supabase.auth.onAuthStateChange((event, newSession) => {
+			if (newSession?.expires_at !== session?.expires_at) {
 				invalidate('supabase:auth');
 			}
 		});

@@ -13,19 +13,21 @@
 	import { DatePicker } from 'date-picker-svelte';
 	import { onMount } from 'svelte';
 	import { onlineStatus } from '../../stores/onlineStatus';
+	import Fuse, { type IFuseOptions } from 'fuse.js';
 	export let data;
-	let { session, profile, games, movies, shows, books } = data;
+	let { session, profile, user_id, games, movies, shows, books } = data;
 	$: isOnline = $onlineStatus;
-	$: ({ session, profile, games, movies, shows, books } = data);
-
+	$: ({ session, profile, user_id, games, movies, shows, books } = data);
+	const own_profile = profile.id == user_id;
+	console.log('TEST', own_profile);
 	let current_medium = 'movies';
 	let currentTabIndex = 1;
 	let current_year = String(new Date().getFullYear());
 	let current_mode = 0;
 	let header_text = getModeString();
-	let year_media_data: mediaObject[] = [];
+	let total_media_data: mediaObject[][] = [];
 	let years_in_db: { year: string; active: boolean }[] = [];
-	let media_data: mediaObject[] = [];
+	let media_data: mediaObject[][] = [[], [], [], []];
 	let current_suggestions: mediaObject[] = [];
 	let search_val: string;
 	let input_timeout = setTimeout(function () {}, 0);
@@ -33,36 +35,52 @@
 	let last_selection: mediaObject = {} as mediaObject;
 	let date_modal: HTMLInputElement;
 	let search_modal: HTMLInputElement;
+	let backlog_modal: HTMLInputElement;
 	let form_text: string = getMediaCodeString();
 	let loading = false;
 	let suggestion_box: HTMLElement;
 	let last_search_page = 1;
+	let backlog_matches: mediaObject[];
+	let carousel: HTMLElement;
+	const fuse_options: IFuseOptions<mediaObject> = {
+		keys: ['title'],
+		isCaseSensitive: false,
+		minMatchCharLength: 3
+	};
+	let media_data_unfiltered: mediaObject[][] = [];
 
 	onMount(async () => {
+		carousel.scrollLeft = currentTabIndex * carousel.clientWidth;
 		if (isOnline) {
-			// Online and no DexieDB yet
-			if ((await dexieDB.prefs.toArray()).length == 0) {
-				await dexieDB.prefs.add({
-					id: 0,
-					updated_at: new Date(profile.updated_at).toISOString(),
-					changed_offline: '[]'
-				});
-				await cloneSupabase();
+			if (!own_profile) {
+				await cloneSupabase(true);
 			} else {
-				// Online, not in sync, dexie most recent
-				if (
-					new Date((await dexieDB.prefs.toArray())[0].updated_at) > new Date(profile.updated_at)
-				) {
-					console.log('NOT IN SYNC, NEW CHANGES IN DEXIE');
-					await redoDexieChanges();
-				}
-				// Online, not in sync, supabase most recent
-				else if (
-					new Date((await dexieDB.prefs.toArray())[0].updated_at) < new Date(profile.updated_at)
-				) {
-					console.log('NOT IN SYNC, NEW CHANGES IN SUPABASE');
-					await cloneSupabase();
-					await dexieDB.prefs.update(0, { updated_at: new Date(profile.updated_at).toISOString() });
+				// Online and no DexieDB yet
+				if ((await dexieDB.prefs.toArray()).length == 0) {
+					await dexieDB.prefs.add({
+						id: 0,
+						updated_at: new Date(profile.updated_at).toISOString(),
+						changed_offline: '[]'
+					});
+					await cloneSupabase(false);
+				} else {
+					// Online, not in sync, dexie most recent
+					if (
+						new Date((await dexieDB.prefs.toArray())[0].updated_at) > new Date(profile.updated_at)
+					) {
+						console.log('NOT IN SYNC, NEW CHANGES IN DEXIE');
+						await redoDexieChanges();
+					}
+					// Online, not in sync, supabase most recent
+					else if (
+						new Date((await dexieDB.prefs.toArray())[0].updated_at) < new Date(profile.updated_at)
+					) {
+						console.log('NOT IN SYNC, NEW CHANGES IN SUPABASE');
+						await cloneSupabase(false);
+						await dexieDB.prefs.update(0, {
+							updated_at: new Date(profile.updated_at).toISOString()
+						});
+					}
 				}
 			}
 		} else {
@@ -74,107 +92,117 @@
 				});
 			}
 		}
-		year_media_data = await dexieDB.movies.where({ backlogged: 0 }).reverse().sortBy('added');
-		media_data = year_media_data.filter((obj) => obj.added?.substring(0, 4) == current_year);
-		years_in_db = getYears(year_media_data, current_year);
-		// years_in_db = [
-		// 	{ year: String(2000), active: false },
-		// 	{ year: String(2000), active: false },
-		// 	{ year: String(2001), active: false },
-		// 	{ year: String(2002), active: false },
-		// 	{ year: String(2003), active: false },
-		// 	{ year: String(2004), active: false },
-		// 	{ year: String(2005), active: false },
-		// 	{ year: String(2006), active: false },
-		// 	{ year: String(2007), active: true }
-		// ];
+		if (!own_profile) {
+			total_media_data.push(
+				await dexieDB.games_other.where({ backlogged: 0 }).reverse().sortBy('added')
+			);
+			total_media_data.push(
+				await dexieDB.movies_other.where({ backlogged: 0 }).reverse().sortBy('added')
+			);
+			total_media_data.push(
+				await dexieDB.shows_other.where({ backlogged: 0 }).reverse().sortBy('added')
+			);
+			total_media_data.push(
+				await dexieDB.books_other.where({ backlogged: 0 }).reverse().sortBy('added')
+			);
+		} else {
+			total_media_data.push(await dexieDB.games.where({ backlogged: 0 }).reverse().sortBy('added'));
+			total_media_data.push(
+				await dexieDB.movies.where({ backlogged: 0 }).reverse().sortBy('added')
+			);
+			total_media_data.push(await dexieDB.shows.where({ backlogged: 0 }).reverse().sortBy('added'));
+			total_media_data.push(await dexieDB.books.where({ backlogged: 0 }).reverse().sortBy('added'));
+		}
+		for (let [index, media] of total_media_data.entries()) {
+			media_data[index] = media.filter((obj) => obj.added?.substring(0, 4) == current_year);
+		}
+		for (let media of media_data) {
+			media_data_unfiltered.push(media);
+		}
+		years_in_db = getYears(total_media_data[getMediaCodeIndex()], current_year);
 	});
 
-	async function cloneSupabase() {
-		if ((await dexieDB.games.toArray()).length != games.data?.length) {
-			await dexieDB.games.clear();
-			await dexieDB.games.bulkAdd(games.data || []);
-		}
-		if ((await dexieDB.movies.toArray()).length != movies.data?.length) {
-			await dexieDB.movies.clear();
-			await dexieDB.movies.bulkAdd(movies.data || []);
-		}
-		if ((await dexieDB.shows.toArray()).length != shows.data?.length) {
-			await dexieDB.shows.clear();
-			await dexieDB.shows.bulkAdd(shows.data || []);
-		}
-		if ((await dexieDB.books.toArray()).length != books.data?.length) {
-			await dexieDB.books.clear();
-			await dexieDB.books.bulkAdd(books.data || []);
+	async function cloneSupabase(other: boolean) {
+		if (!other) {
+			if ((await dexieDB.games.toArray()).length != games.data?.length) {
+				await dexieDB.games.clear();
+				await dexieDB.games.bulkAdd(games.data || []);
+			}
+			if ((await dexieDB.movies.toArray()).length != movies.data?.length) {
+				await dexieDB.movies.clear();
+				await dexieDB.movies.bulkAdd(movies.data || []);
+			}
+			if ((await dexieDB.shows.toArray()).length != shows.data?.length) {
+				await dexieDB.shows.clear();
+				await dexieDB.shows.bulkAdd(shows.data || []);
+			}
+			if ((await dexieDB.books.toArray()).length != books.data?.length) {
+				await dexieDB.books.clear();
+				await dexieDB.books.bulkAdd(books.data || []);
+			}
+		} else {
+			if ((await dexieDB.games_other.toArray()).length != games.data?.length) {
+				await dexieDB.games_other.clear();
+				await dexieDB.games_other.bulkAdd(games.data || []);
+			}
+			if ((await dexieDB.movies_other.toArray()).length != movies.data?.length) {
+				await dexieDB.movies_other.clear();
+				await dexieDB.movies_other.bulkAdd(movies.data || []);
+			}
+			if ((await dexieDB.shows_other.toArray()).length != shows.data?.length) {
+				await dexieDB.shows_other.clear();
+				await dexieDB.shows_other.bulkAdd(shows.data || []);
+			}
+			if ((await dexieDB.books_other.toArray()).length != books.data?.length) {
+				await dexieDB.books_other.clear();
+				await dexieDB.books_other.bulkAdd(books.data || []);
+			}
 		}
 	}
 
 	async function handleMediaSwitch(event: any) {
-		if (event.detail === 'right') {
-			currentTabIndex = Math.max(0, currentTabIndex - 1);
-		} else if (event.detail === 'left') {
-			currentTabIndex = Math.min(3, currentTabIndex + 1);
-		} else {
-			currentTabIndex = event.detail.index;
-		}
-		current_medium = indexToMedium(currentTabIndex);
-		try {
-			// Fetch data
-			let year_base_data;
-			switch (current_medium) {
-				case 'games':
-					year_base_data = await dexieDB.games
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				case 'movies':
-					year_base_data = await dexieDB.movies
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				case 'shows':
-					year_base_data = await dexieDB.shows
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				case 'books':
-					year_base_data = await dexieDB.books
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				default:
-					console.log('ERROR', current_medium);
-					break;
+		clearTimeout(input_timeout);
+		input_timeout = setTimeout(() => {
+			if (event.type == 'scroll') {
+				if (Number.isInteger((carousel.scrollLeft / carousel.scrollWidth) * 4)) {
+					currentTabIndex = (carousel.scrollLeft / carousel.scrollWidth) * 4;
+				} else {
+					return;
+				}
+			} else {
+				currentTabIndex = event.detail.index;
+				carousel.scrollLeft = event.detail.index * carousel.clientWidth;
 			}
+			current_medium = indexToMedium(currentTabIndex);
 			// YearBar Data
-			if (current_mode == 0) {
-				years_in_db = getYears(year_base_data as mediaObject[], current_year);
+			if (current_mode != 1) {
+				years_in_db = getYears(total_media_data[getMediaCodeIndex()], current_year);
 				current_year =
 					years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
 			} else {
 				years_in_db = years_in_db.slice(-1);
 			}
+			form_text = getMediaCodeString();
 			// Year Filter
 			if (isNaN(Number(current_year))) {
-				media_data = year_base_data || [];
+				for (let [index, media] of total_media_data.entries()) {
+					media_data[index] = media;
+				}
 			} else {
-				media_data =
-					year_base_data?.filter((obj) => obj.added?.substring(0, 4) == current_year) || [];
+				for (let [index, media] of total_media_data.entries()) {
+					media_data[index] = media.filter((obj) => obj.added?.substring(0, 4) == current_year);
+				}
 			}
-			form_text = getMediaCodeString();
-		} catch (error) {
-			console.log(error);
-		}
+			for (let [index, media] of media_data.entries()) {
+				media_data_unfiltered[index] = media;
+			}
+		}, 20);
 	}
 
 	async function handleModeSwitch(event: any) {
 		current_mode = event.detail.mode;
 		header_text = getModeString();
-		if (current_mode == 0) {
+		if (current_mode != 1) {
 			await refreshCardList(new Date().getFullYear.toString());
 		} else {
 			await refreshCardList('Gesamt');
@@ -185,90 +213,73 @@
 	async function handleYearSwitch(event: any) {
 		const year = event.detail.year.year;
 		let new_data;
-		try {
-			switch (current_medium) {
-				case 'games':
-					new_data = await dexieDB.games
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				case 'movies':
-					new_data = await dexieDB.movies
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				case 'shows':
-					new_data = await dexieDB.shows
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				case 'books':
-					new_data = await dexieDB.books
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				default:
-					console.log('ERROR', current_medium);
-					break;
+
+		if (isNaN(year)) {
+			for (let [index, media] of total_media_data.entries()) {
+				media_data[index] = media;
 			}
-			if (isNaN(year)) {
-				media_data = new_data || [];
-			} else {
-				media_data = new_data?.filter((obj) => obj.added?.substring(0, 4) == year) || [];
+		} else {
+			for (let [index, media] of total_media_data.entries()) {
+				media_data[index] = media.filter((obj) => obj.added?.substring(0, 4) == year);
 			}
-		} catch (error) {
-			console.log(error);
+		}
+		for (let [index, media] of media_data.entries()) {
+			media_data_unfiltered[index] = media;
 		}
 		current_year = year;
 	}
 
 	async function refreshCardList(set_year: string) {
-		try {
-			let new_data;
-			switch (current_medium) {
-				case 'games':
-					new_data = await dexieDB.games
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				case 'movies':
-					new_data = await dexieDB.movies
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				case 'shows':
-					new_data = await dexieDB.shows
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				case 'books':
-					new_data = await dexieDB.books
-						.where({ backlogged: current_mode })
-						.reverse()
-						.sortBy('added');
-					break;
-				default:
-					console.log('ERROR', current_medium);
-					break;
-			}
-			years_in_db = getYears(new_data as mediaObject[], set_year);
-			current_year =
-				years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
+		if (!own_profile) {
+			total_media_data[0] = await dexieDB.games_other
+				.where({ backlogged: current_mode == 1 ? 1 : 0 })
+				.reverse()
+				.sortBy('added');
+			total_media_data[1] = await dexieDB.movies_other
+				.where({ backlogged: current_mode == 1 ? 1 : 0 })
+				.reverse()
+				.sortBy('added');
+			total_media_data[2] = await dexieDB.shows_other
+				.where({ backlogged: current_mode == 1 ? 1 : 0 })
+				.reverse()
+				.sortBy('added');
+			total_media_data[3] = await dexieDB.books_other
+				.where({ backlogged: current_mode == 1 ? 1 : 0 })
+				.reverse()
+				.sortBy('added');
+		} else {
+			total_media_data[0] = await dexieDB.games
+				.where({ backlogged: current_mode == 1 ? 1 : 0 })
+				.reverse()
+				.sortBy('added');
+			total_media_data[1] = await dexieDB.movies
+				.where({ backlogged: current_mode == 1 ? 1 : 0 })
+				.reverse()
+				.sortBy('added');
+			total_media_data[2] = await dexieDB.shows
+				.where({ backlogged: current_mode == 1 ? 1 : 0 })
+				.reverse()
+				.sortBy('added');
+			total_media_data[3] = await dexieDB.books
+				.where({ backlogged: current_mode == 1 ? 1 : 0 })
+				.reverse()
+				.sortBy('added');
+		}
+		years_in_db = getYears(total_media_data[getMediaCodeIndex()], set_year);
+		current_year =
+			years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
 
-			if (isNaN(Number(current_year))) {
-				media_data = new_data || [];
-			} else {
-				media_data = new_data?.filter((obj) => obj.added?.substring(0, 4) == current_year) || [];
+		if (isNaN(Number(current_year))) {
+			for (let [index, media] of total_media_data.entries()) {
+				media_data[index] = media;
 			}
-		} catch (error) {
-			console.log(error);
+		} else {
+			for (let [index, media] of total_media_data.entries()) {
+				media_data[index] = media.filter((obj) => obj.added?.substring(0, 4) == current_year);
+			}
+		}
+		for (let [index, media] of media_data.entries()) {
+			media_data_unfiltered[index] = media;
 		}
 	}
 
@@ -292,6 +303,25 @@
 			loading = false;
 			current_suggestions = await res.json();
 		}, 1000);
+	}
+
+	async function handleFilter(event: CustomEvent) {
+		if (event.detail.trim().length == 0) {
+			for (let [index, media] of media_data.entries()) {
+				media = media_data_unfiltered[index];
+			}
+		} else {
+			let fuses: Fuse<mediaObject>[] = [];
+			console.log('NIX');
+			for (let media of media_data_unfiltered) {
+				fuses.push(new Fuse(media, fuse_options));
+			}
+			for (let [index, media] of media_data.entries()) {
+				media_data[index] = fuses[index]
+					.search(event.detail.trim())
+					.map((res) => res.item) as mediaObject[];
+			}
+		}
 	}
 
 	async function handleSuggestionScroll() {
@@ -333,10 +363,111 @@
 		}
 	}
 
-	async function addMedium() {
+	async function checkBacklog() {
+		// Check for item in Backlog
+		switch (current_medium) {
+			case 'games':
+				backlog_matches = await dexieDB.games
+					.filter((medium) => medium.title === last_selection.title && medium.backlogged == 1)
+					.toArray();
+				break;
+			case 'movies':
+				backlog_matches = await dexieDB.movies
+					.filter((medium) => medium.title === last_selection.title && medium.backlogged == 1)
+					.toArray();
+				break;
+			case 'shows':
+				backlog_matches = await dexieDB.shows
+					.filter((medium) => medium.title === last_selection.title && medium.backlogged == 1)
+					.toArray();
+				break;
+			case 'books':
+				backlog_matches = await dexieDB.books
+					.filter((medium) => medium.title === last_selection.title && medium.backlogged == 1)
+					.toArray();
+				break;
+			default:
+				break;
+		}
+		if (backlog_matches.length != 0) {
+			backlog_modal.checked = true;
+		} else {
+			addMedium(2);
+		}
+	}
+
+	/**
+	 * @param backlog_event
+	 * 0 == remove from backlog and transfer notes
+	 * 1 == remove from backlog and discard notes
+	 * 2 == keep in backlog
+	 */
+	async function addMedium(backlog_event: number) {
+		backlog_modal.checked = false;
 		last_selection.added = selected_date.toISOString();
 		last_selection.backlogged = current_mode;
 		const syncTimestamp = new Date();
+		// Handle Backlog Events
+		let backlog_notes: string = '';
+		if (backlog_event in [0, 1]) {
+			for (let backlog_match of backlog_matches) {
+				// Merge Backlog Notes
+				if (backlog_match.notes) {
+					backlog_notes += backlog_match.notes + '\n';
+				}
+				//DexieDB
+				switch (current_medium) {
+					case 'games':
+						dexieDB.games.delete(backlog_match.id);
+						break;
+					case 'movies':
+						dexieDB.movies.delete(backlog_match.id);
+						break;
+					case 'shows':
+						dexieDB.shows.delete(backlog_match.id);
+						break;
+					case 'books':
+						dexieDB.books.delete(backlog_match.id);
+						break;
+					default:
+						console.log('Error deleting DexieDB Entry');
+						break;
+				}
+				//Supabase
+				try {
+					const res = await fetch('/api/v1/deleteMedium', {
+						method: 'POST',
+						body: JSON.stringify({
+							medium_id: backlog_match.id,
+							current_medium,
+							syncTimestamp
+						}),
+						headers: {
+							'Content-Type': 'application/json'
+						}
+					});
+				} catch (error) {
+					console.log(error);
+					let dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
+					if (dexiePrefs) {
+						if (!isOnline) {
+							const tmp: OfflineChangeObject[] = JSON.parse(dexiePrefs.changed_offline);
+							tmp.push({
+								event: 'delete',
+								medium: current_medium,
+								card: { id: backlog_match.id } as mediaObject
+							});
+							dexiePrefs.changed_offline = JSON.stringify(tmp);
+						}
+						dexiePrefs.updated_at = syncTimestamp.toISOString();
+						await dexieDB.prefs.update(0, dexiePrefs);
+					}
+				}
+			}
+		}
+		if (backlog_event == 0 && backlog_notes.length != 0) {
+			last_selection.notes = backlog_notes.substring(0, backlog_notes.length - 1);
+		}
 		// Supabase
 		try {
 			const dexiePrefs = (await dexieDB.prefs.toArray()).at(0);
@@ -469,7 +600,7 @@
 		}
 	}
 
-	function getMediaCodeString() {
+	function getMediaCodeString(): string {
 		switch (current_medium) {
 			case 'games':
 				return 'Game';
@@ -490,64 +621,105 @@
 				return 'Medien Log';
 			case 1:
 				return 'Backlog';
+			case 2:
+				return 'Statistiken';
 			default:
 				return 'ERROR';
 		}
 	}
 
-	async function listDexie() {
-		console.log('GAMES', await dexieDB.games.toArray());
-		console.log('MOVIES', await dexieDB.movies.toArray());
-		console.log('SHOWS', await dexieDB.shows.toArray());
-		console.log('BOOKS', await dexieDB.books.toArray());
-		console.log('PREFS', await dexieDB.prefs.toArray());
-	}
-
-	async function clearDexie() {
-		await dexieDB.games.clear();
-		await dexieDB.movies.clear();
-		await dexieDB.shows.clear();
-		await dexieDB.books.clear();
-		await dexieDB.prefs.clear();
+	function getMediaCodeIndex(): number {
+		switch (current_medium) {
+			case 'games':
+				return 0;
+			case 'movies':
+				return 1;
+			case 'shows':
+				return 2;
+			case 'books':
+				return 3;
+			default:
+				return -1;
+		}
 	}
 </script>
+
+<svelte:head>
+	<title>Media-Logging</title>
+</svelte:head>
 
 <div class="flex flex-col h-screen">
 	<TopBar
 		on:switchMedium={handleMediaSwitch}
 		on:switchMode={handleModeSwitch}
-		header={`${profile.username}'s ${header_text}`}
+		on:filter={handleFilter}
+		header={header_text}
 		settingsButton={true}
 		navBackButton={false}
+		staticHeader={false}
 		tabIndex={currentTabIndex}
-	></TopBar>
-	<CardList
-		{media_data}
-		{current_medium}
 		{current_mode}
-		on:delete={deleteMedium}
-		on:refresh={() => refreshCardList(current_year)}
-		on:swipe={handleMediaSwitch}
-	></CardList>
-	<!-- <button
-		class="btn btn-neutral flex fixed bottom-[19.5%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
-		on:click={clearDexie}>DEXIE CLEAR</button
-	>
-	<button
-		class="btn btn-neutral flex fixed bottom-[13.5%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
-		on:click={listDexie}>DEXIE DEBUG</button
-	> -->
-	<button
-		on:click={() => {
-			search_val = '';
-			selected_date = new Date();
-			search_modal.checked = true;
-			current_suggestions = [];
-		}}
-		class="btn btn-neutral flex fixed bottom-[7.5%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
-	>
-		+
-	</button>
+		{own_profile}
+	></TopBar>
+	<div bind:this={carousel} on:scroll={handleMediaSwitch} class="carousel h-full">
+		<div class="carousel-item w-full">
+			<CardList
+				{own_profile}
+				media_data={media_data[0]}
+				current_medium={'games'}
+				{current_mode}
+				on:delete={deleteMedium}
+				on:refresh={() => refreshCardList(current_year)}
+				on:swipe={handleMediaSwitch}
+			></CardList>
+		</div>
+		<div class="carousel-item w-full">
+			<CardList
+				{own_profile}
+				media_data={media_data[1]}
+				current_medium={'movies'}
+				{current_mode}
+				on:delete={deleteMedium}
+				on:refresh={() => refreshCardList(current_year)}
+				on:swipe={handleMediaSwitch}
+			></CardList>
+		</div>
+		<div class="carousel-item w-full">
+			<CardList
+				{own_profile}
+				media_data={media_data[2]}
+				current_medium={'shows'}
+				{current_mode}
+				on:delete={deleteMedium}
+				on:refresh={() => refreshCardList(current_year)}
+				on:swipe={handleMediaSwitch}
+			></CardList>
+		</div>
+		<div class="carousel-item w-full">
+			<CardList
+				{own_profile}
+				media_data={media_data[3]}
+				current_medium={'books'}
+				{current_mode}
+				on:delete={deleteMedium}
+				on:refresh={() => refreshCardList(current_year)}
+				on:swipe={handleMediaSwitch}
+			></CardList>
+		</div>
+	</div>
+	{#if current_mode != 2}
+		<button
+			on:click={() => {
+				search_val = '';
+				selected_date = new Date();
+				search_modal.checked = true;
+				current_suggestions = [];
+			}}
+			class="btn btn-neutral-content shadow-lg shadow-base-300 absolute bottom-[5.85%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
+		>
+			+
+		</button>
+	{/if}
 
 	<YearBar on:switch={handleYearSwitch} years={years_in_db}></YearBar>
 
@@ -566,7 +738,7 @@
 				<input
 					type="text"
 					class="grow"
-					placeholder="Search"
+					placeholder="Suche"
 					bind:value={search_val}
 					on:input={handleInput}
 				/>
@@ -585,7 +757,7 @@
 			</label>
 			<div
 				bind:this={suggestion_box}
-				class="overflow-y-auto max-h-[50vh]"
+				class="overflow-y-auto max-h-[50vh] scrollbar-hide"
 				on:scroll={handleSuggestionScroll}
 			>
 				{#each current_suggestions as suggestion}
@@ -596,7 +768,7 @@
 							if (current_mode == 0) {
 								date_modal.checked = true;
 							} else {
-								addMedium();
+								addMedium(2);
 							}
 						}}
 					>
@@ -628,9 +800,31 @@
 			<p class="text-center text-base font-semibold mb-3">gesehen:</p>
 			<DatePicker bind:value={selected_date} max={new Date()} browseWithoutSelecting={true}
 			></DatePicker>
-			<button class="btn btn-neutral mt-3" on:click={addMedium}>Hinzufügen</button>
+			<button class="btn btn-neutral mt-3" on:click={checkBacklog}>Hinzufügen</button>
 		</div>
 		<label class="modal-backdrop" for="date_modal">Close</label>
+	</div>
+	<!-- BacklogModal -->
+	<input type="checkbox" id="backlog_modal" class="modal-toggle" bind:this={backlog_modal} />
+	<div class="modal" role="dialog">
+		<div class="modal-box flex flex-col">
+			<p class="font-bold text-lg text-center mb-1">
+				{last_selection.title} wurde im Backlog gefunden
+			</p>
+			<p class="text-center text-base font-semibold mb-3">
+				Soll der Titel aus dem Backlog entfernt werden?
+			</p>
+			<button class="btn btn-success mt-3" on:click={() => addMedium(0)}
+				>Entfernen und Notizen übernehmen</button
+			>
+			<button class="btn btn-warning mt-3" on:click={() => addMedium(1)}
+				>Entfernen und Notizen verwerfen</button
+			>
+			<button class="btn btn-error mt-3" on:click={() => addMedium(2)}
+				>Nicht aus dem Backlog entfernen</button
+			>
+		</div>
+		<label class="modal-backdrop" for="backlog_modal">Close</label>
 	</div>
 </div>
 

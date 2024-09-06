@@ -16,16 +16,26 @@ export const load: PageServerLoad = async ({
         .select()
         .eq('id', session.user.id)
         .single();
-
+    let user_id: string;
     if (url.pathname.slice(1).split('/')[0] !== profile?.username) {
-        // IMPORTANT This line redirects the user to their own profile. This should be chnaged
-        // as soon as public user profiles have been implemented
-        redirect(303, `/${profile?.username}`);
+        const res = await supabase
+            .from('profiles')
+            .select()
+            .eq('username', url.pathname.slice(1).split('/')[0])
+            .single();
+        if (res.status == 200) {
+            user_id = res.data.id
+        }
+        else {
+            redirect(303, `/${profile?.username}`);
+        }
+    } else {
+        user_id = session.user.id
     }
-    const games = await supabase.from('games').select().eq('user_id', session.user.id).order('added', { ascending: false });
-    const movies = await supabase.from('movies').select().eq('user_id', session.user.id).order('added', { ascending: false });
-    const shows = await supabase.from('shows').select().eq('user_id', session.user.id).order('added', { ascending: false });
-    const books = await supabase.from('books').select().eq('user_id', session.user.id).order('added', { ascending: false });
+    const games = await supabase.from('games').select().eq('user_id', user_id).order('added', { ascending: false });
+    const movies = await supabase.from('movies').select().eq('user_id', user_id).order('added', { ascending: false });
+    const shows = await supabase.from('shows').select().eq('user_id', user_id).order('added', { ascending: false });
+    const books = await supabase.from('books').select().eq('user_id', user_id).order('added', { ascending: false });
 
-    return { session, profile, games, movies, shows, books };
+    return { session, profile, user_id, games, movies, shows, books };
 };

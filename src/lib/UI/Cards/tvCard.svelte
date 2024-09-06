@@ -12,6 +12,7 @@
 	export let medium: mediaObject;
 	export let config;
 	export let current_mode;
+	export let own_profile;
 	let unique = {};
 
 	function restart() {
@@ -69,26 +70,28 @@
 		<div class="collapse bg-base-100">
 			<input id={String(medium.id)} type="radio" name="movie-accordion" class="hidden" />
 			<!-- Card here -->
-			<div class="card bg-base-100 card-side h-[30vw] select-none">
+			<div class="card bg-base-100 card-side select-none min-h-[15vh] h-[15vh] max-h-[15vh]">
 				<figure
-					class="min-w-[23%] w-[23%] max-w-[23%]"
+					class="min-w-[11.25vh] w-[11.25vh] max-w-[11.25vh]"
 					use:tap
 					on:tap={(e) => handleImageInteraction(e, medium)}
 					use:press={{ timeframe: 150, triggerBeforeFinished: true }}
 					on:press={(e) => handleImageInteraction(e, medium)}
 				>
-					{#if medium.image != null}
-						<img src={medium.image} alt={medium.title} />
-					{:else}
-						<img src={'/placeholder.png'} alt={'Kein Bild'} />
-					{/if}
-					{#if medium.episode != 0}
-						<div
-							class="badge badge-outline bg-opacity-80 bg-neutral absolute bottom-0 left-[18%] px-1 text-md font-light p-2 aspect-square"
-						>
-							{medium.episode}
-						</div>
-					{/if}
+					<div class="relative">
+						{#if medium.image != null}
+							<img src={medium.image} alt={medium.title} />
+						{:else}
+							<img src={'/placeholder.png'} alt={'Kein Bild'} />
+						{/if}
+						{#if medium.episode != 0}
+							<div
+								class="badge badge-outline bg-opacity-80 bg-neutral absolute bottom-0 right-0 px-1 text-md font-light aspect-square"
+							>
+								{medium.episode}
+							</div>
+						{/if}
+					</div>
 				</figure>
 				<div
 					class="card-body justify-center pl-2"
@@ -140,14 +143,16 @@
 						</div>
 					{/each}
 				{/if}
-				<button
-					class="btn btn-warning font-bold w-full my-2 min-h-8 h-8"
-					on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
-				>
-				<button
-					class="btn btn-error font-bold w-full min-h-8 h-8 -mb-4"
-					on:click={() => dispatch('delete', medium)}>Karte löschen</button
-				>
+				{#if own_profile}
+					<button
+						class="btn btn-warning font-bold w-full my-2 min-h-8 h-8"
+						on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
+					>
+					<button
+						class="btn btn-error font-bold w-full min-h-8 h-8 -mb-4"
+						on:click={() => dispatch('delete', medium)}>Karte löschen</button
+					>
+				{/if}
 			</div>
 		</div>
 	</div>

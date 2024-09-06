@@ -24,3 +24,13 @@
 ::-webkit-scrollbar-thumb:hover {
     background: #555; 
 }
+
+/* Für alle modernen Browser */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* Für Firefox */
+.scrollbar-hide {
+    scrollbar-width: none;
+}

@@ -25,7 +25,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                     rating: 0,
                     backlogged: medium.backlogged || 0,
                     added: medium.added,
-                    trophy: 0
+                    trophy: 0,
+                    notes: medium.notes || ''
                 }).select('id').single()
                 return new Response(JSON.stringify(error));
             case 'movies':
@@ -39,7 +40,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                     averagerating: medium.averagerating.toFixed(1),
                     rating: 0,
                     backlogged: medium.backlogged || 0,
-                    added: medium.added
+                    added: medium.added,
+                    notes: medium.notes || ''
                 }).select('id').single()
                 return new Response(JSON.stringify(error));
             case 'shows':
@@ -54,7 +56,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                     rating: 0,
                     backlogged: medium.backlogged || 0,
                     added: medium.added,
-                    episode: 0
+                    episode: 0,
+                    notes: medium.notes || ''
                 }).select('id').single()
                 return new Response(JSON.stringify(error));
             case 'books':
@@ -70,7 +73,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                     pagecount: medium.pagecount,
                     rating: 0,
                     backlogged: medium.backlogged || 0,
-                    added: medium.added
+                    added: medium.added,
+                    notes: medium.notes || ''
                 }).select('id').single()
                 return new Response(JSON.stringify(error));
             default:

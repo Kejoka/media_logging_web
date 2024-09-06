@@ -1,26 +1,27 @@
 // src/routes/+layout.ts
-import { PUBLIC_SUPABASE_ANON, PUBLIC_SUPABASE_URL } from '$env/static/public';
-import type { LayoutLoad } from './$types';
-import { createBrowserClient, isBrowser, parse } from '@supabase/ssr';
+import { createBrowserClient, createServerClient, isBrowser } from '@supabase/ssr'
+import { PUBLIC_SUPABASE_ANON, PUBLIC_SUPABASE_URL } from '$env/static/public'
+import type { LayoutLoad } from './$types'
 
-export const load = (async ({ fetch, data, depends }) => {
-	depends('supabase:auth');
+export const load: LayoutLoad = async ({ fetch, data, depends }) => {
+	depends('supabase:auth')
 
-	const supabase = createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON, {
-		global: {
-			fetch
-		},
-		cookies: {
-			get(key) {
-				if (!isBrowser()) {
-					return JSON.stringify(data.session);
-				}
-
-				const cookie = parse(document.cookie);
-				return cookie[key];
-			}
-		}
-	});
+	const supabase = isBrowser()
+		? createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON, {
+			global: {
+				fetch,
+			},
+		})
+		: createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON, {
+			global: {
+				fetch,
+			},
+			cookies: {
+				getAll() {
+					return data.cookies
+				},
+			},
+		})
 
 	/**
 	 * It's fine to use `getSession` here, because on the client, `getSession` is
@@ -28,8 +29,8 @@ export const load = (async ({ fetch, data, depends }) => {
 	 * safely checked the session using `safeGetSession`.
 	 */
 	const {
-		data: { session }
-	} = await supabase.auth.getSession();
+		data: { session },
+	} = await supabase.auth.getSession()
 
-	return { supabase, session };
-}) satisfies LayoutLoad;
+	return { supabase, session }
+}
