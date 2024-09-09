@@ -45,9 +45,11 @@ self.addEventListener('fetch', (event) => {
 			return cache.match(url.pathname);
 		}
 
-		// for everything else, try the network first, but
-		// fall back to the cache if we're offline
+		// for everything else, try the cache first, but
+		// fall back to the network if it can't be found
 		try {
+			return cache.match(event.request);
+		} catch {
 			const response = await fetch(event.request);
 
 			if (response.status === 200) {
@@ -55,8 +57,6 @@ self.addEventListener('fetch', (event) => {
 			}
 
 			return response;
-		} catch {
-			return cache.match(event.request);
 		}
 	}
 
