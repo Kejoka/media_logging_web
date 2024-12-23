@@ -376,6 +376,16 @@ export type TvResult = {
     original_name?: string;
 }
 
+export type tvSeason = {
+    air_date?: string;
+    episode_count?: number;
+    id?: number;
+    name?: string;
+    poster_path?: string;
+    vote_average?: number;
+    season_number?: number;
+}
+
 export type UserInfo = {
     id: number,
     updated_at: string,

@@ -8,7 +8,8 @@
 		indexToMedium,
 		redoDexieChanges,
 		type mediaObject,
-		type OfflineChangeObject
+		type OfflineChangeObject,
+		type tvSeason
 	} from '$lib/dbUtils.js';
 	import { DatePicker } from 'date-picker-svelte';
 	import { onMount } from 'svelte';
@@ -22,6 +23,7 @@
 	let date_modal: HTMLInputElement;
 	let search_modal: HTMLInputElement;
 	let backlog_modal: HTMLInputElement;
+	let season_select_modal: HTMLInputElement;
 	let suggestion_box: HTMLElement;
 	let carousel: HTMLElement;
 	let backlog_button_1: HTMLButtonElement;
@@ -35,7 +37,9 @@
 	let current_year = String(new Date().getFullYear());
 	let current_mode = 0;
 	let current_suggestions: mediaObject[] = [];
+	let current_season_suggestions: tvSeason[] = [];
 	let last_selection: mediaObject = {} as mediaObject;
+	let last_season_selection: tvSeason = {} as tvSeason;
 	let selected_date = new Date();
 	let search_val: string;
 	let form_text: string = getMediaCodeString();
@@ -405,6 +409,7 @@
 	 */
 	async function addMedium(backlog_event: number) {
 		backlog_modal.checked = false;
+		season_select_modal.checked = false;
 		last_selection.added = selected_date.toISOString();
 		last_selection.backlogged = current_mode;
 		const sync_timestamp = new Date();
@@ -770,10 +775,21 @@
 				{#each current_suggestions as suggestion}
 					<button
 						class="btn w-full mb-3 h-fit py-2"
-						on:click={() => {
+						on:click={async () => {
 							last_selection = suggestion;
-							if (current_mode == 0) {
+							if (current_mode == 0 && current_medium != 'shows') {
 								date_modal.checked = true;
+							} else if (current_medium == 'shows') {
+								console.log(suggestion);
+								const res = await fetch('/api/v1/getSeasonDetails', {
+									method: 'POST',
+									body: JSON.stringify({ id: suggestion.tmdbid }),
+									headers: {
+										'Content-Type': 'application/json'
+									}
+								});
+								current_season_suggestions = await res.json();
+								season_select_modal.checked = true;
 							} else {
 								addMedium(2);
 							}
@@ -854,6 +870,57 @@
 			>
 		</div>
 		<label class="modal-backdrop" for="backlog_modal">Close</label>
+	</div>
+	<!-- SeasonSelectModal -->
+	<input
+		type="checkbox"
+		id="season_select_modal"
+		class="modal-toggle"
+		bind:this={season_select_modal}
+	/>
+	<div class="modal" role="dialog">
+		<div class="modal-box flex flex-col">
+			<p class="font-bold text-lg text-center mb-1">{last_selection.title}</p>
+			<p class="text-center text-base font-semibold mb-3">Welche Staffel hast du gesehen?</p>
+			<!-- TODO - Handle Scroll here -->
+			<div
+				bind:this={suggestion_box}
+				class="overflow-y-auto max-h-[50vh] scrollbar-hide"
+				on:scroll={handleSuggestionScroll}
+			>
+				{#each current_season_suggestions as season}
+					<button
+						class="btn w-full mb-3 h-fit py-2"
+						on:click={() => {
+							last_selection.seasons = `${season.season_number}`;
+							last_selection.image = season.poster_path;
+							if (season.vote_average) {
+								last_selection.averagerating = season.vote_average;
+							}
+							if (current_mode == 0) {
+								season_select_modal.checked = false;
+								date_modal.checked = true;
+							} else {
+								addMedium(2);
+							}
+						}}
+					>
+						<div class="flex flex-col">
+							<p class="font-bold text-base">
+								{`${season.name} (${new Date(season.air_date || 404).getFullYear()})`}
+							</p>
+							<p class="text-sm">Episoden: {season.episode_count || ''}</p>
+						</div>
+					</button>
+				{/each}
+				{#if loading && is_online}
+					<div class="flex">
+						<span class="loading loading-dots loading-md m-auto mt-3"></span>
+					</div>
+				{/if}
+			</div>
+		</div>
+		<label class="modal-backdrop" for="date_modal">Close</label>
 	</div>
 </div>
 
