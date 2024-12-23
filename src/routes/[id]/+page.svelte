@@ -920,7 +920,7 @@
 				{/if}
 			</div>
 		</div>
-		<label class="modal-backdrop" for="date_modal">Close</label>
+		<label class="modal-backdrop" for="season_select_modal">Close</label>
 	</div>
 </div>
 
