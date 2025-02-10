@@ -2,7 +2,6 @@ import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
 import type { tvSeason } from '$lib/dbUtils.js';
 import { supabase } from '$lib/supabaseClient.js';
 import { delay } from '$lib/utils.js';
-import { error } from 'console';
 
 const RETRIES: number = 3;
 
