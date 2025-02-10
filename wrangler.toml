@@ -1,5 +1,0 @@
-name = "media-logging-web"
-pages_build_output_dir = "./build"
-
-[env.production]
-node_version = "18.18.0"
