@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Pie, Bar } from 'svelte-chartjs';
+	// import { Pie, Bar } from 'svelte-chartjs';
 	import {
 		Chart as ChartJS,
 		Title,
@@ -14,7 +14,7 @@
 	import distinctColors from 'distinct-colors';
 
 	export let chart_type: string;
-	export let chart_title: string;
+	// export let chart_title: string;
 	export let media_data: mediaObject[];
 	let data: any;
 	let chart_exists: boolean = false;
@@ -119,7 +119,7 @@
 	}
 </script>
 
-{#if chart_exists}
+<!-- {#if chart_exists}
 	<div class="px-2 pb-2">
 		<div class="card bg-base-100">
 			<h2 class="card-title justify-center mt-2">{chart_title}</h2>
@@ -138,4 +138,4 @@
 			{/if}
 		</div>
 	</div>
-{/if}
+{/if} -->
