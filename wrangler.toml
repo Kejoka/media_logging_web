@@ -1,4 +1,5 @@
 name = "media-logging-web"
+pages_build_output_dir = "./build"
 
 [env.production]
 node_version = "18.18.0"
@@ -6,4 +7,3 @@ node_version = "18.18.0"
 [build]
 command = "npm run build"
 cwd = "."
-pages_build_output_dir = "./build"
