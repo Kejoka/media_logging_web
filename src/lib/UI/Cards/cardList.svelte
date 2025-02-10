@@ -1,5 +1,5 @@
 <script lang="ts">
-	// import JustWatch_Logo from './../../Icons/JustWatch_Logo.svelte';
+	import JustWatch_Logo from './../../Icons/JustWatch_Logo.svelte';
 	import TvCard from './tvCard.svelte';
 	import {
 		dexieDB,
@@ -626,7 +626,7 @@
 		<div class="flex flex-row justify-between mb-4">
 			<p class=" font-bold text-3xl justify-center">Wo streamen?</p>
 			<div class="flex w-1/2 h-8">
-				<!-- <JustWatch_Logo></JustWatch_Logo> -->
+				<JustWatch_Logo></JustWatch_Logo>
 			</div>
 		</div>
 		{#if streaming_data.flatrate === undefined && streaming_data.ads === undefined && streaming_data.buy === undefined}
