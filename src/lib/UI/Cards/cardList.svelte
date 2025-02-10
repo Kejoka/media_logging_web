@@ -1,5 +1,4 @@
 <script lang="ts">
-	import JustWatch_Logo from './../../Icons/JustWatch_Logo.svelte';
 	import TvCard from './tvCard.svelte';
 	import {
 		dexieDB,
@@ -20,13 +19,11 @@
 	export let current_mode: number;
 	export let own_profile: boolean;
 	let delete_modal: HTMLInputElement;
-	let streaming_modal: HTMLInputElement;
 	let edit_modal: HTMLInputElement;
 	let to_delete: mediaObject = { title: '' };
 	let to_edit: mediaObject = { title: '' };
 	let to_editRelease: Date = new Date();
 	let to_editAdded: Date = new Date();
-	let streaming_data: { ads?: Object[]; buy?: Object[]; flatrate?: Object[]; rent?: Object[] } = {};
 	const dispatch = createEventDispatcher();
 
 	function getRatingConfig(score: number) {
@@ -127,26 +124,6 @@
 		to_editRelease = new Date(to_edit.release || '');
 		to_editAdded = new Date(to_edit.added || '');
 		edit_modal.checked = true;
-	}
-
-	async function showProviderList(event: CustomEvent) {
-		console.log(event.detail);
-		try {
-			const res = await fetch('/api/v1/getStreamingProviders', {
-				method: 'POST',
-				body: JSON.stringify({
-					tmdb_id: event.detail.tmdbid,
-					medium: current_medium
-				}),
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
-			streaming_data = (await res.json()).results.DE;
-			streaming_modal.checked = true;
-		} catch (error) {
-			console.log(error);
-		}
 	}
 
 	async function updateMedium() {
@@ -294,7 +271,6 @@
 					on:delete={askDelete}
 					on:edit={showEditForm}
 					on:update_score={updateScore}
-					on:showStreams={showProviderList}
 					{own_profile}
 					{medium}
 					{config}
@@ -305,7 +281,6 @@
 					on:delete={askDelete}
 					on:edit={showEditForm}
 					on:update_score={updateScore}
-					on:showStreams={showProviderList}
 					{own_profile}
 					{medium}
 					{config}
@@ -617,77 +592,5 @@
 		}}
 		class="modal-backdrop -z-10"
 		for="edit_modal">Close</label
-	>
-</div>
-<!-- Streaming Provider Modal -->
-<input type="checkbox" id="streaming_modal" class="modal-toggle" bind:this={streaming_modal} />
-<div class="modal" role="dialog">
-	<div class="modal-box flex flex-col">
-		<div class="flex flex-row justify-between mb-4">
-			<p class=" font-bold text-3xl justify-center">Wo streamen?</p>
-			<div class="flex w-1/2 h-8">
-				<JustWatch_Logo></JustWatch_Logo>
-			</div>
-		</div>
-		{#if streaming_data.flatrate === undefined && streaming_data.ads === undefined && streaming_data.buy === undefined}
-			<p class="font-semibold text-2xl mb-3">Keine Streamingdienste gefunden</p>
-		{:else}
-			{#if streaming_data.flatrate}
-				<p class="font-semibold text-2xl my-3">Streaming</p>
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
-					{#each streaming_data.flatrate as flat}
-						<img
-							src="https://image.tmdb.org/t/p/w154{flat.logo_path}"
-							class="h-20"
-							alt={flat.provider_name}
-						/>
-					{/each}
-				</div>
-			{/if}
-			{#if streaming_data.ads}
-				<p class="font-semibold text-2xl my-3">Streaming mit Werbung</p>
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
-					{#each streaming_data.ads as ad}
-						<img
-							src="https://image.tmdb.org/t/p/w154{ad.logo_path}"
-							class="h-20"
-							alt={ad.provider_name}
-						/>
-					{/each}
-				</div>
-			{/if}
-			{#if streaming_data.rent}
-				<p class="font-semibold text-2xl my-3">Leihen</p>
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
-					{#each streaming_data.rent as r}
-						<img
-							src="https://image.tmdb.org/t/p/w154{r.logo_path}"
-							class="h-20"
-							alt={r.provider_name}
-						/>
-					{/each}
-				</div>
-			{/if}
-			{#if streaming_data.buy}
-				<p class="font-semibold text-2xl my-3">Kaufen</p>
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
-					{#each streaming_data.buy as b}
-						<img
-							src="https://image.tmdb.org/t/p/w154{b.logo_path}"
-							class="h-20 rounded-lg overflow-hidden"
-							alt={b.provider_name}
-						/>
-					{/each}
-				</div>
-			{/if}
-		{/if}
-	</div>
-	<label
-		use:tap
-		on:tap={() => {
-			streaming_modal.checked = false;
-		}}
-		class="modal-backdrop -z-20"
-		for="streaming_modal">Close</label
 	>
 </div>
