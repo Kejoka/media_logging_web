@@ -1,5 +1,4 @@
 import { PRIVATE_TMDB_V3_KEY } from '$env/static/private';
-import type { tvSeason } from '$lib/dbUtils.js';
 import { supabase } from '$lib/supabaseClient.js';
 import { delay } from '$lib/utils.js';
 
@@ -22,7 +21,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                 raw_res = await fetch(`https://api.themoviedb.org/3/tv/${tmdb_id}/watch/providers?api_key=${PRIVATE_TMDB_V3_KEY}`)
             }
             else {
-                throw error(`Invalid medium: ${medium}`);
+                throw Error(`Invalid medium: ${medium}`);
             }
             res = await raw_res.json();
             return new Response(JSON.stringify(res));
