@@ -78,6 +78,14 @@
 					on:click={() => dispatch('delete', medium)}>Karte löschen</button
 				>
 			{/if}
+			{#if current_mode == 1}
+				<button
+					class="btn btn-info font-bold w-full mt-3 -mb-4 min-h-8 h-8"
+					on:click={() => dispatch('showStreams', medium)}
+				>
+					Wo streamen?
+				</button>
+			{/if}
 		</div>
 	</div>
 </div>

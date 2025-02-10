@@ -1,6 +1,6 @@
 <script lang="ts">
 	import CardList from '$lib/UI/Cards/cardList.svelte';
-	import TopBar from '$lib/UI/topBar.svelte';
+	import MediaBar from '$lib/UI/mediaBar.svelte';
 	import YearBar from '$lib/UI/yearBar.svelte';
 	import {
 		dexieDB,
@@ -15,6 +15,7 @@
 	import { onMount } from 'svelte';
 	import { online_status } from '../../stores/onlineStatus';
 	import Fuse, { type IFuseOptions } from 'fuse.js';
+	import { getMediaCodeIndex, getMediaCodeString, getModeString } from '$lib/utils';
 	export let data;
 	let { session, profile, user_id, games, movies, shows, books } = data;
 	$: is_online = $online_status;
@@ -39,10 +40,9 @@
 	let current_suggestions: mediaObject[] = [];
 	let current_season_suggestions: tvSeason[] = [];
 	let last_selection: mediaObject = {} as mediaObject;
-	let last_season_selection: tvSeason = {} as tvSeason;
 	let selected_date = new Date();
 	let search_val: string;
-	let form_text: string = getMediaCodeString();
+	let form_text: string = getMediaCodeString(current_medium);
 	let loading = false;
 	let last_search_page = 1;
 	// Media data variables
@@ -52,7 +52,7 @@
 	let media_data_unfiltered: mediaObject[][] = [];
 	let backlog_matches: mediaObject[];
 	// Misc variables
-	let header_text = getModeString();
+	let header_text = getModeString(current_mode);
 	let input_timeout = setTimeout(function () {}, 0);
 	const fuse_options: IFuseOptions<mediaObject> = {
 		keys: ['title'],
@@ -139,7 +139,7 @@
 		for (let media of media_data) {
 			media_data_unfiltered.push(media);
 		}
-		years_in_db = getYears(total_media_data[getMediaCodeIndex()], current_year);
+		years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
 	});
 
 	// Clones supabase contents depending on whether or not the user is on their own profile
@@ -197,13 +197,13 @@
 			current_medium = indexToMedium(current_tab_index);
 			// YearBar Data
 			if (current_mode != 1) {
-				years_in_db = getYears(total_media_data[getMediaCodeIndex()], current_year);
+				years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
 				current_year =
 					years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
 			} else {
 				years_in_db = years_in_db.slice(-1);
 			}
-			form_text = getMediaCodeString();
+			form_text = getMediaCodeString(current_medium);
 			// Year Filter
 			if (isNaN(Number(current_year))) {
 				for (let [index, media] of total_media_data.entries()) {
@@ -222,7 +222,7 @@
 	// Handle the switch between the modes Media-Log, Backlog and Stats
 	async function handleModeSwitch(event: any) {
 		current_mode = event.detail.mode;
-		header_text = getModeString();
+		header_text = getModeString(current_mode);
 		if (current_mode != 1) {
 			await refreshCardList(new Date().getFullYear.toString());
 		} else {
@@ -286,7 +286,7 @@
 				.reverse()
 				.sortBy('added');
 		}
-		years_in_db = getYears(total_media_data[getMediaCodeIndex()], set_year);
+		years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], set_year);
 		current_year =
 			years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
 
@@ -611,49 +611,6 @@
 			years_in_db = years_in_db.slice(-1);
 		}
 	}
-
-	function getMediaCodeString(): string {
-		switch (current_medium) {
-			case 'games':
-				return 'Game';
-			case 'movies':
-				return 'Film';
-			case 'shows':
-				return 'Serie';
-			case 'books':
-				return 'Buch';
-			default:
-				return 'Error';
-		}
-	}
-
-	function getModeString() {
-		switch (current_mode) {
-			case 0:
-				return 'Medien Log';
-			case 1:
-				return 'Backlog';
-			case 2:
-				return 'Statistiken';
-			default:
-				return 'ERROR';
-		}
-	}
-
-	function getMediaCodeIndex(): number {
-		switch (current_medium) {
-			case 'games':
-				return 0;
-			case 'movies':
-				return 1;
-			case 'shows':
-				return 2;
-			case 'books':
-				return 3;
-			default:
-				return -1;
-		}
-	}
 </script>
 
 <svelte:head>
@@ -661,7 +618,7 @@
 </svelte:head>
 
 <div class="flex flex-col h-[100vh]">
-	<TopBar
+	<MediaBar
 		on:switch_medium={handleMediaSwitch}
 		on:switch_mode={handleModeSwitch}
 		on:filter={handleFilter}
@@ -672,7 +629,7 @@
 		tab_index={current_tab_index}
 		{current_mode}
 		{own_profile}
-	></TopBar>
+	></MediaBar>
 	<div bind:this={carousel} on:scroll={handleMediaSwitch} class="carousel h-full">
 		<div class="carousel-item w-full">
 			<CardList

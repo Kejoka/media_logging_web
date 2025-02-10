@@ -1,12 +1,10 @@
 <!-- src/routes/account/+page.svelte -->
 <script lang="ts">
-	import { fade } from 'svelte/transition';
 	import NavBar from '$lib/UI/navBar.svelte';
 	import { enhance } from '$app/forms';
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
-	import { supabase } from '$lib/supabaseClient.js';
 	import AutoComplete from '$lib/UI/AutoComplete.svelte';
 	import { online_status } from '../../../stores/onlineStatus.js';
 
@@ -18,8 +16,6 @@
 
 	let loading = false;
 	let username: string = profile?.username ?? '';
-	let displaying_error = false;
-	let error_message: string;
 
 	const handleUpdate: SubmitFunction = () => {
 		loading = true;
@@ -34,24 +30,6 @@
 			loading = false;
 			update();
 		};
-	};
-
-	const handleProfileClear = async () => {
-		const pref_id = await supabase
-			.from('preference_profiles')
-			.select('id')
-			.eq('user_id', session.user.id)
-			.single();
-		const res = await supabase
-			.from('preferences')
-			.delete()
-			.eq('user_preference_id', pref_id.data?.id)
-			.select();
-		displaying_error = true;
-		error_message = `${res.data?.length} MovieSwiper Präferenzen wurden gelöscht`;
-		setTimeout(() => {
-			displaying_error = false;
-		}, 4000);
 	};
 </script>
 
@@ -139,48 +117,6 @@
 					disabled={loading}
 					type="button"
 					on:click={() => {
-						if (profile.username == '') {
-							alert('You need to choose a Username first');
-							return;
-						}
-						goto(`${$page.url.pathname}/movieswiper?profile=personal`);
-					}}
-				>
-					MovieSwiper
-				</button>
-				<button
-					class="btn btn-neutral-content mb-3 w-[75%]"
-					disabled={loading}
-					type="button"
-					on:click={() => {
-						if (profile.username == '') {
-							alert('You need to choose a Username first');
-							return;
-						}
-						goto(`${$page.url.pathname}/recommendations?profile=personal`);
-					}}
-				>
-					Film-Empfehlungen
-				</button>
-				<button
-					class="btn btn-neutral-content mb-3 w-[75%]"
-					disabled={loading}
-					type="button"
-					on:click={() => {
-						if (profile.username == '') {
-							alert('You need to choose a Username first');
-							return;
-						}
-						handleProfileClear();
-					}}
-				>
-					MovieSwiper Präferenzen löschen
-				</button>
-				<button
-					class="btn btn-neutral-content mb-3 w-[75%]"
-					disabled={loading}
-					type="button"
-					on:click={() => {
 						goto($page.url.origin + '/auth/reset');
 					}}
 				>
@@ -196,10 +132,3 @@
 		{/if}
 	</div>
 </div>
-{#if displaying_error}
-	<div class="toast toast-bottom toast-center" transition:fade={{ delay: 250, duration: 300 }}>
-		<div class="alert alert-warning">
-			<span>{error_message}</span>
-		</div>
-	</div>
-{/if}
