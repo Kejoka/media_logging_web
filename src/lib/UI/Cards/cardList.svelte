@@ -623,9 +623,9 @@
 <input type="checkbox" id="streaming_modal" class="modal-toggle" bind:this={streaming_modal} />
 <div class="modal" role="dialog">
 	<div class="modal-box flex flex-col">
-		<div class="mb-4 flex flex-row justify-between">
-			<p class=" justify-center text-3xl font-bold">Wo streamen?</p>
-			<div class="flex h-8 w-1/2">
+		<div class="mb-4 flex flex-row">
+			<p class=" justify-center text-2xl font-bold">Wo streamen?</p>
+			<div class="flex h-6 w-1/2 justify-end">
 				<JustWatch_Logo></JustWatch_Logo>
 			</div>
 		</div>
@@ -633,48 +633,48 @@
 			<p class="mb-3 text-2xl font-semibold">Keine Streamingdienste gefunden</p>
 		{:else}
 			{#if streaming_data.flatrate}
-				<p class="my-3 text-2xl font-semibold">Streaming</p>
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
+				<p class="my-3 text-xl font-semibold">Streaming</p>
+				<div class="grid grid-cols-4 gap-8">
 					{#each streaming_data.flatrate as flat}
 						<img
 							src="https://image.tmdb.org/t/p/w154{flat.logo_path}"
-							class="h-20"
+							class="h-14"
 							alt={flat.provider_name}
 						/>
 					{/each}
 				</div>
 			{/if}
 			{#if streaming_data.ads}
-				<p class="my-3 text-2xl font-semibold">Streaming mit Werbung</p>
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
+				<p class="my-3 text-xl font-semibold">Streaming mit Werbung</p>
+				<div class="grid grid-cols-4 gap-8">
 					{#each streaming_data.ads as ad}
 						<img
 							src="https://image.tmdb.org/t/p/w154{ad.logo_path}"
-							class="h-20"
+							class="h-14"
 							alt={ad.provider_name}
 						/>
 					{/each}
 				</div>
 			{/if}
 			{#if streaming_data.rent}
-				<p class="my-3 text-2xl font-semibold">Leihen</p>
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
+				<p class="my-3 text-xl font-semibold">Leihen</p>
+				<div class="grid grid-cols-4 gap-8">
 					{#each streaming_data.rent as r}
 						<img
 							src="https://image.tmdb.org/t/p/w154{r.logo_path}"
-							class="h-20"
+							class="h-14"
 							alt={r.provider_name}
 						/>
 					{/each}
 				</div>
 			{/if}
 			{#if streaming_data.buy}
-				<p class="my-3 text-2xl font-semibold">Kaufen</p>
-				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
+				<p class="my-3 text-xl font-semibold">Kaufen</p>
+				<div class="grid grid-cols-4 gap-8">
 					{#each streaming_data.buy as b}
 						<img
 							src="https://image.tmdb.org/t/p/w154{b.logo_path}"
-							class="h-20 overflow-hidden rounded-lg"
+							class="h-14 overflow-hidden rounded-lg"
 							alt={b.provider_name}
 						/>
 					{/each}
