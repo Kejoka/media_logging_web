@@ -275,7 +275,7 @@
 	}
 </script>
 
-<div class="bg-base-300 overflow-x-hidden overflow-y-auto flex-grow pt-2 scrollbar-hide">
+<div class="scrollbar-hide flex-grow overflow-y-auto overflow-x-hidden bg-base-300 pt-2">
 	{#if current_mode != 2}
 		{#each media_data as medium}
 			{@const config = getRatingConfig(medium.rating || 0)}
@@ -487,7 +487,7 @@
 <input type="checkbox" id="delete_modal" class="modal-toggle" bind:this={delete_modal} />
 <div class="modal" role="dialog">
 	<div class="modal-box flex flex-col">
-		<p class="font-semibold text-lg mb-3">{to_delete.title} wirklich löschen?</p>
+		<p class="mb-3 text-lg font-semibold">{to_delete.title} wirklich löschen?</p>
 		<button
 			class="btn btn-error font-bold"
 			on:click={() => {
@@ -606,7 +606,7 @@
 				/>
 			</label>
 		{/if}
-		<button class="btn btn-success font-bold mt-3" on:click={updateMedium}
+		<button class="btn btn-success mt-3 font-bold" on:click={updateMedium}
 			>Änderungen speichern</button
 		>
 	</div>
@@ -623,17 +623,17 @@
 <input type="checkbox" id="streaming_modal" class="modal-toggle" bind:this={streaming_modal} />
 <div class="modal" role="dialog">
 	<div class="modal-box flex flex-col">
-		<div class="flex flex-row justify-between mb-4">
-			<p class=" font-bold text-3xl justify-center">Wo streamen?</p>
-			<div class="flex w-1/2 h-8">
+		<div class="mb-4 flex flex-row justify-between">
+			<p class=" justify-center text-3xl font-bold">Wo streamen?</p>
+			<div class="flex h-8 w-1/2">
 				<JustWatch_Logo></JustWatch_Logo>
 			</div>
 		</div>
 		{#if streaming_data.flatrate === undefined && streaming_data.ads === undefined && streaming_data.buy === undefined}
-			<p class="font-semibold text-2xl mb-3">Keine Streamingdienste gefunden</p>
+			<p class="mb-3 text-2xl font-semibold">Keine Streamingdienste gefunden</p>
 		{:else}
 			{#if streaming_data.flatrate}
-				<p class="font-semibold text-2xl my-3">Streaming</p>
+				<p class="my-3 text-2xl font-semibold">Streaming</p>
 				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
 					{#each streaming_data.flatrate as flat}
 						<img
@@ -645,7 +645,7 @@
 				</div>
 			{/if}
 			{#if streaming_data.ads}
-				<p class="font-semibold text-2xl my-3">Streaming mit Werbung</p>
+				<p class="my-3 text-2xl font-semibold">Streaming mit Werbung</p>
 				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
 					{#each streaming_data.ads as ad}
 						<img
@@ -657,7 +657,7 @@
 				</div>
 			{/if}
 			{#if streaming_data.rent}
-				<p class="font-semibold text-2xl my-3">Leihen</p>
+				<p class="my-3 text-2xl font-semibold">Leihen</p>
 				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
 					{#each streaming_data.rent as r}
 						<img
@@ -669,12 +669,12 @@
 				</div>
 			{/if}
 			{#if streaming_data.buy}
-				<p class="font-semibold text-2xl my-3">Kaufen</p>
+				<p class="my-3 text-2xl font-semibold">Kaufen</p>
 				<div class="grid grid-cols-1 gap-8 md:grid-cols-2 xl:grid-cols-4">
 					{#each streaming_data.buy as b}
 						<img
 							src="https://image.tmdb.org/t/p/w154{b.logo_path}"
-							class="h-20 rounded-lg overflow-hidden"
+							class="h-20 overflow-hidden rounded-lg"
 							alt={b.provider_name}
 						/>
 					{/each}

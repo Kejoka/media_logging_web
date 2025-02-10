@@ -14,7 +14,7 @@
 	import distinctColors from 'distinct-colors';
 
 	export let chart_type: string;
-	// export let chart_title: string;
+	export let chart_title: string;
 	export let media_data: mediaObject[];
 	let data: any;
 	let chart_exists: boolean = false;
