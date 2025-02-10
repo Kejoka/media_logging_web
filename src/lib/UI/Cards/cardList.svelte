@@ -634,7 +634,7 @@
 		{:else}
 			{#if streaming_data.flatrate}
 				<p class="my-3 text-xl font-semibold">Streaming</p>
-				<div class="grid grid-cols-4 gap-8">
+				<div class="grid grid-cols-4 gap-4">
 					{#each streaming_data.flatrate as flat}
 						<img
 							src="https://image.tmdb.org/t/p/w154{flat.logo_path}"
@@ -646,7 +646,7 @@
 			{/if}
 			{#if streaming_data.ads}
 				<p class="my-3 text-xl font-semibold">Streaming mit Werbung</p>
-				<div class="grid grid-cols-4 gap-8">
+				<div class="grid grid-cols-4 gap-4">
 					{#each streaming_data.ads as ad}
 						<img
 							src="https://image.tmdb.org/t/p/w154{ad.logo_path}"
@@ -658,7 +658,7 @@
 			{/if}
 			{#if streaming_data.rent}
 				<p class="my-3 text-xl font-semibold">Leihen</p>
-				<div class="grid grid-cols-4 gap-8">
+				<div class="grid grid-cols-4 gap-4">
 					{#each streaming_data.rent as r}
 						<img
 							src="https://image.tmdb.org/t/p/w154{r.logo_path}"
@@ -670,7 +670,7 @@
 			{/if}
 			{#if streaming_data.buy}
 				<p class="my-3 text-xl font-semibold">Kaufen</p>
-				<div class="grid grid-cols-4 gap-8">
+				<div class="grid grid-cols-4 gap-4">
 					{#each streaming_data.buy as b}
 						<img
 							src="https://image.tmdb.org/t/p/w154{b.logo_path}"
