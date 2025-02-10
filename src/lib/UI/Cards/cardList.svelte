@@ -686,6 +686,7 @@
 		use:tap
 		on:tap={() => {
 			streaming_modal.checked = false;
+			streaming_data = {};
 		}}
 		class="modal-backdrop -z-20"
 		for="streaming_modal">Close</label
