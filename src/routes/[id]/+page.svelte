@@ -25,7 +25,6 @@
 	let search_modal: HTMLInputElement;
 	let backlog_modal: HTMLInputElement;
 	let season_select_modal: HTMLInputElement;
-	let suggestion_box: HTMLElement;
 	let carousel: HTMLElement;
 	let backlog_button_1: HTMLButtonElement;
 	let backlog_button_2: HTMLButtonElement;
@@ -311,9 +310,9 @@
 		}
 		loading = true;
 		current_suggestions = [];
+		last_search_page = 1;
 		clearTimeout(input_timeout);
 		input_timeout = setTimeout(async () => {
-			last_search_page = 1;
 			const res = await fetch('/api/v1/getSearchSuggestions', {
 				method: 'POST',
 				body: JSON.stringify({ search_val, last_search_page, current_medium }),
@@ -344,9 +343,11 @@
 		}
 	}
 	// Handles reaching the end of the current suggestions and lazy loads more suggestions
-	async function handleSuggestionScroll() {
-		const scroll_progress =
-			suggestion_box.scrollTop / (suggestion_box.scrollHeight - suggestion_box.clientHeight);
+	async function handleSuggestionScroll(e: Event) {
+		const scrollTop = (e.target as HTMLElement).scrollTop;
+		const scrollHeight = (e.target as HTMLElement).scrollHeight;
+		const clientHeight = (e.target as HTMLElement).clientHeight;
+		const scroll_progress = scrollTop / (scrollHeight - clientHeight);
 		if (scroll_progress == 1 && !loading && last_search_page != -1) {
 			loading = true;
 			last_search_page += 1;
@@ -617,7 +618,7 @@
 	<title>Media-Logging</title>
 </svelte:head>
 
-<div class="flex flex-col h-[100vh]">
+<div class="flex h-[100vh] flex-col">
 	<MediaBar
 		on:switch_medium={handleMediaSwitch}
 		on:switch_mode={handleModeSwitch}
@@ -679,12 +680,13 @@
 	{#if current_mode != 2}
 		<button
 			on:click={() => {
+				last_search_page = 1;
 				search_val = '';
 				selected_date = new Date();
 				search_modal.checked = true;
 				current_suggestions = [];
 			}}
-			class="btn btn-neutral-content shadow-lg shadow-base-300 absolute bottom-[8%] inset-x-0 mx-3 min-h-[5%] h-[4%] font-bold text-2xl"
+			class="btn-neutral-content btn absolute inset-x-0 bottom-[8%] mx-3 h-[4%] min-h-[5%] text-2xl font-bold shadow-lg shadow-base-300"
 		>
 			+
 		</button>
@@ -698,12 +700,12 @@
 	<div class="modal" role="dialog">
 		<div class="modal-box">
 			{#if is_online}
-				<p class=" font-bold text-lg text-center mb-3">{form_text} hinzufügen</p>
+				<p class=" mb-3 text-center text-lg font-bold">{form_text} hinzufügen</p>
 			{:else}
-				<p class=" font-bold text-xl text-center mb-3">Offline Modus</p>
-				<p class=" font-bold text-lg text-center mb-3">Titel manuell hinzufügen</p>
+				<p class=" mb-3 text-center text-xl font-bold">Offline Modus</p>
+				<p class=" mb-3 text-center text-lg font-bold">Titel manuell hinzufügen</p>
 			{/if}
-			<label class="input input-bordered flex items-center gap-2 mb-3">
+			<label class="input input-bordered mb-3 flex items-center gap-2">
 				<input
 					type="text"
 					class="grow"
@@ -724,14 +726,10 @@
 					/>
 				</svg>
 			</label>
-			<div
-				bind:this={suggestion_box}
-				class="overflow-y-auto max-h-[50vh] scrollbar-hide"
-				on:scroll={handleSuggestionScroll}
-			>
+			<div class="scrollbar-hide max-h-[50vh] overflow-y-auto" on:scroll={handleSuggestionScroll}>
 				{#each current_suggestions as suggestion}
 					<button
-						class="btn w-full mb-3 h-fit py-2"
+						class="btn mb-3 h-fit w-full py-2"
 						on:click={async () => {
 							last_selection = suggestion;
 							if (current_mode == 0 && current_medium != 'shows') {
@@ -753,7 +751,7 @@
 						}}
 					>
 						<div class="flex flex-col">
-							<p class="font-bold text-base">
+							<p class="text-base font-bold">
 								{`${suggestion.title} (${new Date(suggestion.release || 404).getFullYear()})`}
 							</p>
 							{#if suggestion.author != undefined}
@@ -769,6 +767,27 @@
 					</div>
 				{/if}
 			</div>
+			{#if last_search_page != 1}
+				<p class="mt-2 text-center text-base font-semibold">Nicht gefunden was du suchst?</p>
+				<p class="mb-2 text-center text-base font-semibold">Hier manuell hinzufügen</p>
+				<button
+					class="btn mb-3 h-fit w-full py-2"
+					on:click={async () => {
+						last_selection = { title: search_val, release: new Date().toISOString() };
+						if (current_mode == 0) {
+							date_modal.checked = true;
+						} else {
+							addMedium(2);
+						}
+					}}
+				>
+					<div class="flex flex-col">
+						<p class="text-base font-bold">
+							{`${search_val} (${new Date().getFullYear()})`}
+						</p>
+					</div>
+				</button>
+			{/if}
 		</div>
 		<label class="modal-backdrop" for="search_modal">Close</label>
 	</div>
@@ -776,8 +795,8 @@
 	<input type="checkbox" id="date_modal" class="modal-toggle" bind:this={date_modal} />
 	<div class="modal" role="dialog">
 		<div class="modal-box flex flex-col">
-			<p class="font-bold text-lg text-center mb-1">{last_selection.title}</p>
-			<p class="text-center text-base font-semibold mb-3">gesehen:</p>
+			<p class="mb-1 text-center text-lg font-bold">{last_selection.title}</p>
+			<p class="mb-3 text-center text-base font-semibold">gesehen:</p>
 			<DatePicker bind:value={selected_date} max={new Date()} browseWithoutSelecting={true}
 			></DatePicker>
 			<button
@@ -795,10 +814,10 @@
 	<input type="checkbox" id="backlog_modal" class="modal-toggle" bind:this={backlog_modal} />
 	<div class="modal" role="dialog">
 		<div class="modal-box flex flex-col">
-			<p class="font-bold text-lg text-center mb-1">
+			<p class="mb-1 text-center text-lg font-bold">
 				{last_selection.title} wurde im Backlog gefunden
 			</p>
-			<p class="text-center text-base font-semibold mb-3">
+			<p class="mb-3 text-center text-base font-semibold">
 				Soll der Titel aus dem Backlog entfernt werden?
 			</p>
 			<button
@@ -837,17 +856,13 @@
 	/>
 	<div class="modal" role="dialog">
 		<div class="modal-box flex flex-col">
-			<p class="font-bold text-lg text-center mb-1">{last_selection.title}</p>
-			<p class="text-center text-base font-semibold mb-3">Welche Staffel hast du gesehen?</p>
+			<p class="mb-1 text-center text-lg font-bold">{last_selection.title}</p>
+			<p class="mb-3 text-center text-base font-semibold">Welche Staffel hast du gesehen?</p>
 			<!-- TODO - Handle Scroll here -->
-			<div
-				bind:this={suggestion_box}
-				class="overflow-y-auto max-h-[50vh] scrollbar-hide"
-				on:scroll={handleSuggestionScroll}
-			>
+			<div class="scrollbar-hide max-h-[50vh] overflow-y-auto" on:scroll={handleSuggestionScroll}>
 				{#each current_season_suggestions as season}
 					<button
-						class="btn w-full mb-3 h-fit py-2"
+						class="btn mb-3 h-fit w-full py-2"
 						on:click={() => {
 							last_selection.seasons = `${season.season_number}`;
 							last_selection.image = season.poster_path;
@@ -863,7 +878,7 @@
 						}}
 					>
 						<div class="flex flex-col">
-							<p class="font-bold text-base">
+							<p class="text-base font-bold">
 								{`${season.name} (${new Date(season.air_date || 404).getFullYear()})`}
 							</p>
 							<p class="text-sm">Episoden: {season.episode_count || ''}</p>

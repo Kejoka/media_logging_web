@@ -622,7 +622,7 @@
 <!-- Streaming Provider Modal -->
 <input type="checkbox" id="streaming_modal" class="modal-toggle" bind:this={streaming_modal} />
 <div class="modal" role="dialog">
-	<div class="modal-box flex flex-col">
+	<div class="modal-box flex max-h-[65%] flex-col">
 		<div class="mb-4 flex flex-row">
 			<p class=" justify-center text-2xl font-bold">Wo streamen?</p>
 			<div class="flex h-6 w-1/2 justify-end">
