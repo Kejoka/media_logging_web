@@ -8,6 +8,7 @@
 	import Pages from '$lib/Icons/pages.svelte';
 	import Person from '$lib/Icons/person.svelte';
 	import Star from '$lib/Icons/star.svelte';
+	import Sum from '$lib/Icons/sum.svelte';
 	import Trophy from '$lib/Icons/trophy.svelte';
 	export let media_data: mediaObject[];
 	export let stat_type: string;
@@ -106,12 +107,15 @@
 			}
 			stat_exists = true;
 		}
+	} else if (stat_type === 'total_amount') {
+		stat_value = String(media_data.length);
+		stat_exists = true;
 	}
 </script>
 
 {#if stat_exists}
-	<div class="flex mb-2">
-		<div class="stats shadow w-full mx-2">
+	<div class="mb-2 flex">
+		<div class="stats mx-2 w-full shadow">
 			<div class="stat">
 				<div class="stat-figure text-secondary">
 					{#if stat_type === 'page_count'}
@@ -130,6 +134,8 @@
 						<Trophy styling={'inline-block h-8 w-8 stroke-current'}></Trophy>
 					{:else if stat_type === 'rating_difference'}
 						<Difference></Difference>
+					{:else if stat_type === 'total_amount'}
+						<Sum></Sum>
 					{:else}
 						<Analytics></Analytics>
 					{/if}

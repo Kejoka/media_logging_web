@@ -35,7 +35,7 @@
 	}
 </script>
 
-<div class="z-10 w-full h-fit">
+<div class="z-10 h-fit w-full">
 	<NavBar on:switch_mode {static_header} {header} {nav_back_button} {settings_button} {own_profile}
 	></NavBar>
 	<div>
@@ -70,7 +70,7 @@
 			</button>
 		</div>
 		{#if current_mode != 2}
-			<div class="w-full relative">
+			<div class="relative w-full">
 				<input
 					bind:this={searchbar_collapse}
 					id="collapse-checkbox"
@@ -78,13 +78,13 @@
 					class="peer hidden"
 				/>
 				<div
-					class="overflow-hidden transition-all duration-300 ease-in-out max-h-0 peer-checked:max-h-40 shadow-lg shadow-base-300"
+					class="max-h-0 overflow-hidden shadow-lg shadow-base-300 transition-all duration-300 ease-in-out peer-checked:max-h-40"
 				>
-					<div class="bg-base-100 p-4 rounded-t-lg">
-						<label class="input input-bordered flex items-center gap-2 mb-3">
+					<div class="rounded-t-lg bg-base-100 p-4">
+						<label class="mb-3 flex items-center gap-2">
 							<input
 								type="text"
-								class="grow"
+								class="input input-bordered grow"
 								placeholder="Suche"
 								bind:value={search_filter}
 								on:input={handleInput}
@@ -93,7 +93,7 @@
 								xmlns="http://www.w3.org/2000/svg"
 								viewBox="0 0 16 16"
 								fill="currentColor"
-								class="h-4 w-4 opacity-70"
+								class="-ml-10 mr-5 h-4 w-4 opacity-70"
 							>
 								<path
 									fill-rule="evenodd"
@@ -105,8 +105,7 @@
 					</div>
 				</div>
 				<button
-					use:tap
-					on:tap={() => {
+					on:click={() => {
 						searchbar_expanded = !searchbar_expanded;
 						searchbar_collapse.checked = !searchbar_collapse.checked;
 						if (!searchbar_collapse.checked) {
@@ -114,11 +113,11 @@
 							dispatch('filter', search_filter);
 						}
 					}}
-					class="block absolute -mt-2 left-1/2 transform -translate-x-1/2 bg-base-100 text-white w-12 h-6 rounded-b-full transition-transform active:scale-95 focus:outline-none shadow-lg shadow-base-300 cursor-pointer"
+					class="absolute left-1/2 -mt-2 block h-6 w-12 -translate-x-1/2 transform cursor-pointer rounded-b-full bg-base-100 text-white shadow-lg shadow-base-300 transition-transform focus:outline-none active:scale-95"
 				>
 					{#if searchbar_expanded}
 						<svg
-							class="w-5 h-5 absolute inset-x-0 top-0 mx-auto -scale-100"
+							class="absolute inset-x-0 top-0 mx-auto h-5 w-5 -scale-100"
 							fill="none"
 							stroke="var(--fallback-nc,oklch(var(--nc)/1))"
 							stroke-width="2"
@@ -129,7 +128,7 @@
 						</svg>
 					{:else}
 						<svg
-							class="w-5 h-5 absolute inset-x-0 top-0 mx-auto"
+							class="absolute inset-x-0 top-0 mx-auto h-5 w-5"
 							fill="none"
 							stroke="var(--fallback-nc,oklch(var(--nc)/1))"
 							stroke-width="2"

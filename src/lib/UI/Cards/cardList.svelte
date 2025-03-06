@@ -331,6 +331,12 @@
 				{#if current_medium === 'games'}
 					<StatCard
 						{media_data}
+						stat_type={'total_amount'}
+						stat_title={'Anzahl der Games'}
+						stat_desc={'Anzahl der gespielten Games im Zeitraum'}
+					></StatCard>
+					<StatCard
+						{media_data}
 						stat_type={'added_in_release_year'}
 						stat_title={'Aktuelle Games'}
 						stat_desc={'Games, die im Release-Jahr gespielt wurden'}
@@ -374,6 +380,12 @@
 				{:else if current_medium === 'movies'}
 					<StatCard
 						{media_data}
+						stat_type={'total_amount'}
+						stat_title={'Anzahl der Filme'}
+						stat_desc={'Anzahl der geschauten Filme im Zeitraum'}
+					></StatCard>
+					<StatCard
+						{media_data}
 						stat_type={'added_in_release_year'}
 						stat_title={'Aktuelle Filme'}
 						stat_desc={'Filme, die im Release-Jahr geschaut wurden'}
@@ -411,6 +423,12 @@
 				{:else if current_medium === 'shows'}
 					<StatCard
 						{media_data}
+						stat_type={'total_amount'}
+						stat_title={'Anzahl der Staffeln'}
+						stat_desc={'Anzahl der geschauten Staffeln im Zeitraum'}
+					></StatCard>
+					<StatCard
+						{media_data}
 						stat_type={'added_in_release_year'}
 						stat_title={'Aktuelle Serien'}
 						stat_desc={'Serien, die im Release-Jahr geschaut wurden'}
@@ -446,6 +464,12 @@
 						stat_desc={'Durchschnitts-Score deiner geschauten Serien'}
 					></StatCard>
 				{:else if current_medium === 'books'}
+					<StatCard
+						{media_data}
+						stat_type={'total_amount'}
+						stat_title={'Anzahl der Bücher'}
+						stat_desc={'Anzahl der gelesenen Bücher im Zeitraum'}
+					></StatCard>
 					<StatCard
 						{media_data}
 						stat_type={'added_in_release_year'}

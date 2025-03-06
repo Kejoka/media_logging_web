@@ -327,15 +327,13 @@
 	// Handles input changes in the search bar filter
 	async function handleFilter(event: CustomEvent) {
 		if (event.detail.trim().length == 0) {
-			for (let [index, media] of media_data.entries()) {
-				media = media_data_unfiltered[index];
-			}
+			media_data = media_data_unfiltered;
 		} else {
 			let fuses: Fuse<mediaObject>[] = [];
 			for (let media of media_data_unfiltered) {
 				fuses.push(new Fuse(media, fuse_options));
 			}
-			for (let [index, media] of media_data.entries()) {
+			for (let [index, _] of media_data.entries()) {
 				media_data[index] = fuses[index]
 					.search(event.detail.trim())
 					.map((res) => res.item) as mediaObject[];
@@ -705,10 +703,10 @@
 				<p class=" mb-3 text-center text-xl font-bold">Offline Modus</p>
 				<p class=" mb-3 text-center text-lg font-bold">Titel manuell hinzufügen</p>
 			{/if}
-			<label class="input input-bordered mb-3 flex items-center gap-2">
+			<label class="mb-3 flex items-center gap-2">
 				<input
 					type="text"
-					class="grow"
+					class="input input-bordered grow"
 					placeholder="Suche"
 					bind:value={search_val}
 					on:input={handleInput}
@@ -717,7 +715,7 @@
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 16 16"
 					fill="currentColor"
-					class="h-4 w-4 opacity-70"
+					class="-ml-10 mr-5 h-4 w-4 opacity-70"
 				>
 					<path
 						fill-rule="evenodd"

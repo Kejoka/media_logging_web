@@ -43,7 +43,7 @@
 			xmlns="http://www.w3.org/2000/svg"
 			viewBox="0 0 16 16"
 			fill="currentColor"
-			class="h-4 w-4 opacity-70 right-5 absolute"
+			class="absolute right-5 h-4 w-4 opacity-70"
 		>
 			<path
 				fill-rule="evenodd"
@@ -53,8 +53,8 @@
 		</svg>
 	</label>
 	<ul
-		tabindex="0"
-		class="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-full max-h-80 flex-nowrap overflow-auto"
+		tabindex="-1"
+		class="menu dropdown-content z-[1] max-h-80 w-full flex-nowrap overflow-auto rounded-box bg-base-200 p-2 shadow"
 	>
 		{#each filtered_items as item}
 			<li>
