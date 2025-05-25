@@ -1,23 +1,24 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
-export const load: PageServerLoad = async ({ locals: { supabase, safeGetSession } }) => {
-	const { session } = await safeGetSession();
-	if (!session) {
-		redirect(303, '/');
+export const load: PageServerLoad = async ({ locals: { supabase } }) => {
+	const { data, error } = await supabase.auth.getUser();
+	if (error) {
+		console.error(error);
+		redirect(303, '/')
+	} else {
+		const { data: profile } = await supabase
+			.from('profiles')
+			.select()
+			.eq('id', data.user.id)
+			.single();
+		if (profile?.username != null && profile.username.trim().length != 0) {
+			redirect(303, `/private/${profile?.username}`);
+		} else {
+			return { profile };
+		}
 	}
 
-	const { data: profile } = await supabase
-		.from('profiles')
-		.select(`username`)
-		.eq('id', session?.user.id)
-		.single();
-
-	if (profile?.username != null && profile.username.trim().length != 0) {
-		redirect(303, `/${profile?.username}`);
-	}
-
-	return { session, profile };
 };
 
 export const actions: Actions = {

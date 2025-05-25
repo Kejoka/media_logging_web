@@ -54,11 +54,11 @@
 	</label>
 	<ul
 		tabindex="-1"
-		class="menu dropdown-content z-[1] max-h-80 w-full flex-nowrap overflow-auto rounded-box bg-base-200 p-2 shadow"
+		class="menu dropdown-content rounded-box bg-base-200 z-[1] max-h-80 w-full flex-nowrap overflow-auto p-2 shadow"
 	>
 		{#each filtered_items as item}
 			<li>
-				<a on:click|preventDefault={() => onItemClicked(item)}>{item}</a>
+				<button on:click|preventDefault={() => onItemClicked(item)}>{item}</button>
 			</li>
 		{/each}
 	</ul>

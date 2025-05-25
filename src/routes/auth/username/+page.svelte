@@ -17,7 +17,7 @@
 		return (res) => {
 			loading = false;
 			if (res.result.type === 'success') {
-				goto(`/${res.result.data?.username}`);
+				goto(`/private/${res.result.data?.username}`);
 			} else if (res.result.type === 'failure') {
 				if (res.result.data?.error?.code === '23514') {
 					error_message = 'Der Nutzername ist zu kurz!';
@@ -40,14 +40,14 @@
 	<title>Nutzername</title>
 </svelte:head>
 
-<div class="flex flex-col text-center w-[80%] m-auto h-[100vh] justify-center">
-	<img class="max-w-[30%] mx-auto" src="/icon-512x512.png" alt="Icon" />
+<div class="m-auto flex h-[100vh] w-[80%] flex-col justify-center text-center">
+	<img class="mx-auto max-w-[30%]" src="/icon-512x512.png" alt="Icon" />
 
 	<form class=" text-center" method="post" action="?/update" use:enhance={handleUpdate}>
-		<p class="text-center text-md font-bold my-3">Willkommen!</p>
-		<p class="text-center text-md font-bold my-3">Bitte wähle einen Nutzernamen</p>
+		<p class="text-md my-3 text-center font-bold">Willkommen!</p>
+		<p class="text-md my-3 text-center font-bold">Bitte wähle einen Nutzernamen</p>
 		<div>
-			<label for="username" class="input input-bordered flex items-center gap-2 mb-3">
+			<label for="username" class="input input-bordered mb-3 flex items-center gap-2">
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 16 16"

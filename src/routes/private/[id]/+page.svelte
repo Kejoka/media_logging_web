@@ -13,7 +13,7 @@
 	} from '$lib/dbUtils.js';
 	import { DatePicker } from 'date-picker-svelte';
 	import { onMount } from 'svelte';
-	import { online_status } from '../../stores/onlineStatus';
+	import { online_status } from '../../../stores/onlineStatus';
 	import Fuse, { type IFuseOptions } from 'fuse.js';
 	import { getMediaCodeIndex, getMediaCodeString, getModeString } from '$lib/utils';
 	export let data;
@@ -684,7 +684,7 @@
 				search_modal.checked = true;
 				current_suggestions = [];
 			}}
-			class="btn-neutral-content btn absolute inset-x-0 bottom-[8%] mx-3 h-[4%] min-h-[5%] text-2xl font-bold shadow-lg shadow-base-300"
+			class="btn-neutral-content btn shadow-base-300 absolute inset-x-0 bottom-[8%] mx-3 h-[4%] min-h-[5%] text-2xl font-bold shadow-lg"
 		>
 			+
 		</button>
@@ -715,7 +715,7 @@
 					xmlns="http://www.w3.org/2000/svg"
 					viewBox="0 0 16 16"
 					fill="currentColor"
-					class="-ml-10 mr-5 h-4 w-4 opacity-70"
+					class="mr-5 -ml-10 h-4 w-4 opacity-70"
 				>
 					<path
 						fill-rule="evenodd"

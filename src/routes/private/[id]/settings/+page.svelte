@@ -6,7 +6,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import AutoComplete from '$lib/UI/AutoComplete.svelte';
-	import { online_status } from '../../../stores/onlineStatus.js';
+	import { online_status } from '../../../../stores/onlineStatus.js';
 
 	export let data;
 	export let form;
@@ -37,7 +37,7 @@
 	<title>Profile Settings</title>
 </svelte:head>
 
-<div class="h-[100vh] bg-base-100">
+<div class="bg-base-100 h-[100vh]">
 	<NavBar
 		header={'Nutzereinstellungen'}
 		settings_button={false}
@@ -45,9 +45,9 @@
 		static_header={true}
 		own_profile={undefined}
 	></NavBar>
-	<div class="flex flex-col h-[90%] items-center justify-center">
+	<div class="flex h-[90%] flex-col items-center justify-center">
 		{#if is_online}
-			<div class="w-[90%] flex flex-col justify-center items-center mx-auto">
+			<div class="mx-auto flex w-[90%] flex-col items-center justify-center">
 				<AutoComplete></AutoComplete>
 				<form
 					class="my-3 w-[75%] text-center"
@@ -55,7 +55,7 @@
 					action="?/update"
 					use:enhance={handleUpdate}
 				>
-					<label class="input input-bordered flex items-center gap-2 mb-3">
+					<label class="input input-bordered mb-3 flex items-center gap-2">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 16 16"
@@ -78,7 +78,7 @@
 						/>
 					</label>
 
-					<label class="input input-bordered flex items-center gap-2 mb-3">
+					<label class="input input-bordered mb-3 flex items-center gap-2">
 						<svg
 							xmlns="http://www.w3.org/2000/svg"
 							viewBox="0 0 16 16"
@@ -124,9 +124,9 @@
 				</button>
 			</div>
 		{:else}
-			<img class="max-w-[30%] mx-auto" src="/icon-512x512.png" alt="Icon" />
-			<div class="relative text-center justify-center align-middle">
-				<p class="text-2xl mb-3">Du bist aktuell Offline</p>
+			<img class="mx-auto max-w-[30%]" src="/icon-512x512.png" alt="Icon" />
+			<div class="relative justify-center text-center align-middle">
+				<p class="mb-3 text-2xl">Du bist aktuell Offline</p>
 				<p class="text-lg">Deine Nutzereinstellungen sind aktuell nicht verfügbar</p>
 			</div>
 		{/if}

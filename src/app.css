@@ -1,49 +1,58 @@
-@import 'tailwindcss/base';
-@import 'tailwindcss/components';
-@import 'tailwindcss/utilities';
 @import '@fontsource/fira-mono';
+@import 'tailwindcss';
+
+@plugin "daisyui" {
+	themes:
+		light --default,
+		dark --prefersdark;
+	root: ':root';
+	include:;
+	exclude:;
+	prefix:;
+	logs: true;
+}
 
 /* Gesamte Scrollleiste */
 ::-webkit-scrollbar {
-    width: 0.5vw; /* Breite der vertikalen Scrollleiste */
-    height: 0.5vw; /* Höhe der horizontalen Scrollleiste */
+	width: 0.5vw; /* Breite der vertikalen Scrollleiste */
+	height: 0.5vw; /* Höhe der horizontalen Scrollleiste */
 }
 
 /* Schiene der Scrollleiste */
 ::-webkit-scrollbar-track {
-    background: var(--fallback-n,oklch(var(--n)/var(--tw-bg-opacity))); 
-    /* border-radius: 10px; */
+	background: var(--fallback-n, oklch(var(--n) / var(--tw-bg-opacity)));
+	/* border-radius: 10px; */
 }
 
 /* Griff der Scrollleiste */
 ::-webkit-scrollbar-thumb {
-    background: var(--fallback-b3,oklch(var(--b3)/var(--tw-bg-opacity))); 
-    border-radius: 15px;
+	background: var(--fallback-b3, oklch(var(--b3) / var(--tw-bg-opacity)));
+	border-radius: 15px;
 }
 
 /* Griff der Scrollleiste beim Hovern */
 ::-webkit-scrollbar-thumb:hover {
-    background: #555; 
+	background: #555;
 }
 
 /* Für alle modernen Browser */
 .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+	display: none;
 }
 
 /* Für Firefox */
 .scrollbar-hide {
-    scrollbar-width: none;
+	scrollbar-width: none;
 }
 
 @media (prefers-color-scheme: dark) {
-    body {
-        background-color: var(--fallback-n,oklch(var(--b3)/var(--tw-bg-opacity)));
-    }
+	body {
+		background-color: var(--fallback-n, oklch(var(--b3) / var(--tw-bg-opacity)));
+	}
 }
 
 @media (prefers-color-scheme: light) {
-    body {
-        background-color: var(--fallback-n,oklch(var(--b3)/var(--tw-bg-opacity)));
-    }
+	body {
+		background-color: var(--fallback-n, oklch(var(--b3) / var(--tw-bg-opacity)));
+	}
 }
