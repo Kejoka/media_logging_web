@@ -12,7 +12,8 @@
 	import MovieCard from './movieCard.svelte';
 	import BookCard from './bookCard.svelte';
 	import { DateInput } from 'date-picker-svelte';
-	import { tap } from 'svelte-gestures';
+	import * as gestures from 'svelte-gestures';
+	const { tap } = gestures;
 	import StatCard from './statCard.svelte';
 	import ChartCard from './chartCard.svelte';
 	export let media_data: mediaObject[];

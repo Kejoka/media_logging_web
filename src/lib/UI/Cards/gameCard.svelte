@@ -7,7 +7,8 @@
 	} from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
-	import { tap } from 'svelte-gestures';
+	import * as gestures from 'svelte-gestures';
+	const { tap } = gestures;
 	import Trophy from '$lib/Icons/trophy.svelte';
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
