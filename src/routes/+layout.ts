@@ -35,9 +35,19 @@ export const load: LayoutLoad = async ({ data, depends, fetch }) => {
 		data: { session },
 	} = await supabase.auth.getSession()
 
-	const {
-		data: { user },
-	} = await supabase.auth.getUser()
+	// Only get user if we have a session to avoid AuthSessionMissingError
+	let user = null
+	if (session) {
+		try {
+			const {
+				data: { user: userData },
+			} = await supabase.auth.getUser()
+			user = userData
+		} catch (error) {
+			// Handle auth errors gracefully
+			console.warn('Error getting user:', error)
+		}
+	}
 
 	return { session, supabase, user }
 }
