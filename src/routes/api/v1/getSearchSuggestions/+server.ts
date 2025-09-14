@@ -94,7 +94,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                             'Authorization': `Bearer ${igdb_token}`,
                             'Accept': 'application/json'
                         },
-                        body: `fields name, cover.image_id, platforms.abbreviation, genres.name, first_release_date, total_rating; where (name ~ *\"${search_val}\"* & category = (0,2,4,8,9,10,11) & version_parent = 'null' & cover != 'null); sort first_release_date desc; limit 20; offset ${(search_page - 1) * 20};`
+                        body: `fields name, cover.image_id, platforms.abbreviation, genres.name, first_release_date, total_rating; where (name ~ *\"${search_val}\"* & game_type = (0,2,4,8,9,10,11) & version_parent = 'null' & cover != 'null); sort first_release_date desc; limit 20; offset ${(search_page - 1) * 20};`
                     })
                     const igdb_res: any[] = await res.json();
                     igdb_res.forEach(result => {
