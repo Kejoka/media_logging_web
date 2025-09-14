@@ -5,7 +5,6 @@
 	import Controller from '$lib/Icons/controller.svelte';
 	import { createEventDispatcher } from 'svelte';
 	import NavBar from './navBar.svelte';
-	import { tap } from 'svelte-gestures';
 	export let header: string;
 	export let nav_back_button: boolean;
 	export let settings_button: boolean;
