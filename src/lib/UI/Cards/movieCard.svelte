@@ -2,8 +2,6 @@
 	import type { mediaObject } from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
-	import * as gestures from 'svelte-gestures';
-	const { tap } = gestures;
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
 	export let config;
@@ -24,11 +22,20 @@
 			</figure>
 			<div
 				class="card-body justify-center pl-2"
-				use:tap
-				on:tap={() => {
+				role="button"
+				tabindex="0"
+				on:click={() => {
 					const collapse_input = document.getElementById(String(medium.id) + '_m');
 					if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
 						collapse_input.checked = !collapse_input.checked;
+					}
+				}}
+				on:keydown={(event) => {
+					if (event.key === 'Enter' || event.key === ' ') {
+						const collapse_input = document.getElementById(String(medium.id) + '_m');
+						if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
+							collapse_input.checked = !collapse_input.checked;
+						}
 					}
 				}}
 			>

@@ -49,6 +49,6 @@
 		"dexie": "^4.0.8",
 		"distinct-colors": "^3.0.0",
 		"fuse.js": "^7.0.0",
-		"svelte-gestures": "^5.0.4"
+		"svelte-gestures": "^5.2.1"
 	}
 }

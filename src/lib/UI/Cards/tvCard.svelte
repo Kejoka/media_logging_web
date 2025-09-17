@@ -7,8 +7,6 @@
 	} from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
-	import * as gestures from 'svelte-gestures';
-	const { press, tap } = gestures;
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
 	export let config;
@@ -20,8 +18,8 @@
 		unique = {};
 	}
 
-	async function handleImageInteraction(event: CustomEvent, medium: mediaObject) {
-		if (medium.episode != undefined && event.type == 'tap') {
+	async function handleImageInteraction(event: MouseEvent, medium: mediaObject) {
+		if (medium.episode != undefined && event.type == 'click') {
 			medium.episode += 1;
 		} else if (medium.episode != undefined && event.type == 'press') {
 			medium.episode = Math.max(medium.episode - 1, 0);
@@ -74,10 +72,7 @@
 			<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] select-none bg-base-100">
 				<figure
 					class="w-[11.25vh] min-w-[11.25vh] max-w-[11.25vh]"
-					use:tap
-					on:tap={(e) => handleImageInteraction(e, medium)}
-					use:press={{ timeframe: 150, triggerBeforeFinished: true }}
-					on:press={(e) => handleImageInteraction(e, medium)}
+					on:click={(e) => handleImageInteraction(e, medium)}
 				>
 					<div class="relative">
 						{#if medium.image != null}
@@ -96,11 +91,21 @@
 				</figure>
 				<div
 					class="card-body justify-center pl-2"
-					use:tap
-					on:tap={() => {
+					role="button"
+					tabindex="0"
+					on:click={() => {
 						const collapse_input = document.getElementById(String(medium.id) + '_s');
 						if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
 							collapse_input.checked = !collapse_input.checked;
+						}
+					}}
+					on:keydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							e.preventDefault();
+							const collapse_input = document.getElementById(String(medium.id) + '_s');
+							if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
+								collapse_input.checked = !collapse_input.checked;
+							}
 						}
 					}}
 				>
