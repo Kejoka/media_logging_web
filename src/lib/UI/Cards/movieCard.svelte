@@ -13,8 +13,8 @@
 <div class="px-2 pb-2">
 	<div class="{own_profile || medium.notes ? 'collapse' : ''} bg-base-100">
 		<input id={String(medium.id) + '_m'} type="radio" name="movie-accordion" class="hidden" />
-		<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] select-none bg-base-100">
-			<figure class="w-[11.25vh] min-w-[11.25vh] max-w-[11.25vh]">
+		<div class="card card-side bg-base-100 h-[15vh] max-h-[15vh] min-h-[15vh] select-none">
+			<figure class="w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh]">
 				{#if medium.image != null}
 					<img src={medium.image} alt={medium.title} />
 				{:else}
@@ -79,7 +79,7 @@
 				>
 			{/if}
 			<button
-				class="btn btn-info -mb-4 mt-3 h-8 min-h-8 w-full font-bold"
+				class="btn btn-info mt-3 -mb-4 h-8 min-h-8 w-full font-bold"
 				on:click={() => dispatch('showStreams', medium)}
 			>
 				Wo streamen?

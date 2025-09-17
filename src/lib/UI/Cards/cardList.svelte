@@ -275,7 +275,7 @@
 	}
 </script>
 
-<div class="scrollbar-hide flex-grow overflow-y-auto overflow-x-hidden bg-base-300 pt-2">
+<div class="scrollbar-hide bg-base-300 flex-grow overflow-x-hidden overflow-y-auto pt-2">
 	{#if current_mode != 2}
 		{#each media_data as medium}
 			{@const config = getRatingConfig(medium.rating || 0)}

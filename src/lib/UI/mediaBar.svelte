@@ -5,7 +5,6 @@
 	import Controller from '$lib/Icons/controller.svelte';
 	import { createEventDispatcher } from 'svelte';
 	import NavBar from './navBar.svelte';
-	import { tap } from 'svelte-gestures';
 	export let header: string;
 	export let nav_back_button: boolean;
 	export let settings_button: boolean;
@@ -78,9 +77,9 @@
 					class="peer hidden"
 				/>
 				<div
-					class="max-h-0 overflow-hidden shadow-lg shadow-base-300 transition-all duration-300 ease-in-out peer-checked:max-h-40"
+					class="shadow-base-300 max-h-0 overflow-hidden shadow-lg transition-all duration-300 ease-in-out peer-checked:max-h-40"
 				>
-					<div class="rounded-t-lg bg-base-100 p-4">
+					<div class="bg-base-100 rounded-t-lg p-4">
 						<label class="mb-3 flex items-center gap-2">
 							<input
 								type="text"
@@ -93,7 +92,7 @@
 								xmlns="http://www.w3.org/2000/svg"
 								viewBox="0 0 16 16"
 								fill="currentColor"
-								class="-ml-10 mr-5 h-4 w-4 opacity-70"
+								class="mr-5 -ml-10 h-4 w-4 opacity-70"
 							>
 								<path
 									fill-rule="evenodd"
@@ -113,7 +112,7 @@
 							dispatch('filter', search_filter);
 						}
 					}}
-					class="absolute left-1/2 -mt-2 block h-6 w-12 -translate-x-1/2 transform cursor-pointer rounded-b-full bg-base-100 text-white shadow-lg shadow-base-300 transition-transform focus:outline-none active:scale-95"
+					class="bg-base-100 shadow-base-300 absolute left-1/2 -mt-2 block h-6 w-12 -translate-x-1/2 transform cursor-pointer rounded-b-full text-white shadow-lg transition-transform focus:outline-none active:scale-95"
 				>
 					{#if searchbar_expanded}
 						<svg

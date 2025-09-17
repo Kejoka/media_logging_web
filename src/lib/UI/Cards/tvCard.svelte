@@ -70,9 +70,9 @@
 		<div class="{own_profile || medium.notes ? 'collapse' : ''} bg-base-100">
 			<input id={String(medium.id) + '_s'} type="radio" name="movie-accordion" class="hidden" />
 			<!-- Card here -->
-			<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] select-none bg-base-100">
+			<div class="card card-side bg-base-100 h-[15vh] max-h-[15vh] min-h-[15vh] select-none">
 				<figure
-					class="w-[11.25vh] min-w-[11.25vh] max-w-[11.25vh]"
+					class="w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh]"
 					use:tap
 					on:tap={(e) => handleImageInteraction(e, medium)}
 					use:press={{ timeframe: 150, triggerBeforeFinished: true }}
@@ -86,7 +86,7 @@
 						{/if}
 						{#if medium.episode != 0}
 							<div
-								class="text-md badge badge-outline absolute bottom-0 right-0 aspect-square bg-neutral bg-opacity-80 px-1 font-light"
+								class="text-md badge badge-outline bg-neutral bg-opacity-80 absolute right-0 bottom-0 aspect-square px-1 font-light"
 							>
 								{medium.episode}
 							</div>
@@ -154,7 +154,7 @@
 					>
 				{/if}
 				<button
-					class="btn btn-info -mb-4 mt-3 h-8 min-h-8 w-full font-bold"
+					class="btn btn-info mt-3 -mb-4 h-8 min-h-8 w-full font-bold"
 					on:click={() => dispatch('showStreams', medium)}
 				>
 					Wo streamen?
