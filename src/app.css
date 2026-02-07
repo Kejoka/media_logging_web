@@ -1,0 +1,53 @@
+@import 'tailwindcss';
+@import '@fontsource/fira-mono';
+
+@plugin "daisyui" {
+  themes: dark;
+}
+@plugin "@tailwindcss/typography";
+@plugin "@tailwindcss/forms";
+
+/* Gesamte Scrollleiste */
+::-webkit-scrollbar {
+    width: 0.5vw; /* Breite der vertikalen Scrollleiste */
+    height: 0.5vw; /* Höhe der horizontalen Scrollleiste */
+}
+
+/* Schiene der Scrollleiste */
+::-webkit-scrollbar-track {
+    background: var(--color-neutral); 
+    /* border-radius: 10px; */
+}
+
+/* Griff der Scrollleiste */
+::-webkit-scrollbar-thumb {
+    background: var(--color-base-300); 
+    border-radius: 15px;
+}
+
+/* Griff der Scrollleiste beim Hovern */
+::-webkit-scrollbar-thumb:hover {
+    background: #555; 
+}
+
+/* Für alle modernen Browser */
+.scrollbar-hide::-webkit-scrollbar {
+    display: none;
+}
+
+/* Für Firefox */
+.scrollbar-hide {
+    scrollbar-width: none;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        background-color: var(--color-base-300);
+    }
+}
+
+@media (prefers-color-scheme: light) {
+    body {
+        background-color: var(--color-base-300);
+    }
+}
