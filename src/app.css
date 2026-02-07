@@ -1,21 +1,14 @@
 @import '@fontsource/fira-mono';
 @import 'tailwindcss';
 
-@plugin "daisyui" {
-	themes:
-		light --default,
-		dark --prefersdark;
-	root: ':root';
-	include:;
-	exclude:;
-	prefix:;
-	logs: true;
-}
+@plugin "daisyui";
 
 /* Gesamte Scrollleiste */
 ::-webkit-scrollbar {
-	width: 0.5vw; /* Breite der vertikalen Scrollleiste */
-	height: 0.5vw; /* Höhe der horizontalen Scrollleiste */
+	width: 0.5vw;
+	/* Breite der vertikalen Scrollleiste */
+	height: 0.5vw;
+	/* Höhe der horizontalen Scrollleiste */
 }
 
 /* Schiene der Scrollleiste */
