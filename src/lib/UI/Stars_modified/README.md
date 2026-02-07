@@ -1,1 +1,0 @@
-This component is a modified version of the original "StarRating" component by Ernane Ferreira which can be found [here](https://github.com/ErnaneJ/svelte-star-rating)
