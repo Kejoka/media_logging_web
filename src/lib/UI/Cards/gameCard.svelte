@@ -7,7 +7,7 @@
 	} from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
-	import { tap } from 'svelte-gestures';
+	import { useTap, type TapCustomEvent } from 'svelte-gestures';
 	import Trophy from '$lib/Icons/trophy.svelte';
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
@@ -18,6 +18,10 @@
 
 	function restart() {
 		unique = {};
+	}
+
+	function handleTap(event: TapCustomEvent) {
+		console.log('TARGET', event.detail.target);
 	}
 
 	async function handleImageTap(medium: mediaObject) {
@@ -67,34 +71,46 @@
 		<div class="{own_profile || medium.notes ? 'collapse' : ''} bg-base-100">
 			<input id={String(medium.id) + '_g'} type="radio" name="movie-accordion" class="hidden" />
 			<!-- Card here -->
-			<div class="card bg-base-100 card-side h-[15vh] max-h-[15vh] min-h-[15vh] select-none">
-				<figure
-					class="w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh]"
-					use:tap
-					on:tap={() => handleImageTap(medium)}
+			<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] select-none bg-base-100">
+				<button
+					type="button"
+					class="w-[11.25vh] min-w-[11.25vh] max-w-[11.25vh] border-0 bg-transparent p-0"
+					on:click={() => handleImageTap(medium)}
+					on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' ? handleImageTap(medium) : null)}
 				>
-					<div class="relative">
-						{#if medium.image != null}
-							<img src={medium.image} alt={medium.title} />
-						{:else}
-							<img src={'/placeholder.png'} alt={'Kein Bild'} />
-						{/if}
-						{#if medium.trophy != 0}
-							<div
-								class="badge badge-outline bg-opacity-80 bg-neutral absolute right-0 bottom-0 px-1 py-3"
-							>
-								<Trophy styling={'w-4 h-4'}></Trophy>
-							</div>
-						{/if}
-					</div>
-				</figure>
+					<figure class="w-full">
+						<div class="relative">
+							{#if medium.image != null}
+								<img src={medium.image} alt={medium.title} />
+							{:else}
+								<img src={'/placeholder.png'} alt={'Kein Bild'} />
+							{/if}
+							{#if medium.trophy != 0}
+								<div
+									class="badge badge-outline absolute bottom-0 right-0 bg-neutral bg-opacity-80 px-1 py-3"
+								>
+									<Trophy styling={'w-4 h-4'}></Trophy>
+								</div>
+							{/if}
+						</div>
+					</figure>
+				</button>
 				<div
 					class="card-body justify-center pl-2"
-					use:tap
-					on:tap={() => {
+					role="button"
+					tabindex="0"
+					on:click={() => {
 						const collapse_input = document.getElementById(String(medium.id) + '_g');
 						if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
 							collapse_input.checked = !collapse_input.checked;
+						}
+					}}
+					on:keydown={(e) => {
+						if (e.key === 'Enter' || e.key === ' ') {
+							const collapse_input = document.getElementById(String(medium.id) + '_g');
+							if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
+								collapse_input.checked = !collapse_input.checked;
+							}
 						}
 					}}
 				>

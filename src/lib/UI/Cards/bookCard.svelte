@@ -2,7 +2,6 @@
 	import type { mediaObject } from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
-	import { tap } from 'svelte-gestures';
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
 	export let config;
@@ -14,8 +13,8 @@
 	<div class="{own_profile || medium.notes ? 'collapse' : ''} bg-base-100">
 		<input id={String(medium.id) + '_b'} type="radio" name="movie-accordion" class="hidden" />
 		<!-- Card here -->
-		<div class="card bg-base-100 card-side h-[15vh] max-h-[15vh] min-h-[15vh] select-none">
-			<figure class="w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh]">
+		<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] select-none bg-base-100">
+			<figure class="w-[11.25vh] min-w-[11.25vh] max-w-[11.25vh]">
 				{#if medium.image != null}
 					<img src={medium.image} alt={medium.title} />
 				{:else}
@@ -24,11 +23,21 @@
 			</figure>
 			<div
 				class="card-body justify-center pl-2"
-				use:tap
-				on:tap={() => {
+				role="button"
+				tabindex="0"
+				on:click={() => {
 					const collapse_input = document.getElementById(String(medium.id) + '_b');
 					if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
 						collapse_input.checked = !collapse_input.checked;
+					}
+				}}
+				on:keydown={(e) => {
+					if (e.key === 'Enter' || e.key === ' ') {
+						e.preventDefault();
+						const collapse_input = document.getElementById(String(medium.id) + '_b');
+						if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
+							collapse_input.checked = !collapse_input.checked;
+						}
 					}
 				}}
 			>

@@ -1,4 +1,4 @@
-import { PRIVATE_IGDB_CLIENT, PRIVATE_IGDB_SECRET, PRIVATE_IGDB_TOKEN, PRIVATE_TMDB_V3_KEY } from '$env/static/private';
+import { PRIVATE_IGDB_CLIENT, PRIVATE_IGDB_SECRET, PRIVATE_IGDB_TOKEN, PRIVATE_TMDB_V3_KEY, PRIVATE_GOOGLE_BOOKS_KEY } from '$env/static/private';
 import { PUBLIC_IGDB_SUPABASE } from '$env/static/public';
 import type { mediaObject, MovieResult, TvResult } from '$lib/dbUtils.js';
 import movieGenres from '$lib/movieGenres.js';
@@ -183,7 +183,16 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
                     })
                     return new Response(JSON.stringify(search_results));
                 case 'books':
-                    const book_res = await search({ q: search_val }, { maxResults: 20, startIndex: (search_page - 1) * 20, orderBy: 'relevance', projection: 'full' })
+                    const books_url = new URL("https://www.googleapis.com/books/v1/volumes?q=search+terms");
+                    books_url.searchParams.set("q", search_val);
+                    const extra_params = { maxResults: 20, startIndex: (search_page - 1) * 20, orderBy: 'relevance', projection: 'full' };
+                    for (const [key, value] of Object.entries(extra_params)) {
+                        books_url.searchParams.set(key, String(value));
+                    }
+                    books_url.searchParams.set("key", PRIVATE_GOOGLE_BOOKS_KEY);
+                    const raw_book_res = await fetch(books_url.toString());
+                    const book_res = await raw_book_res.json() as any;
+
                     book_res.items?.forEach(book => {
                         let iso_release;
                         if (book.volumeInfo?.publishedDate && !isNaN(new Date(book.volumeInfo?.publishedDate).getTime())) {

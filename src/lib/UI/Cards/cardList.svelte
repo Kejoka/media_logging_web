@@ -12,7 +12,7 @@
 	import MovieCard from './movieCard.svelte';
 	import BookCard from './bookCard.svelte';
 	import { DateInput } from 'date-picker-svelte';
-	import { tap } from 'svelte-gestures';
+	import * as gestures from 'svelte-gestures';
 	import StatCard from './statCard.svelte';
 	import ChartCard from './chartCard.svelte';
 	export let media_data: mediaObject[];
@@ -520,13 +520,12 @@
 			}}>Löschen</button
 		>
 	</div>
-	<label
-		use:tap
-		on:tap={() => {
+	<button
+		type="button"
+		on:click={() => {
 			delete_modal.checked = false;
 		}}
-		class="modal-backdrop"
-		for="delete_modal">Close</label
+		class="modal-backdrop">Close</button
 	>
 </div>
 <!-- Edit_modal -->
@@ -634,13 +633,12 @@
 			>Änderungen speichern</button
 		>
 	</div>
-	<label
-		use:tap
-		on:tap={() => {
+	<button
+		type="button"
+		on:click={() => {
 			edit_modal.checked = false;
 		}}
-		class="modal-backdrop -z-10"
-		for="edit_modal">Close</label
+		class="modal-backdrop -z-10">Close</button
 	>
 </div>
 <!-- Streaming Provider Modal -->
@@ -706,13 +704,12 @@
 			{/if}
 		{/if}
 	</div>
-	<label
-		use:tap
-		on:tap={() => {
+	<button
+		type="button"
+		on:click={() => {
 			streaming_modal.checked = false;
 			streaming_data = {};
 		}}
-		class="modal-backdrop -z-20"
-		for="streaming_modal">Close</label
+		class="modal-backdrop -z-20">Close</button
 	>
 </div>
