@@ -37,7 +37,11 @@ export const actions: Actions = {
 		}
 
 		if (!username || username.length < 3) {
-			return fail(400, { error: 'Benutzername muss mindestens 3 Zeichen lang sein', email, username });
+			return fail(400, {
+				error: 'Benutzername muss mindestens 3 Zeichen lang sein',
+				email,
+				username
+			});
 		}
 
 		// Only allow lowercase letters, numbers and underscores to keep usernames URL-safe
@@ -65,7 +69,11 @@ export const actions: Actions = {
 			.maybeSingle();
 
 		if (existingUserError) {
-			return fail(500, { error: 'Datenbankfehler bei der Überprüfung des Benutzernamens', email, username });
+			return fail(500, {
+				error: 'Datenbankfehler bei der Überprüfung des Benutzernamens',
+				email,
+				username
+			});
 		}
 
 		if (existingUser?.username) {

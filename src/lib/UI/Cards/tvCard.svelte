@@ -66,7 +66,7 @@
 
 {#key unique}
 	<div class="px-2 pb-2">
-		<div class="{own_profile || medium.notes ? 'collapse' : ''} bg-base-100">
+		<div class="collapse bg-base-100">
 			<input id={String(medium.id) + '_s'} type="radio" name="movie-accordion" class="hidden" />
 			<!-- Card here -->
 			<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] bg-base-100 select-none">
@@ -162,6 +162,10 @@
 							</div>
 						</div>
 					{/each}
+				{:else if !own_profile}
+					<div class="chat-start mt-3 chat">
+						<div class="chat-bubble w-fit">Keine Notiz vorhanden.</div>
+					</div>
 				{/if}
 				{#if own_profile}
 					<button

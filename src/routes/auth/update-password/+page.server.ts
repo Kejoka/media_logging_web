@@ -33,7 +33,9 @@ export const actions: Actions = {
 		const { error } = await supabase.auth.updateUser({ password });
 
 		if (error) {
-			return fail(500, { error: 'Fehler beim Aktualisieren des Passworts. Bitte versuche es erneut.' });
+			return fail(500, {
+				error: 'Fehler beim Aktualisieren des Passworts. Bitte versuche es erneut.'
+			});
 		}
 
 		return { success: true, message: 'Dein Passwort wurde erfolgreich aktualisiert.' };

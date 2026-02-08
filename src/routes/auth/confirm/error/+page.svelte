@@ -27,7 +27,8 @@
 			</div>
 			<h1 class="mb-2 text-2xl font-bold text-white">Authentifizierungsfehler</h1>
 			<p class="mb-6 text-sm text-neutral-400">
-				Der Link ist möglicherweise abgelaufen oder wurde bereits verwendet. Bitte versuche es erneut.
+				Der Link ist möglicherweise abgelaufen oder wurde bereits verwendet. Bitte versuche es
+				erneut.
 			</p>
 			<a
 				href="/"

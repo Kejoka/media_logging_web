@@ -1,16 +1,16 @@
 <script lang="ts">
 	import '../app.css';
-	import { invalidate } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
 	import Account from '$lib/Icons/account.svelte';
-	import Settings from '$lib/Icons/settings.svelte';
 
 	let { data, children } = $props();
 	let { supabase, session, user } = $derived(data);
 
 	onMount(() => {
+		console.log(session, user);
 		if (browser && 'serviceWorker' in navigator) {
 			navigator.serviceWorker.register('/service-worker.js').catch(() => {
 				// ignore registration errors
@@ -40,7 +40,11 @@
 			<div
 				class="mx-auto flex items-center justify-between px-10 sm:max-w-md lg:max-w-2xl xl:max-w-4xl"
 			>
-				<a href="/" class="text-lg font-bold text-neutral-300 transition hover:text-neutral-400">
+				<a
+					href="/"
+					onclick={() => goto('/')}
+					class="text-lg font-bold text-neutral-300 transition hover:text-neutral-400"
+				>
 					Media Logging
 				</a>
 
@@ -51,17 +55,13 @@
 					>
 						<Account />
 					</a>
-					<!-- <a
-						href="/settings"
-						class="rounded-lg px-3 py-1.5 text-sm font-medium text-neutral-300 transition hover:bg-white/10 hover:text-white"
-					>
-						<Settings/>
-					</a> -->
 				</div>
 			</div>
 		</nav>
 	{/if}
 	<main class="flex min-h-0 flex-1 flex-col overflow-y-hidden">
-		{@render children()}
+		{#key page.url.pathname}
+			{@render children()}
+		{/key}
 	</main>
 </div>

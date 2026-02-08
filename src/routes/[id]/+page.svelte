@@ -248,7 +248,7 @@
 	}
 	// HAndle the switch between individual years
 	async function handleYearSwitch(event: any) {
-		const year = event.detail.year.year;
+		const year = event.year.year;
 		let new_data;
 
 		if (isNaN(year)) {
@@ -897,7 +897,7 @@
 		</div>
 	</div>
 	<!-- Add-Button -->
-	{#if current_mode != 2}
+	{#if current_mode != 2 && own_profile}
 		<button
 			onclick={() => {
 				last_search_page = 1;
@@ -912,7 +912,7 @@
 		</button>
 	{/if}
 	<!-- Year-Slider -->
-	<YearBar onswitch={handleYearSwitch} years={years_in_db}></YearBar>
+	<YearBar onSwitch={handleYearSwitch} years={years_in_db}></YearBar>
 </div>
 
 <style>

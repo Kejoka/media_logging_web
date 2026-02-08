@@ -28,13 +28,17 @@ export const actions: Actions = {
 		});
 
 		if (error) {
-			return fail(500, { error: 'Etwas ist schiefgelaufen. Bitte versuche es später erneut.', email });
+			return fail(500, {
+				error: 'Etwas ist schiefgelaufen. Bitte versuche es später erneut.',
+				email
+			});
 		}
 
 		// Always show success even if email doesn't exist (prevents email enumeration)
 		return {
 			success: true,
-			message: 'Wenn ein Konto mit dieser E-Mail existiert, erhältst du einen Link zum Zurücksetzen des Passworts.'
+			message:
+				'Wenn ein Konto mit dieser E-Mail existiert, erhältst du einen Link zum Zurücksetzen des Passworts.'
 		};
 	}
 };

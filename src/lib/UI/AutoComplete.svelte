@@ -48,7 +48,7 @@
 			xmlns="http://www.w3.org/2000/svg"
 			viewBox="0 0 16 16"
 			fill="currentColor"
-			class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
+			class="pointer-events-none absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 text-neutral-400"
 		>
 			<path
 				fill-rule="evenodd"

@@ -1,15 +1,11 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
 	export let years: any[];
+	export let onSwitch: ((detail: { year: any }) => void) | undefined = undefined;
 
 	function yearSwitch(year_index: number) {
 		years.forEach((obj) => (obj.active = false));
 		years[year_index].active = true;
-		dispatch('switch', {
-			year: years[year_index]
-		});
+		onSwitch?.({ year: years[year_index] });
 	}
 </script>
 
