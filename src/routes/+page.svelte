@@ -16,13 +16,14 @@
 	<title>Media Logging Login</title>
 </svelte:head>
 
-<div class="flex min-h-[80vh] items-center justify-center px-4">
+<div class="flex h-full items-center justify-center px-4">
 	{#if is_online}
 		<div class="w-full max-w-md">
 			<div class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-sm">
+				<img class="mx-auto max-w-[30%]" src="/icon-512x512.png" alt="Icon" />
 				<div class="mb-8 text-center">
-					<h1 class="text-3xl font-bold tracking-tight text-white">Welcome back</h1>
-					<p class="mt-2 text-sm text-neutral-400">Sign in to your account to continue</p>
+					<h1 class="text-3xl font-bold tracking-tight text-white">Willkommen</h1>
+					<p class="mt-2 text-sm text-neutral-400">Melde dich an, um fortzufahren</p>
 				</div>
 
 				{#if form?.error}
@@ -47,7 +48,7 @@
 					<div class="space-y-5">
 						<div>
 							<label for="email" class="mb-1.5 block text-sm font-medium text-neutral-300"
-								>Email address</label
+								>E-Mail Adresse</label
 							>
 							<input
 								id="email"
@@ -55,7 +56,7 @@
 								type="email"
 								autocomplete="email"
 								required
-								placeholder="you@example.com"
+								placeholder="Deine E-Mail Adresse..."
 								value={form?.email ?? ''}
 								class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-neutral-500 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
 							/>
@@ -64,12 +65,12 @@
 						<div>
 							<div class="mb-1.5 flex items-center justify-between">
 								<label for="password" class="block text-sm font-medium text-neutral-300"
-									>Password</label
+									>Passwort</label
 								>
 								<a
 									href="/auth/forgot-password"
 									class="text-sm text-emerald-400 transition hover:text-emerald-300"
-									>Forgot password?</a
+									>Passwort vergessen?</a
 								>
 							</div>
 							<input
@@ -88,16 +89,16 @@
 							disabled={loading}
 							class="w-full cursor-pointer rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
 						>
-							{loading ? 'Signing in...' : 'Sign in'}
+							{loading ? 'Anmelden...' : 'Anmelden'}
 						</button>
 					</div>
 				</form>
 
 				<p class="mt-6 text-center text-sm text-neutral-400">
-					Don't have an account?
+					Noch keinen Account?
 					<a
 						href="/auth/signup"
-						class="font-medium text-emerald-400 transition hover:text-emerald-300">Sign up</a
+						class="font-medium text-emerald-400 transition hover:text-emerald-300">Registrieren</a
 					>
 				</p>
 			</div>

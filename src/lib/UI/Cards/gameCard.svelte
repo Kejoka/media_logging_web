@@ -7,7 +7,6 @@
 	} from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
-	import { useTap, type TapCustomEvent } from 'svelte-gestures';
 	import Trophy from '$lib/Icons/trophy.svelte';
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
@@ -18,10 +17,6 @@
 
 	function restart() {
 		unique = {};
-	}
-
-	function handleTap(event: TapCustomEvent) {
-		console.log('TARGET', event.detail.target);
 	}
 
 	async function handleImageTap(medium: mediaObject) {
@@ -71,25 +66,33 @@
 		<div class="{own_profile || medium.notes ? 'collapse' : ''} bg-base-100">
 			<input id={String(medium.id) + '_g'} type="radio" name="movie-accordion" class="hidden" />
 			<!-- Card here -->
-			<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] select-none bg-base-100">
+			<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] bg-base-100 select-none">
 				<button
 					type="button"
-					class="w-[11.25vh] min-w-[11.25vh] max-w-[11.25vh] border-0 bg-transparent p-0"
+					class="w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh] border-0 bg-transparent p-0"
 					on:click={() => handleImageTap(medium)}
 					on:keydown={(e) => (e.key === 'Enter' || e.key === ' ' ? handleImageTap(medium) : null)}
 				>
-					<figure class="w-full">
-						<div class="relative">
+					<figure class="h-full w-full">
+						<div class="relative h-full overflow-hidden">
 							{#if medium.image != null}
-								<img src={medium.image} alt={medium.title} />
+								<img
+									src={medium.image}
+									alt={medium.title}
+									class="h-full w-full object-cover object-center"
+								/>
 							{:else}
-								<img src={'/placeholder.png'} alt={'Kein Bild'} />
+								<img
+									src={'/placeholder.png'}
+									alt={'Kein Bild'}
+									class="h-full w-full object-cover object-center"
+								/>
 							{/if}
 							{#if medium.trophy != 0}
 								<div
-									class="badge badge-outline absolute bottom-0 right-0 bg-neutral bg-opacity-80 px-1 py-3"
+									class="bg-opacity-80 absolute right-0 bottom-0 badge h-10 w-10 rounded-tl-2xl badge-outline bg-neutral"
 								>
-									<Trophy styling={'w-4 h-4'}></Trophy>
+									<Trophy styling={'w-full'}></Trophy>
 								</div>
 							{/if}
 						</div>
@@ -114,7 +117,7 @@
 						}
 					}}
 				>
-					<div class="w-[115%]">
+					<div class="w-[107%]">
 						<p class="card-title line-clamp-1 text-base font-bold">{medium.title}</p>
 						{#if medium.genres}
 							<p class="line-clamp-1 max-w-fit text-sm font-light">{medium.genres}</p>
@@ -147,7 +150,7 @@
 				{#if medium.notes}
 					<div class="chat-header mt-3">Notiz:</div>
 					{#each medium.notes.split('\n') as note}
-						<div class="chat chat-start">
+						<div class="chat-start chat">
 							<div class="chat-bubble w-fit">
 								{note}
 							</div>
@@ -156,11 +159,11 @@
 				{/if}
 				{#if own_profile}
 					<button
-						class="btn btn-warning my-2 h-8 min-h-8 w-full font-bold"
+						class="btn my-3 h-8 min-h-8 w-full rounded-lg font-bold btn-warning"
 						on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
 					>
 					<button
-						class="btn btn-error -mb-4 h-8 min-h-8 w-full font-bold"
+						class="btn h-8 min-h-8 w-full rounded-lg font-bold btn-error"
 						on:click={() => dispatch('delete', medium)}>Karte löschen</button
 					>
 				{/if}

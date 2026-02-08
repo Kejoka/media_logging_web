@@ -10,8 +10,11 @@ export async function POST({ request, locals: { supabase } }) {
 	let try_count = 0;
 	while (try_count < RETRIES) {
 		try {
-			const res = await supabase.from('profiles').select('username').ilike('username', `%${search_val}%`)
-			return new Response(JSON.stringify(res.data?.map(x => x.username)));
+			const res = await supabase
+				.from('profiles')
+				.select('username')
+				.ilike('username', `%${search_val}%`);
+			return new Response(JSON.stringify(res.data?.map((x) => x.username)));
 		} catch (error) {
 			console.log(`Error on Endpoint searchUsers: ${error}`);
 			// Retry after 50ms

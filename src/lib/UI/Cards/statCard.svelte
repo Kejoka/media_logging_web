@@ -16,6 +16,7 @@
 	export let stat_desc: string;
 	let stat_value: string;
 	let stat_exists: boolean = false;
+	let unique = {};
 	if (stat_type === 'added_in_release_year') {
 		const filtered_media_data_length = media_data.filter(
 			(medium) => medium.added?.substring(0, 4) === medium.release?.substring(0, 4)
@@ -114,36 +115,38 @@
 </script>
 
 {#if stat_exists}
-	<div class="mb-2 flex">
-		<div class="stats mx-2 w-full shadow">
-			<div class="stat">
-				<div class="stat-figure text-secondary">
-					{#if stat_type === 'page_count'}
-						<Pages></Pages>
-					{:else if stat_type === 'author_count'}
-						<Person></Person>
-					{:else if stat_type === 'added_in_release_year'}
-						<CalendarCheck></CalendarCheck>
-					{:else if stat_type === 'genre_ranking'}
-						<Category></Category>
-					{:else if stat_type === 'average_rating_user'}
-						<Star></Star>
-					{:else if stat_type === 'average_rating_web'}
-						<DoubleStar></DoubleStar>
-					{:else if stat_type === 'trophy_rate'}
-						<Trophy styling={'inline-block h-8 w-8 stroke-current'}></Trophy>
-					{:else if stat_type === 'rating_difference'}
-						<Difference></Difference>
-					{:else if stat_type === 'total_amount'}
-						<Sum></Sum>
-					{:else}
-						<Analytics></Analytics>
-					{/if}
+	{#key unique}
+		<div class="mx-2 mb-2 rounded-lg bg-base-100 px-4 pb-2">
+			<div class="stats mx-2 w-full shadow">
+				<div class="stat">
+					<div class="stat-figure text-base">
+						{#if stat_type === 'page_count'}
+							<Pages></Pages>
+						{:else if stat_type === 'author_count'}
+							<Person></Person>
+						{:else if stat_type === 'added_in_release_year'}
+							<CalendarCheck></CalendarCheck>
+						{:else if stat_type === 'genre_ranking'}
+							<Category></Category>
+						{:else if stat_type === 'average_rating_user'}
+							<Star></Star>
+						{:else if stat_type === 'average_rating_web'}
+							<DoubleStar></DoubleStar>
+						{:else if stat_type === 'trophy_rate'}
+							<Trophy styling={'inline-block h-8 w-8 stroke-current'}></Trophy>
+						{:else if stat_type === 'rating_difference'}
+							<Difference></Difference>
+						{:else if stat_type === 'total_amount'}
+							<Sum></Sum>
+						{:else}
+							<Analytics></Analytics>
+						{/if}
+					</div>
+					<div class="stat-title">{stat_title}</div>
+					<div class="stat-value">{stat_value}</div>
+					<div class="stat-desc line-clamp-1">{stat_desc}</div>
 				</div>
-				<div class="stat-title">{stat_title}</div>
-				<div class="stat-value">{stat_value}</div>
-				<div class="stat-desc line-clamp-1">{stat_desc}</div>
 			</div>
 		</div>
-	</div>
+	{/key}
 {/if}

@@ -8,12 +8,12 @@
 				?.find((p) => p.startsWith('error_description='))
 				?.split('=')[1]
 				?.replaceAll('+', ' ') ||
-			'The link may have expired or already been used. Please try again.'
+			'Der Link ist möglicherweise abgelaufen oder wurde bereits verwendet. Bitte versuche es erneut.'
 	);
 </script>
 
 <svelte:head>
-	<title>Authentication Error</title>
+	<title>Authentifizierungsfehler</title>
 </svelte:head>
 
 <div class="flex min-h-[80vh] items-center justify-center px-4">
@@ -39,7 +39,7 @@
 					/>
 				</svg>
 			</div>
-			<h1 class="mb-2 text-2xl font-bold text-white">Authentication Error</h1>
+			<h1 class="mb-2 text-2xl font-bold text-white">Authentifizierungsfehler</h1>
 			<p class="mb-6 text-sm text-neutral-400">
 				{errorDescription}
 			</p>
@@ -48,13 +48,13 @@
 					href="/auth/forgot-password"
 					class="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
 				>
-					Request a new reset link
+					Fordere einen neuen Link zum Zurücksetzen an
 				</a>
 				<a
 					href="/"
 					class="inline-block rounded-lg border border-white/10 bg-white/5 px-6 py-2.5 text-sm font-medium text-neutral-300 transition hover:bg-white/10"
 				>
-					Back to sign in
+					Zurück zur Anmeldung
 				</a>
 			</div>
 		</div>

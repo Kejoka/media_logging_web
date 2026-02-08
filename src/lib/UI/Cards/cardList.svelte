@@ -274,7 +274,7 @@
 	}
 </script>
 
-<div class="scrollbar-hide bg-base-300 flex-grow overflow-x-hidden overflow-y-auto pt-2">
+<div class="scrollbar-hide grow overflow-x-hidden overflow-y-auto bg-base-300 pt-2">
 	{#if current_mode != 2}
 		{#each media_data as medium}
 			{@const config = getRatingConfig(medium.rating || 0)}
@@ -322,7 +322,6 @@
 				></BookCard>
 			{/if}
 		{/each}
-		<div class="h-[15%]"></div>
 		<!-- Stats -->
 	{:else}
 		{#key media_data}
@@ -503,7 +502,6 @@
 				{/if}
 			{/if}
 		{/key}
-		<div class="h-[5.5%]"></div>
 	{/if}
 </div>
 <!-- DeleteModal -->
@@ -512,7 +510,7 @@
 	<div class="modal-box flex flex-col">
 		<p class="mb-3 text-lg font-semibold">{to_delete.title} wirklich löschen?</p>
 		<button
-			class="btn btn-error font-bold"
+			class="btn font-bold btn-error"
 			on:click={() => {
 				dispatch('delete', to_delete);
 				delete_modal.checked = false;
@@ -536,14 +534,14 @@
 			<div class="label">
 				<span class="label-text">Titel</span>
 			</div>
-			<input type="text" bind:value={to_edit.title} class="input input-bordered w-full max-w-xs" />
+			<input type="text" bind:value={to_edit.title} class="input-bordered input w-full max-w-xs" />
 		</label>
 		<!-- Image -->
 		<label class="form-control w-full max-w-xs">
 			<div class="label">
 				<span class="label-text">Bild-URL</span>
 			</div>
-			<input type="text" bind:value={to_edit.image} class="input input-bordered w-full max-w-xs" />
+			<input type="text" bind:value={to_edit.image} class="input-bordered input w-full max-w-xs" />
 		</label>
 		<!-- Release  -->
 		<div class="label">
@@ -555,7 +553,7 @@
 			<div class="label">
 				<span class="label-text">Genre-Liste</span>
 			</div>
-			<input type="text" bind:value={to_edit.genres} class="input input-bordered w-full max-w-xs" />
+			<input type="text" bind:value={to_edit.genres} class="input-bordered input w-full max-w-xs" />
 		</label>
 		<!-- Added -->
 		<div class="label">
@@ -567,7 +565,7 @@
 			<div class="label">
 				<span class="label-text">Notizen</span>
 			</div>
-			<textarea class="textarea textarea-bordered h-24" bind:value={to_edit.notes}></textarea>
+			<textarea class="textarea-bordered textarea h-24" bind:value={to_edit.notes}></textarea>
 		</label>
 		{#if current_medium === 'games'}
 			<!-- Platforms	 -->
@@ -578,7 +576,7 @@
 				<input
 					type="text"
 					bind:value={to_edit.platforms}
-					class="input input-bordered w-full max-w-xs"
+					class="input-bordered input w-full max-w-xs"
 				/>
 			</label>
 		{:else if current_medium === 'shows'}
@@ -590,7 +588,7 @@
 				<input
 					type="text"
 					bind:value={to_edit.seasons}
-					class="input input-bordered w-full max-w-xs"
+					class="input-bordered input w-full max-w-xs"
 				/>
 			</label>
 			<!-- Episoden	 -->
@@ -601,7 +599,7 @@
 				<input
 					type="text"
 					bind:value={to_edit.episode}
-					class="input input-bordered w-full max-w-xs"
+					class="input-bordered input w-full max-w-xs"
 				/>
 			</label>
 		{:else if current_medium === 'books'}
@@ -613,7 +611,7 @@
 				<input
 					type="text"
 					bind:value={to_edit.author}
-					class="input input-bordered w-full max-w-xs"
+					class="input-bordered input w-full max-w-xs"
 				/>
 			</label>
 			<!-- pagecount	 -->
@@ -624,11 +622,11 @@
 				<input
 					type="text"
 					bind:value={to_edit.pagecount}
-					class="input input-bordered w-full max-w-xs"
+					class="input-bordered input w-full max-w-xs"
 				/>
 			</label>
 		{/if}
-		<button class="btn btn-success mt-3 font-bold" on:click={updateMedium}
+		<button class="btn mt-3 font-bold btn-success" on:click={updateMedium}
 			>Änderungen speichern</button
 		>
 	</div>

@@ -20,9 +20,9 @@
 
 	async function handleImageInteraction(event: MouseEvent, medium: mediaObject) {
 		if (medium.episode != undefined && event.type == 'click') {
-			medium.episode += 1;
+			medium.episode = Number(medium.episode) + 1;
 		} else if (medium.episode != undefined && event.type == 'press') {
-			medium.episode = Math.max(medium.episode - 1, 0);
+			medium.episode = Math.max(Number(medium.episode) - 1, 0);
 		}
 		const sync_timestamp = new Date();
 		// DexieDB
@@ -76,20 +76,32 @@
 					aria-label="Episode erhöhen"
 					on:click={(e) => handleImageInteraction(e, medium)}
 				>
-					<div class="relative">
-						{#if medium.image != null}
-							<img src={medium.image} alt={medium.title} />
-						{:else}
-							<img src={'/placeholder.png'} alt={'Kein Bild'} />
-						{/if}
-						{#if medium.episode != 0}
-							<div
-								class="text-md bg-opacity-80 absolute right-0 bottom-0 badge aspect-square badge-outline bg-neutral px-1 font-light"
-							>
-								{medium.episode}
-							</div>
-						{/if}
-					</div>
+					<figure class="h-full w-full">
+						<div class="relative h-full overflow-hidden">
+							{#if medium.image != null}
+								<img
+									src={medium.image}
+									alt={medium.title}
+									class="h-full w-full object-cover object-center"
+								/>
+							{:else}
+								<img
+									src={'/placeholder.png'}
+									alt={'Kein Bild'}
+									class="h-full w-full object-cover object-center"
+								/>
+							{/if}
+							{#if medium.episode != 0}
+								<div
+									class="bg-opacity-80 absolute right-0 bottom-0 badge h-10 w-10 rounded-tl-2xl badge-outline bg-neutral"
+								>
+									<p>
+										{medium.episode}
+									</p>
+								</div>
+							{/if}
+						</div>
+					</figure>
 				</button>
 				<div
 					class="card-body justify-center pl-2"
@@ -111,7 +123,7 @@
 						}
 					}}
 				>
-					<div class="w-[115%]">
+					<div class="w-[107%]">
 						<p class="card-title line-clamp-1 text-base font-bold">{medium.title}</p>
 						{#if medium.genres}
 							<p class="line-clamp-1 text-sm font-light">{medium.genres}</p>
@@ -153,16 +165,16 @@
 				{/if}
 				{#if own_profile}
 					<button
-						class="btn my-2 h-8 min-h-8 w-full font-bold btn-warning"
+						class="btn my-3 h-8 min-h-8 w-full rounded-lg font-bold btn-warning"
 						on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
 					>
 					<button
-						class="btn -mb-4 h-8 min-h-8 w-full font-bold btn-error"
+						class="btn h-8 min-h-8 w-full rounded-lg font-bold btn-error"
 						on:click={() => dispatch('delete', medium)}>Karte löschen</button
 					>
 				{/if}
 				<button
-					class="btn mt-3 -mb-4 h-8 min-h-8 w-full font-bold btn-info"
+					class="btn mt-3 h-8 min-h-8 w-full rounded-lg font-bold btn-info"
 					on:click={() => dispatch('showStreams', medium)}
 				>
 					Wo streamen?

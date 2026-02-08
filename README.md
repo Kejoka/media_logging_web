@@ -19,17 +19,19 @@ PRIVATE_IGDB_SECRET=<your_igdb_secret>
 PRIVATE_IGDB_TOKEN=<your_igdb_token>
 PUBLIC_IGDB_SUPABASE=<true || false>
 ```
+
 If you choose `false` for `PUBLIC_IGDB_SUPABASE`, you must refresh the `PRIVATE_IGDB_TOKEN` manually if it has expired.
-if you choose `true` for `PUBLIC_IGDB_SUPABASE`, the token will be stored in supabase and also refresh automatically. 
+if you choose `true` for `PUBLIC_IGDB_SUPABASE`, the token will be stored in supabase and also refresh automatically.
 
 In order to get all those keys please refer to the respective api host's websites:
+
 - [Supabase](https://supabase.com)
 - [TMDB](https://developer.themoviedb.org/reference/intro/getting-started)
 - [IGDB](https://api-docs.igdb.com/#getting-started)
 
 In order to set up supabase with the correct tables run the following scripts in the Table Editor:
 
-````
+```
 -- Create a table for public profiles
 create table profiles (
   id uuid references auth.users on delete cascade not null primary key,
@@ -66,9 +68,9 @@ $$ language plpgsql security definer;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
-````
+```
 
-```` 
+```
 -- Create preference_profiles
 create table
   preference_profiles (
@@ -171,9 +173,9 @@ create table
     notes text,
     genres text
   );
-````
+```
 
-```` 
+```
 CREATE OR REPLACE FUNCTION upsert_and_change_factor(r_user_preference_id bigint, r_tmdb_id bigint, r_name varchar(50), r_factor real) RETURNS VOID AS $$
 BEGIN
     INSERT INTO preferences (user_preference_id, tmdb_id, name, factor)
@@ -182,9 +184,10 @@ BEGIN
     DO UPDATE SET factor = preferences.factor + r_factor;
 END;
 $$ LANGUAGE plpgsql;
-````
+```
 
 To run this project in development mode use the following commands:
+
 ```
 npm i
 npm run dev

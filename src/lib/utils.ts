@@ -3,7 +3,6 @@ export function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-
 export function getMediaCodeString(current_medium: string): string {
 	switch (current_medium) {
 		case 'games':

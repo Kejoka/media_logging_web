@@ -36,14 +36,19 @@
 	});
 </script>
 
-<div class="dropdown mt-3 w-[75%]">
-	<label class="input input-bordered flex items-center gap-2">
-		<input on:input={handleInput} placeholder="Andere Nutzer finden..." bind:value={input_value} />
+<div class="relative w-full">
+	<div class="relative">
+		<input
+			class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 pr-10 text-sm text-white placeholder-neutral-500 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
+			oninput={handleInput}
+			placeholder="Andere Nutzer finden..."
+			bind:value={input_value}
+		/>
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
 			viewBox="0 0 16 16"
 			fill="currentColor"
-			class="absolute right-5 h-4 w-4 opacity-70"
+			class="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400"
 		>
 			<path
 				fill-rule="evenodd"
@@ -51,15 +56,23 @@
 				clip-rule="evenodd"
 			/>
 		</svg>
-	</label>
-	<ul
-		tabindex="-1"
-		class="menu dropdown-content rounded-box bg-base-200 z-1 max-h-80 w-full flex-nowrap overflow-auto p-2 shadow"
-	>
-		{#each filtered_items as item}
-			<li>
-				<a on:click|preventDefault={() => onItemClicked(item)}>{item}</a>
-			</li>
-		{/each}
-	</ul>
+	</div>
+
+	{#if filtered_items.length > 0}
+		<ul
+			class="absolute z-10 mt-2 max-h-72 w-full overflow-auto rounded-lg border border-white/10 bg-neutral-900/95 p-1 shadow-lg"
+		>
+			{#each filtered_items as item}
+				<li>
+					<button
+						type="button"
+						class="w-full rounded-md px-3 py-2 text-left text-sm text-neutral-200 transition hover:bg-white/10 hover:text-white"
+						onclick={() => onItemClicked(item)}
+					>
+						{item}
+					</button>
+				</li>
+			{/each}
+		</ul>
+	{/if}
 </div>

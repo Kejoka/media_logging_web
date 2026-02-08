@@ -5,7 +5,7 @@
 <div class="flex min-h-[80vh] items-center justify-center px-4">
 	<div class="w-full max-w-md">
 		<div
-			class="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-sm text-center"
+			class="rounded-2xl border border-white/10 bg-white/5 p-8 text-center shadow-2xl backdrop-blur-sm"
 		>
 			<div
 				class="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-red-500/10"
@@ -25,15 +25,15 @@
 					/>
 				</svg>
 			</div>
-			<h1 class="text-2xl font-bold text-white mb-2">Authentication Error</h1>
-			<p class="text-neutral-400 text-sm mb-6">
-				The link may have expired or already been used. Please try again.
+			<h1 class="mb-2 text-2xl font-bold text-white">Authentifizierungsfehler</h1>
+			<p class="mb-6 text-sm text-neutral-400">
+				Der Link ist möglicherweise abgelaufen oder wurde bereits verwendet. Bitte versuche es erneut.
 			</p>
 			<a
 				href="/"
 				class="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
 			>
-				Back to sign in
+				Zurück zur Anmeldung
 			</a>
 		</div>
 	</div>

@@ -21,7 +21,7 @@
 	let dropdown_open = false;
 </script>
 
-<div class="navbar bg-base-300 z-10">
+<div class="navbar z-10 bg-base-300">
 	<div class="navbar-start">
 		{#if nav_back_button || !own_profile}
 			<a class="btn" href={relative_back_link} data-sveltekit-reload>
@@ -59,7 +59,7 @@
 					</svg>
 				{/if}
 			</summary>
-			<ul class="dropdown-content menu bg-base-200 rounded-box z-50 w-full shadow">
+			<ul class="dropdown-content menu z-50 w-full rounded-box bg-base-200 shadow">
 				<li>
 					<button
 						on:click={(e) => {

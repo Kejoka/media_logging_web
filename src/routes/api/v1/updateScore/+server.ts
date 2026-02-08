@@ -18,7 +18,10 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 				id: session?.user.id,
 				updated_at: sync_timestamp
 			});
-			const res = await supabase.from(current_medium).update({ rating: new_score }).eq('id', update_id);
+			const res = await supabase
+				.from(current_medium)
+				.update({ rating: new_score })
+				.eq('id', update_id);
 			return new Response(JSON.stringify(res));
 		} catch (error) {
 			console.log(`Error on Endpoint updateScore: ${error}`);

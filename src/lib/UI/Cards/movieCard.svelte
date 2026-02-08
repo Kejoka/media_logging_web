@@ -7,91 +7,95 @@
 	export let config;
 	export let current_mode: number;
 	export let own_profile: boolean;
+
+	let unique = {};
 </script>
 
-<div class="px-2 pb-2">
-	<div class="{own_profile || medium.notes ? 'collapse' : ''} bg-base-100">
-		<input id={String(medium.id) + '_m'} type="radio" name="movie-accordion" class="hidden" />
-		<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] select-none bg-base-100">
-			<figure class="w-[11.25vh] min-w-[11.25vh] max-w-[11.25vh]">
-				{#if medium.image != null}
-					<img src={medium.image} alt={medium.title} />
-				{:else}
-					<img src={'/placeholder.png'} alt={'Kein Bild'} />
-				{/if}
-			</figure>
-			<div
-				class="card-body justify-center pl-2"
-				role="button"
-				tabindex="0"
-				on:click={() => {
-					const collapse_input = document.getElementById(String(medium.id) + '_m');
-					if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
-						collapse_input.checked = !collapse_input.checked;
-					}
-				}}
-				on:keydown={(event) => {
-					if (event.key === 'Enter' || event.key === ' ') {
+{#key unique}
+	<div class="px-2 pb-2">
+		<div class="{own_profile || medium.notes ? 'collapse' : ''} bg-base-100">
+			<input id={String(medium.id) + '_m'} type="radio" name="movie-accordion" class="hidden" />
+			<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] bg-base-100 select-none">
+				<figure class="w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh]">
+					{#if medium.image != null}
+						<img src={medium.image} alt={medium.title} />
+					{:else}
+						<img src={'/placeholder.png'} alt={'Kein Bild'} />
+					{/if}
+				</figure>
+				<div
+					class="card-body justify-center pl-2"
+					role="button"
+					tabindex="0"
+					on:click={() => {
 						const collapse_input = document.getElementById(String(medium.id) + '_m');
 						if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
 							collapse_input.checked = !collapse_input.checked;
 						}
-					}
-				}}
-			>
-				<div class="w-[115%]">
-					<p class="card-title line-clamp-1 text-base font-bold">{medium.title}</p>
-					{#if medium.genres}
-						<p class="line-clamp-1 text-sm font-light">{medium.genres}</p>
-					{/if}
-					{#if medium.release}
-						<p class="line-clamp-1 text-sm font-light">
-							Erschienen: {new Date(medium.release || 404).toLocaleDateString('de-DE')}
-						</p>
-					{/if}
-					{#if medium.averagerating && !isNaN(medium.averagerating)}
-						<p class="line-clamp-1 text-sm font-light">
-							Nutzerbewertung: {medium.averagerating}
-						</p>
-					{/if}
-				</div>
-			</div>
-			{#if current_mode == 0}
-				<div class="my-auto h-fit px-2">
-					<StarRating
-						{config}
-						on:change={() => dispatch('update_score', { new_score: config.score, medium })}
-					></StarRating>
-				</div>
-			{/if}
-		</div>
-		<div class="collapse-content px-2 pt-0">
-			{#if medium.notes}
-				<div class="chat-header mt-3">Notiz:</div>
-				{#each medium.notes.split('\n') as note}
-					<div class="chat chat-start">
-						<div class="chat-bubble w-fit">
-							{note}
-						</div>
+					}}
+					on:keydown={(event) => {
+						if (event.key === 'Enter' || event.key === ' ') {
+							const collapse_input = document.getElementById(String(medium.id) + '_m');
+							if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
+								collapse_input.checked = !collapse_input.checked;
+							}
+						}
+					}}
+				>
+					<div class="w-[107%]">
+						<p class="card-title line-clamp-1 text-base font-bold">{medium.title}</p>
+						{#if medium.genres}
+							<p class="line-clamp-1 text-sm font-light">{medium.genres}</p>
+						{/if}
+						{#if medium.release}
+							<p class="line-clamp-1 text-sm font-light">
+								Erschienen: {new Date(medium.release || 404).toLocaleDateString('de-DE')}
+							</p>
+						{/if}
+						{#if medium.averagerating && !isNaN(medium.averagerating)}
+							<p class="line-clamp-1 text-sm font-light">
+								Nutzerbewertung: {medium.averagerating}
+							</p>
+						{/if}
 					</div>
-				{/each}
-			{/if}
-			{#if own_profile}
+				</div>
+				{#if current_mode == 0}
+					<div class="my-auto h-fit px-2">
+						<StarRating
+							{config}
+							on:change={() => dispatch('update_score', { new_score: config.score, medium })}
+						></StarRating>
+					</div>
+				{/if}
+			</div>
+			<div class="collapse-content px-2 pt-0">
+				{#if medium.notes}
+					<div class="chat-header mt-3">Notiz:</div>
+					{#each medium.notes.split('\n') as note}
+						<div class="chat-start chat">
+							<div class="chat-bubble w-fit">
+								{note}
+							</div>
+						</div>
+					{/each}
+				{/if}
+				{#if own_profile}
+					<button
+						class="btn my-3 h-8 min-h-8 w-full rounded-lg font-bold btn-warning"
+						on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
+					>
+					<button
+						class="btn h-8 min-h-8 w-full rounded-lg font-bold btn-error"
+						on:click={() => dispatch('delete', medium)}>Karte löschen</button
+					>
+				{/if}
 				<button
-					class="btn btn-warning my-2 h-8 min-h-8 w-full font-bold"
-					on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
+					class="btn mt-3 h-8 min-h-8 w-full rounded-lg font-bold btn-info"
+					on:click={() => dispatch('showStreams', medium)}
 				>
-				<button
-					class="btn btn-error -mb-4 h-8 min-h-8 w-full font-bold"
-					on:click={() => dispatch('delete', medium)}>Karte löschen</button
-				>
-			{/if}
-			<button
-				class="btn btn-info -mb-4 mt-3 h-8 min-h-8 w-full font-bold"
-				on:click={() => dispatch('showStreams', medium)}
-			>
-				Wo streamen?
-			</button>
+					Wo streamen?
+				</button>
+			</div>
 		</div>
 	</div>
-</div>
+{/key}

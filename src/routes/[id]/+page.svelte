@@ -11,7 +11,7 @@
 		type tvSeason
 	} from '$lib/dbUtils.js';
 	import { DatePicker } from 'date-picker-svelte';
-	import { onMount } from 'svelte';
+	import { onMount, tick } from 'svelte';
 	import { online_status } from '../../stores/onlineStatus';
 	import Fuse, { type IFuseOptions } from 'fuse.js';
 	import { getMediaCodeIndex, getMediaCodeString, getModeString } from '$lib/utils';
@@ -54,6 +54,7 @@
 	// Misc variables
 	let header_text = getModeString(current_mode);
 	let input_timeout = setTimeout(function () {}, 0);
+	let is_initializing = true;
 	const fuse_options: IFuseOptions<mediaObject> = {
 		keys: ['title'],
 		isCaseSensitive: false,
@@ -62,8 +63,10 @@
 
 	// Load data and set up inital states depending on online status and sync status
 	onMount(async () => {
-		// Set inital carousel state
-		carousel.scrollLeft = current_tab_index * carousel.clientWidth;
+		is_initializing = true;
+		current_tab_index = 1;
+		current_medium = 'movies';
+		form_text = getMediaCodeString(current_medium);
 		// If user is online
 		if (is_online) {
 			if (!own_profile) {
@@ -140,6 +143,13 @@
 			media_data_unfiltered.push(media);
 		}
 		years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
+		await tick();
+		requestAnimationFrame(() => {
+			carousel.scrollLeft = carousel.clientWidth * current_tab_index;
+			setTimeout(() => {
+				is_initializing = false;
+			}, 100);
+		});
 	});
 
 	// Clones supabase contents depending on whether or not the user is on their own profile
@@ -184,12 +194,18 @@
 	async function handleMediaSwitch(event: any) {
 		clearTimeout(input_timeout);
 		input_timeout = setTimeout(() => {
+			if (is_initializing) {
+				return;
+			}
 			if (event.type == 'scroll') {
-				if (Number.isInteger((carousel.scrollLeft / carousel.scrollWidth) * 4)) {
-					current_tab_index = (carousel.scrollLeft / carousel.scrollWidth) * 4;
-				} else {
+				if (carousel.clientWidth === 0) {
 					return;
 				}
+				const index = Math.round(carousel.scrollLeft / carousel.clientWidth);
+				if (index < 0 || index > 3) {
+					return;
+				}
+				current_tab_index = index;
 			} else {
 				current_tab_index = event.medium;
 				carousel.scrollLeft = event.medium * carousel.clientWidth;
@@ -197,9 +213,7 @@
 			current_medium = indexToMedium(current_tab_index);
 			// YearBar Data
 			if (current_mode != 1) {
-				years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], 
-				current_year);
-				console.log('YEARS IN DB', years_in_db, 'CURRENT YEAR', current_year)
+				years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
 				current_year =
 					years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
 			} else {
@@ -618,9 +632,9 @@
 <svelte:head>
 	<title>Media-Logging</title>
 </svelte:head>
-<div class="flex flex-1 min-h-0 flex-col">
-	<nav class="pb-4">
-		<ModeSelectionBar current_mode={current_mode} onSwitchMode={handleModeSwitch}/>
+<div class="flex h-full flex-col">
+	<nav class="sticky top-0 right-0 left-0 z-10">
+		<ModeSelectionBar {current_mode} onSwitchMode={handleModeSwitch} />
 		<MediaSelectionBar
 			onSwitchMedium={handleMediaSwitch}
 			onFilter={handleFilter}
@@ -628,119 +642,141 @@
 			{current_mode}
 		></MediaSelectionBar>
 	</nav>
-	<div class="relative flex-1 flex-col min-h-0 overflow-x-hidden overflow-y-auto px-1">
-		<div bind:this={carousel} on:scroll={handleMediaSwitch} class="carousel h-full">
-		<div class="carousel-item w-full">
-			<CardList
-				{own_profile}
-				media_data={media_data[0]}
-				current_medium={'games'}
-				{current_mode}
-				on:delete={deleteMedium}
-				on:refresh={() => refreshCardList(current_year)}
-				on:swipe={handleMediaSwitch}
-			></CardList>
+	<div class="relative min-h-0 flex-1 overflow-y-hidden">
+		<!-- Mode and Media Mode Tabs -->
+		<!-- Entries -->
+		<div
+			bind:this={carousel}
+			onscroll={handleMediaSwitch}
+			class="carousel h-full w-full overflow-y-auto"
+		>
+			<div class="carousel-item w-full">
+				<CardList
+					{own_profile}
+					media_data={media_data[0]}
+					current_medium={'games'}
+					{current_mode}
+					ondelete={deleteMedium}
+					onrefresh={() => refreshCardList(current_year)}
+					onswipe={handleMediaSwitch}
+				></CardList>
+			</div>
+			<div class="carousel-item w-full">
+				<CardList
+					{own_profile}
+					media_data={media_data[1]}
+					current_medium={'movies'}
+					{current_mode}
+					ondelete={deleteMedium}
+					onrefresh={() => refreshCardList(current_year)}
+					onswipe={handleMediaSwitch}
+				></CardList>
+			</div>
+			<div class="carousel-item w-full">
+				<CardList
+					{own_profile}
+					media_data={media_data[2]}
+					current_medium={'shows'}
+					{current_mode}
+					ondelete={deleteMedium}
+					onrefresh={() => refreshCardList(current_year)}
+					onswipe={handleMediaSwitch}
+				></CardList>
+			</div>
+			<div class="carousel-item w-full">
+				<CardList
+					{own_profile}
+					media_data={media_data[3]}
+					current_medium={'books'}
+					{current_mode}
+					ondelete={deleteMedium}
+					onrefresh={() => refreshCardList(current_year)}
+					onswipe={handleMediaSwitch}
+				></CardList>
+			</div>
 		</div>
-		<div class="carousel-item w-full">
-			<CardList
-				{own_profile}
-				media_data={media_data[1]}
-				current_medium={'movies'}
-				{current_mode}
-				on:delete={deleteMedium}
-				on:refresh={() => refreshCardList(current_year)}
-				on:swipe={handleMediaSwitch}
-			></CardList>
-		</div>
-		<div class="carousel-item w-full">
-			<CardList
-				{own_profile}
-				media_data={media_data[2]}
-				current_medium={'shows'}
-				{current_mode}
-				on:delete={deleteMedium}
-				on:refresh={() => refreshCardList(current_year)}
-				on:swipe={handleMediaSwitch}
-			></CardList>
-		</div>
-		<div class="carousel-item w-full">
-			<CardList
-				{own_profile}
-				media_data={media_data[3]}
-				current_medium={'books'}
-				{current_mode}
-				on:delete={deleteMedium}
-				on:refresh={() => refreshCardList(current_year)}
-				on:swipe={handleMediaSwitch}
-			></CardList>
-		</div>
-	</div>
-	{#if current_mode != 2}
-	<button
-		on:click={() => {
-			last_search_page = 1;
-			search_val = '';
-			selected_date = new Date();
-			search_modal.checked = true;
-			current_suggestions = [];
-		}}
-		class="btn btn-neutral bg-base-100 hover:bg-base-200 shadow-2xl border-0 shadow-base-300 absolute inset-x-2 bottom-4 rounded-md text-2xl flex items-center justify-center"
-	>
-		+
-	</button>
-	{/if}
-
 		<!-- Modals from here on -->
-	<!-- SearchModal -->
+		<!-- SearchModal -->
 		<input type="checkbox" id="search_modal" class="modal-toggle" bind:this={search_modal} />
 		<div class="modal" role="dialog">
 			<div class="modal-box">
-			{#if is_online}
-				<p class=" mb-3 text-center text-lg font-bold">{form_text} hinzufügen</p>
-			{:else}
-				<p class=" mb-3 text-center text-xl font-bold">Offline Modus</p>
-				<p class=" mb-3 text-center text-lg font-bold">Titel manuell hinzufügen</p>
-			{/if}
-			<label class="mb-3 flex items-center gap-2">
-				<input
-					type="text"
-					class="input input-bordered grow"
-					placeholder="Suche"
-					bind:value={search_val}
-					on:input={handleInput}
-				/>
-				<svg
-					xmlns="http://www.w3.org/2000/svg"
-					viewBox="0 0 16 16"
-					fill="currentColor"
-					class="mr-5 -ml-10 h-4 w-4 opacity-70"
-				>
-					<path
-						fill-rule="evenodd"
-						d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
-						clip-rule="evenodd"
+				{#if is_online}
+					<p class=" mb-3 text-center text-lg font-bold">{form_text} hinzufügen</p>
+				{:else}
+					<p class=" mb-3 text-center text-xl font-bold">Offline Modus</p>
+					<p class=" mb-3 text-center text-lg font-bold">Titel manuell hinzufügen</p>
+				{/if}
+				<label class="mb-3 flex items-center gap-2">
+					<input
+						type="text"
+						class="input-bordered input grow"
+						placeholder="Suche"
+						bind:value={search_val}
+						oninput={handleInput}
 					/>
-				</svg>
-			</label>
-			<div class="scrollbar-hide max-h-[50vh] overflow-y-auto" on:scroll={handleSuggestionScroll}>
-				{#each current_suggestions as suggestion}
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						viewBox="0 0 16 16"
+						fill="currentColor"
+						class="mr-5 -ml-10 h-4 w-4 opacity-70"
+					>
+						<path
+							fill-rule="evenodd"
+							d="M9.965 11.026a5 5 0 1 1 1.06-1.06l2.755 2.754a.75.75 0 1 1-1.06 1.06l-2.755-2.754ZM10.5 7a3.5 3.5 0 1 1-7 0 3.5 3.5 0 0 1 7 0Z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+				</label>
+				<div class="scrollbar-hide max-h-[50vh] overflow-y-auto" onscroll={handleSuggestionScroll}>
+					{#each current_suggestions as suggestion}
+						<button
+							class="btn mb-3 h-fit w-full py-2"
+							onclick={async () => {
+								last_selection = suggestion;
+								if (current_mode == 0 && current_medium != 'shows') {
+									date_modal.checked = true;
+								} else if (current_medium == 'shows') {
+									console.log(suggestion);
+									const res = await fetch('/api/v1/getSeasonDetails', {
+										method: 'POST',
+										body: JSON.stringify({ id: suggestion.tmdbid }),
+										headers: {
+											'Content-Type': 'application/json'
+										}
+									});
+									current_season_suggestions = await res.json();
+									season_select_modal.checked = true;
+								} else {
+									addMedium(2);
+								}
+							}}
+						>
+							<div class="flex flex-col">
+								<p class="text-base font-bold">
+									{`${suggestion.title} (${new Date(suggestion.release || 404).getFullYear()})`}
+								</p>
+								{#if suggestion.author != undefined}
+									<p class="text-sm">Von: {suggestion.author || ''}</p>
+								{/if}
+								<p class="text-sm">{suggestion.genres || ''}</p>
+							</div>
+						</button>
+					{/each}
+					{#if loading && is_online}
+						<div class="flex">
+							<span class="loading m-auto mt-3 loading-md loading-dots"></span>
+						</div>
+					{/if}
+				</div>
+				{#if last_search_page != 1}
+					<p class="mt-2 text-center text-base font-semibold">Nicht gefunden was du suchst?</p>
+					<p class="mb-2 text-center text-base font-semibold">Hier manuell hinzufügen</p>
 					<button
 						class="btn mb-3 h-fit w-full py-2"
-						on:click={async () => {
-							last_selection = suggestion;
-							if (current_mode == 0 && current_medium != 'shows') {
+						onclick={async () => {
+							last_selection = { title: search_val, release: new Date().toISOString() };
+							if (current_mode == 0) {
 								date_modal.checked = true;
-							} else if (current_medium == 'shows') {
-								console.log(suggestion);
-								const res = await fetch('/api/v1/getSeasonDetails', {
-									method: 'POST',
-									body: JSON.stringify({ id: suggestion.tmdbid }),
-									headers: {
-										'Content-Type': 'application/json'
-									}
-								});
-								current_season_suggestions = await res.json();
-								season_select_modal.checked = true;
 							} else {
 								addMedium(2);
 							}
@@ -748,102 +784,71 @@
 					>
 						<div class="flex flex-col">
 							<p class="text-base font-bold">
-								{`${suggestion.title} (${new Date(suggestion.release || 404).getFullYear()})`}
+								{`${search_val} (${new Date().getFullYear()})`}
 							</p>
-							{#if suggestion.author != undefined}
-								<p class="text-sm">Von: {suggestion.author || ''}</p>
-							{/if}
-							<p class="text-sm">{suggestion.genres || ''}</p>
 						</div>
 					</button>
-				{/each}
-				{#if loading && is_online}
-					<div class="flex">
-						<span class="loading loading-dots loading-md m-auto mt-3"></span>
-					</div>
 				{/if}
-			</div>
-			{#if last_search_page != 1}
-				<p class="mt-2 text-center text-base font-semibold">Nicht gefunden was du suchst?</p>
-				<p class="mb-2 text-center text-base font-semibold">Hier manuell hinzufügen</p>
-				<button
-					class="btn mb-3 h-fit w-full py-2"
-					on:click={async () => {
-						last_selection = { title: search_val, release: new Date().toISOString() };
-						if (current_mode == 0) {
-							date_modal.checked = true;
-						} else {
-							addMedium(2);
-						}
-					}}
-				>
-					<div class="flex flex-col">
-						<p class="text-base font-bold">
-							{`${search_val} (${new Date().getFullYear()})`}
-						</p>
-					</div>
-				</button>
-			{/if}
 			</div>
 			<label class="modal-backdrop" for="search_modal">Close</label>
 		</div>
-	<!-- DateModal -->
+		<!-- DateModal -->
 		<input type="checkbox" id="date_modal" class="modal-toggle" bind:this={date_modal} />
 		<div class="modal" role="dialog">
 			<div class="modal-box flex flex-col">
-			<p class="mb-1 text-center text-lg font-bold">{last_selection.title}</p>
-			<p class="mb-3 text-center text-base font-semibold">gesehen:</p>
-			<DatePicker bind:value={selected_date} max={new Date()} browseWithoutSelecting={true}
-			></DatePicker>
-			<button
-				bind:this={add_button}
-				class="btn btn-neutral mt-3"
-				on:click={() => {
-					add_button.disabled = true;
-					checkBacklog();
-				}}>Hinzufügen</button
-			>
+				<p class="mb-1 text-center text-lg font-bold">{last_selection.title}</p>
+				<p class="mb-3 text-center text-base font-semibold">gesehen:</p>
+				<DatePicker bind:value={selected_date} max={new Date()} browseWithoutSelecting={true}
+				></DatePicker>
+				<button
+					bind:this={add_button}
+					class="btn mt-3 btn-neutral"
+					onclick={() => {
+						add_button.disabled = true;
+						checkBacklog();
+					}}>Hinzufügen</button
+				>
 			</div>
 			<label class="modal-backdrop" for="date_modal">Close</label>
 		</div>
-	<!-- BacklogModal -->
+		<!-- BacklogModal -->
 		<input type="checkbox" id="backlog_modal" class="modal-toggle" bind:this={backlog_modal} />
 		<div class="modal" role="dialog">
 			<div class="modal-box flex flex-col">
-			<p class="mb-1 text-center text-lg font-bold">
-				{last_selection.title} wurde im Backlog gefunden
-			</p>
-			<p class="mb-3 text-center text-base font-semibold">
-				Soll der Titel aus dem Backlog entfernt werden?
-			</p>
-			<button
-				bind:this={backlog_button_1}
-				class="btn btn-success mt-3"
-				on:click={() => {
-					backlog_button_1.disabled = true;
-					addMedium(0);
-				}}>Entfernen und Notizen übernehmen</button
-			>
-			<button
-				bind:this={backlog_button_2}
-				class="btn btn-warning mt-3"
-				on:click={() => {
-					backlog_button_2.disabled = true;
-					addMedium(1);
-				}}>Entfernen und Notizen verwerfen</button
-			>
-			<button
-				bind:this={backlog_button_3}
-				class="btn btn-error mt-3"
-				on:click={() => {
-					backlog_button_3.disabled = true;
-					addMedium(2);
-				}}>Nicht aus dem Backlog entfernen</button
-			>
+				<p class="mb-1 text-center text-lg font-bold">
+					{last_selection.title} wurde im Backlog gefunden
+				</p>
+				<p class="mb-3 text-center text-base font-semibold">
+					Soll der Titel aus dem Backlog entfernt werden?
+				</p>
+				<button
+					bind:this={backlog_button_1}
+					class="btn mt-3 btn-success"
+					onclick={() => {
+						backlog_button_1.disabled = true;
+						addMedium(0);
+					}}>Entfernen und Notizen übernehmen</button
+				>
+				<button
+					bind:this={backlog_button_2}
+					class="btn mt-3 btn-warning"
+					onclick={() => {
+						backlog_button_2.disabled = true;
+						addMedium(1);
+					}}>Entfernen und Notizen verwerfen</button
+				>
+				<button
+					bind:this={backlog_button_3}
+					class="btn mt-3 btn-error"
+					onclick={() => {
+						backlog_button_3.disabled = true;
+						addMedium(2);
+					}}>Nicht aus dem Backlog entfernen</button
+				>
 			</div>
 			<label class="modal-backdrop" for="backlog_modal">Close</label>
 		</div>
-	<!-- SeasonSelectModal -->
+		<!-- SeasonSelectModal -->
 		<input
 			type="checkbox"
 			id="season_select_modal"
@@ -852,48 +857,62 @@
 		/>
 		<div class="modal" role="dialog">
 			<div class="modal-box flex flex-col">
-			<p class="mb-1 text-center text-lg font-bold">{last_selection.title}</p>
-			<p class="mb-3 text-center text-base font-semibold">Welche Staffel hast du gesehen?</p>
-			<!-- TODO - Handle Scroll here -->
-			<div class="scrollbar-hide max-h-[50vh] overflow-y-auto" on:scroll={handleSuggestionScroll}>
-				{#each current_season_suggestions as season}
-					<button
-						class="btn mb-3 h-fit w-full py-2"
-						on:click={() => {
-							last_selection.seasons = `${season.season_number}`;
-							last_selection.image = season.poster_path;
-							if (season.vote_average) {
-								last_selection.averagerating = season.vote_average;
-							}
-							if (current_mode == 0) {
-								season_select_modal.checked = false;
-								date_modal.checked = true;
-							} else {
-								addMedium(2);
-							}
-						}}
-					>
-						<div class="flex flex-col">
-							<p class="text-base font-bold">
-								{`${season.name} (${new Date(season.air_date || 404).getFullYear()})`}
-							</p>
-							<p class="text-sm">Episoden: {season.episode_count || ''}</p>
+				<p class="mb-1 text-center text-lg font-bold">{last_selection.title}</p>
+				<p class="mb-3 text-center text-base font-semibold">Welche Staffel hast du gesehen?</p>
+				<!-- TODO - Handle Scroll here -->
+				<div class="scrollbar-hide max-h-[50vh] overflow-y-auto" onscroll={handleSuggestionScroll}>
+					{#each current_season_suggestions as season}
+						<button
+							class="btn mb-3 h-fit w-full py-2"
+							onclick={() => {
+								last_selection.seasons = `${season.season_number}`;
+								last_selection.image = season.poster_path;
+								if (season.vote_average) {
+									last_selection.averagerating = season.vote_average;
+								}
+								if (current_mode == 0) {
+									season_select_modal.checked = false;
+									date_modal.checked = true;
+								} else {
+									addMedium(2);
+								}
+							}}
+						>
+							<div class="flex flex-col">
+								<p class="text-base font-bold">
+									{`${season.name} (${new Date(season.air_date || 404).getFullYear()})`}
+								</p>
+								<p class="text-sm">Episoden: {season.episode_count || ''}</p>
+							</div>
+						</button>
+					{/each}
+					{#if loading && is_online}
+						<div class="flex">
+							<span class="loading m-auto mt-3 loading-md loading-dots"></span>
 						</div>
-					</button>
-				{/each}
-				{#if loading && is_online}
-					<div class="flex">
-						<span class="loading loading-dots loading-md m-auto mt-3"></span>
-					</div>
-				{/if}
-			</div>
+					{/if}
+				</div>
 			</div>
 			<label class="modal-backdrop" for="season_select_modal">Close</label>
 		</div>
 	</div>
-	<div class="mt-auto">
-		<YearBar on:switch={handleYearSwitch} years={years_in_db}></YearBar>
-	</div>
+	<!-- Add-Button -->
+	{#if current_mode != 2}
+		<button
+			onclick={() => {
+				last_search_page = 1;
+				search_val = '';
+				selected_date = new Date();
+				search_modal.checked = true;
+				current_suggestions = [];
+			}}
+			class="btn h-fit rounded-none rounded-t-lg border-none bg-base-100 pb-2 text-2xl shadow-[0_-4px_10px_rgba(0,0,0,0.3)] btn-neutral hover:bg-base-200"
+		>
+			+
+		</button>
+	{/if}
+	<!-- Year-Slider -->
+	<YearBar onswitch={handleYearSwitch} years={years_in_db}></YearBar>
 </div>
 
 <style>
