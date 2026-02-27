@@ -21,8 +21,10 @@
 		}
 	}
 
-	$: {
-		scrollToActive();
+	$: if (years) {
+		tick().then(() => {
+			scrollToActive();
+		});
 	}
 </script>
 
