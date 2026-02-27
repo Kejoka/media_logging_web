@@ -129,7 +129,6 @@
 	}
 
 	async function showProviderList(event: CustomEvent) {
-		console.log(event.detail);
 		try {
 			const res = await fetch('/api/v1/getStreamingProviders', {
 				method: 'POST',

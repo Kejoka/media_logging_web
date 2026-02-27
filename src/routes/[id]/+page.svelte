@@ -379,7 +379,6 @@
 			} else {
 				last_search_page = -1;
 			}
-			console.log(current_suggestions);
 			loading = false;
 		}
 	}
@@ -602,7 +601,6 @@
 					'Content-Type': 'application/json'
 				}
 			});
-			console.log(res);
 		} catch (error) {
 			console.log(error);
 			let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
@@ -736,7 +734,6 @@
 								if (current_mode == 0 && current_medium != 'shows') {
 									date_modal.checked = true;
 								} else if (current_medium == 'shows') {
-									console.log(suggestion);
 									const res = await fetch('/api/v1/getSeasonDetails', {
 										method: 'POST',
 										body: JSON.stringify({ id: suggestion.tmdbid }),

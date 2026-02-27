@@ -40,7 +40,6 @@
 					sync_timestamp
 				})
 			});
-			console.log(await res.json());
 		} catch (error) {
 			console.log(error);
 			let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);

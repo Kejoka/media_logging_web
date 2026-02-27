@@ -37,7 +37,6 @@ export async function redoDexieChanges() {
 	let res;
 	let id_changes = [];
 	for (const change of changes) {
-		console.log(change);
 		id_changes.forEach((id_change) => {
 			if (id_change.medium === change.medium && id_change.old == change.card.id) {
 				change.card.id = id_change.new;
