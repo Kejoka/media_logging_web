@@ -10,7 +10,6 @@
 	let { supabase, session, user } = $derived(data);
 
 	onMount(() => {
-		console.log(session, user);
 		if (browser && 'serviceWorker' in navigator) {
 			navigator.serviceWorker.register('/service-worker.js').catch(() => {
 				// ignore registration errors

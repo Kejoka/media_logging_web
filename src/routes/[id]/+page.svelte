@@ -654,9 +654,9 @@
 					media_data={media_data[0]}
 					current_medium={'games'}
 					{current_mode}
-					ondelete={deleteMedium}
-					onrefresh={() => refreshCardList(current_year)}
-					onswipe={handleMediaSwitch}
+					on:delete={deleteMedium}
+					on:refresh={() => refreshCardList(current_year)}
+					on:swipe={handleMediaSwitch}
 				></CardList>
 			</div>
 			<div class="carousel-item w-full">
@@ -665,9 +665,9 @@
 					media_data={media_data[1]}
 					current_medium={'movies'}
 					{current_mode}
-					ondelete={deleteMedium}
-					onrefresh={() => refreshCardList(current_year)}
-					onswipe={handleMediaSwitch}
+					on:delete={deleteMedium}
+					on:refresh={() => refreshCardList(current_year)}
+					on:swipe={handleMediaSwitch}
 				></CardList>
 			</div>
 			<div class="carousel-item w-full">
@@ -676,9 +676,9 @@
 					media_data={media_data[2]}
 					current_medium={'shows'}
 					{current_mode}
-					ondelete={deleteMedium}
-					onrefresh={() => refreshCardList(current_year)}
-					onswipe={handleMediaSwitch}
+					on:delete={deleteMedium}
+					on:refresh={() => refreshCardList(current_year)}
+					on:swipe={handleMediaSwitch}
 				></CardList>
 			</div>
 			<div class="carousel-item w-full">
@@ -687,9 +687,9 @@
 					media_data={media_data[3]}
 					current_medium={'books'}
 					{current_mode}
-					ondelete={deleteMedium}
-					onrefresh={() => refreshCardList(current_year)}
-					onswipe={handleMediaSwitch}
+					on:delete={deleteMedium}
+					on:refresh={() => refreshCardList(current_year)}
+					on:swipe={handleMediaSwitch}
 				></CardList>
 			</div>
 		</div>
@@ -795,7 +795,11 @@
 			<div class="modal-box flex flex-col">
 				<p class="mb-1 text-center text-lg font-bold">{last_selection.title}</p>
 				<p class="mb-3 text-center text-base font-semibold">gesehen:</p>
-				<DatePicker bind:value={selected_date} max={new Date()} browseWithoutSelecting={true}
+				<DatePicker
+					bind:value={selected_date}
+					max={new Date()}
+					min={new Date(1888, 9, 14)}
+					browseWithoutSelecting={true}
 				></DatePicker>
 				<button
 					bind:this={add_button}

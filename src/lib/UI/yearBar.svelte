@@ -1,20 +1,28 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
+	import { tick } from 'svelte';
 	export let years: any[];
 	export let onSwitch: ((detail: { year: any }) => void) | undefined = undefined;
 	let yearBar: HTMLDivElement;
+	let activeYearButton: HTMLButtonElement;
 
-	function yearSwitch(year_index: number) {
+	async function yearSwitch(year_index: number) {
 		years.forEach((obj) => (obj.active = false));
 		years[year_index].active = true;
 		onSwitch?.({ year: years[year_index] });
+		await tick();
+		scrollToActive();
+	}
+
+	function scrollToActive() {
+		if (yearBar && activeYearButton) {
+			const offset =
+				activeYearButton.offsetLeft - yearBar.offsetWidth / 2 + activeYearButton.offsetWidth / 2;
+			yearBar.scrollTo({ left: offset, behavior: 'smooth' });
+		}
 	}
 
 	$: {
-		if (yearBar && years && years.length > 0) {
-			yearBar.scrollLeft = yearBar.scrollWidth;
-		}
+		scrollToActive();
 	}
 </script>
 
@@ -24,7 +32,11 @@
 >
 	{#each years as { year, active }, i}
 		{#if active}
-			<button class="dock-active min-w-20 pb-3 text-lg font-bold" on:click={() => yearSwitch(i)}>
+			<button
+				class="dock-active min-w-20 pb-3 text-lg font-bold"
+				on:click={() => yearSwitch(i)}
+				bind:this={activeYearButton}
+			>
 				{year}
 			</button>
 		{:else}
