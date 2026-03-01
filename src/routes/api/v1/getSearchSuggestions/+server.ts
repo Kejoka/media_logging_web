@@ -16,7 +16,11 @@ const RETRIES: number = 3;
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const { session } = await safeGetSession();
-	const req_body = await request.json();
+	const req_body = (await request.json()) as {
+		search_val: string;
+		last_search_page: number;
+		current_medium: string;
+	};
 	const search_val = req_body['search_val'];
 	const search_page = req_body['last_search_page'];
 	const current_medium = req_body['current_medium'];
@@ -42,7 +46,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						).data;
 						if (!igdb_res) {
 							console.log('No igdb data stored yet, requesting new token..');
-							const token_req = await fetch(
+							const token_req = (await fetch(
 								`https://id.twitch.tv/oauth2/token?client_id=${PRIVATE_IGDB_CLIENT}&client_secret=${PRIVATE_IGDB_SECRET}&grant_type=client_credentials`,
 								{
 									method: 'POST',
@@ -50,7 +54,11 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 										Accept: 'application/json'
 									}
 								}
-							).then(async (res) => await res.json());
+							).then(async (res) => await res.json())) as {
+								access_token: string;
+								expires_in: number;
+								[token: string]: any;
+							};
 							try {
 								console.log('New token received - ', token_req);
 								const res = await supabase.from('igdb_store').insert({
@@ -69,7 +77,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 							expire_date_check.setSeconds(expire_date_check.getSeconds() + igdb_res.expires_in);
 							if (expire_date_check < sync_timestamp) {
 								console.log('Token has already expired. Requesting new token...');
-								const token_req = await fetch(
+								const token_req = (await fetch(
 									`https://id.twitch.tv/oauth2/token?client_id=${PRIVATE_IGDB_CLIENT}&client_secret=${PRIVATE_IGDB_SECRET}&grant_type=client_credentials`,
 									{
 										method: 'POST',
@@ -77,7 +85,11 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 											Accept: 'application/json'
 										}
 									}
-								).then(async (res) => await res.json());
+								).then(async (res) => await res.json())) as {
+									access_token: string;
+									expires_in: number;
+									[token: string]: any;
+								};
 								try {
 									console.log('Received new token - ', token_req);
 									const res = await supabase
@@ -144,7 +156,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					raw_res = await fetch(
 						`https://api.themoviedb.org/3/search/movie?query=${params.query}&include_adult=${params.adult}&language=${params.language}&page=${params.page}&api_key=${PRIVATE_TMDB_V3_KEY}`
 					);
-					res = await raw_res.json();
+					res = (await raw_res.json()) as { results: MovieResult[] };
 					(res.results as MovieResult[]).forEach((result) => {
 						let iso_release;
 						if (result.release_date && !isNaN(new Date(result.release_date).getTime())) {
@@ -174,7 +186,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					raw_res = await fetch(
 						`https://api.themoviedb.org/3/search/tv?query=${params.query}&include_adult=${params.adult}&language=${params.language}&page=${params.page}&api_key=${PRIVATE_TMDB_V3_KEY}`
 					);
-					res = await raw_res.json();
+					res = (await raw_res.json()) as { results: TvResult[] };
 					(res.results as TvResult[]).forEach((result) => {
 						let iso_release;
 						if (result.first_air_date && !isNaN(new Date(result.first_air_date).getTime())) {
@@ -216,8 +228,31 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					const raw_book_res = await fetch(books_url.toString());
 					const book_res = (await raw_book_res.json()) as any;
 
-					book_res.items?.forEach((book) => {
-						let iso_release;
+					interface BookVolumeInfo {
+						title?: string;
+						subtitle?: string;
+						authors?: string[];
+						publishedDate?: string;
+						imageLinks?: {
+							smallThumbnail?: string;
+							thumbnail?: string;
+						};
+						pageCount?: number;
+						averageRating?: number;
+						categories?: string[];
+					}
+
+					interface BookItem {
+						id: string;
+						volumeInfo?: BookVolumeInfo;
+					}
+
+					interface BookResponse {
+						items?: BookItem[];
+					}
+
+					(book_res as BookResponse).items?.forEach((book: BookItem) => {
+						let iso_release: string | null;
 						if (
 							book.volumeInfo?.publishedDate &&
 							!isNaN(new Date(book.volumeInfo?.publishedDate).getTime())
@@ -227,7 +262,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 							iso_release = null;
 						}
 						search_results.push({
-							gbid: book.id,
+							gbid: Number(book.id) || 0,
 							title: book.volumeInfo?.title,
 							subtitle: book.volumeInfo?.subtitle,
 							author: book.volumeInfo?.authors?.join(', '),

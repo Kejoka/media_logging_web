@@ -6,7 +6,7 @@ const RETRIES: number = 3;
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const { session } = await safeGetSession();
-	const req_body = await request.json();
+	const req_body = (await request.json()) as { tmdb_id: string; medium: string };
 	const tmdb_id = req_body['tmdb_id'];
 	const medium = req_body['medium'];
 	let try_count = 0;

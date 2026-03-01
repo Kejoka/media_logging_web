@@ -70,17 +70,17 @@
 			</div>
 			<div class="collapse-content px-2 pt-0">
 				{#if medium.notes}
-					<div class="chat-header mt-3">Notiz:</div>
-					{#each medium.notes.split('\n') as note}
+					<div class="chat-header mt-3">Review:</div>
+					{#each medium.notes.split('\n') as review}
 						<div class="chat-start chat">
 							<div class="chat-bubble w-fit">
-								{note}
+								{review}
 							</div>
 						</div>
 					{/each}
 				{:else if !own_profile}
 					<div class="chat-start mt-3 chat">
-						<div class="chat-bubble w-fit">Keine Notiz vorhanden.</div>
+						<div class="chat-bubble w-fit">Keine Review vorhanden.</div>
 					</div>
 				{/if}
 				{#if own_profile}

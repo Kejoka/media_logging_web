@@ -7,7 +7,7 @@ const RETRIES: number = 3;
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const { session } = await safeGetSession();
-	const req_body = await request.json();
+	const req_body = (await request.json()) as { id: number };
 	const show_id = req_body['id'];
 	let search_results: tvSeason[] = [];
 
@@ -18,7 +18,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 			raw_res = await fetch(
 				`https://api.themoviedb.org/3/tv/${show_id}?language=de-DE&api_key=${PRIVATE_TMDB_V3_KEY}`
 			);
-			res = await raw_res.json();
+			res = (await raw_res.json()) as { seasons: tvSeason[] };
 			(res.seasons as tvSeason[]).forEach((season) => {
 				if (season.name != 'Extras') {
 					let iso_release;

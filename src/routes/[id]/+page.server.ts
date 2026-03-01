@@ -51,6 +51,20 @@ export const load: PageServerLoad = async ({
 		.select()
 		.eq('user_id', user_id)
 		.order('added', { ascending: false });
+	const challenges = await supabase
+		.from('user_challenges')
+		.select()
+		.eq('user_id', user_id)
+		.order('year', { ascending: false });
 
-	return { session, profile, user_id, games, movies, shows, books };
+	return {
+		session,
+		profile,
+		user_id,
+		games,
+		movies,
+		shows,
+		books,
+		challenges: challenges.data || []
+	};
 };

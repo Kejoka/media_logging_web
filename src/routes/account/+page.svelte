@@ -2,15 +2,12 @@
 	import { enhance } from '$app/forms';
 	import AutoComplete from '$lib/UI/AutoComplete.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
-	import { onMount } from 'svelte';
 
 	let { data, form } = $props();
 	let { session, supabase, profile } = $derived(data);
 	let profileForm: HTMLFormElement;
 	let loading = $state(false);
-	let fullName = $derived(profile?.full_name ?? '');
 	let username = $derived(profile?.username ?? '');
-	let website = $derived(profile?.website ?? '');
 
 	const handleSubmit: SubmitFunction = () => {
 		loading = true;

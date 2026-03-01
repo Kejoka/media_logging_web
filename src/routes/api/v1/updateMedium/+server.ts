@@ -1,6 +1,11 @@
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
-	const req_body = await request.json();
+	interface ReqBody {
+		current_medium: string;
+		to_edit: any;
+		sync_timestamp: string;
+	}
+	const req_body = (await request.json()) as ReqBody;
 	const current_medium = req_body['current_medium'];
 	const to_edit = req_body['to_edit'];
 	const sync_timestamp = req_body['sync_timestamp'];

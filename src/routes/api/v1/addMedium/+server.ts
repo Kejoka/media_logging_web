@@ -1,6 +1,6 @@
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
-	const req_body = await request.json();
+	const req_body = (await request.json()) as Record<string, any>;
 	const current_medium = req_body['current_medium'];
 	const medium = req_body['last_selection'];
 	const sync_timestamp = req_body['sync_timestamp'];
@@ -32,6 +32,16 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					})
 					.select('id')
 					.single();
+				// Log activity for notifications
+				if (error.data) {
+					await supabase.from('user_activities').insert({
+						user_id: session?.user.id,
+						activity_type: 'add',
+						media_type: current_medium,
+						media_title: medium.title,
+						details: { backlogged: medium.backlogged || 0 }
+					});
+				}
 				return new Response(JSON.stringify(error));
 			case 'movies':
 				error = await supabase
@@ -51,6 +61,16 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					})
 					.select('id')
 					.single();
+				// Log activity for notifications
+				if (error.data) {
+					await supabase.from('user_activities').insert({
+						user_id: session?.user.id,
+						activity_type: 'add',
+						media_type: current_medium,
+						media_title: medium.title,
+						details: { backlogged: medium.backlogged || 0 }
+					});
+				}
 				return new Response(JSON.stringify(error));
 			case 'shows':
 				error = await supabase
@@ -71,6 +91,16 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					})
 					.select('id')
 					.single();
+				// Log activity for notifications
+				if (error.data) {
+					await supabase.from('user_activities').insert({
+						user_id: session?.user.id,
+						activity_type: 'add',
+						media_type: current_medium,
+						media_title: medium.title,
+						details: { backlogged: medium.backlogged || 0 }
+					});
+				}
 				return new Response(JSON.stringify(error));
 			case 'books':
 				error = await supabase
@@ -92,6 +122,16 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					})
 					.select('id')
 					.single();
+				// Log activity for notifications
+				if (error.data) {
+					await supabase.from('user_activities').insert({
+						user_id: session?.user.id,
+						activity_type: 'add',
+						media_type: current_medium,
+						media_title: medium.title,
+						details: { backlogged: medium.backlogged || 0 }
+					});
+				}
 				return new Response(JSON.stringify(error));
 			default:
 				throw 'Switch Statement failed';

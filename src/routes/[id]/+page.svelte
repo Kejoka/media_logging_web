@@ -12,15 +12,22 @@
 	} from '$lib/dbUtils.js';
 	import { DatePicker } from 'date-picker-svelte';
 	import { onMount, tick } from 'svelte';
+	import { get } from 'svelte/store';
 	import { online_status } from '../../stores/onlineStatus';
+	import {
+		current_medium as current_medium_store,
+		current_year as current_year_store,
+		sorting_method as sorting_method_store
+	} from '../../stores/uiState';
 	import Fuse, { type IFuseOptions } from 'fuse.js';
 	import { getMediaCodeIndex, getMediaCodeString, getModeString } from '$lib/utils';
+	import type { SortingMethod, UserChallenge } from '$lib/types';
 	import MediaSelectionBar from '$lib/UI/mediaSelectionBar.svelte';
 	import ModeSelectionBar from '$lib/UI/modeSelectionBar.svelte';
 	export let data;
-	let { session, profile, user_id, games, movies, shows, books } = data;
+	let { session, profile, user_id, games, movies, shows, books, challenges = [] } = data;
 	$: is_online = $online_status;
-	$: ({ session, profile, user_id, games, movies, shows, books } = data);
+	$: ({ session, profile, user_id, games, movies, shows, books, challenges = [] } = data);
 	// HTML bind variables
 	let date_modal: HTMLInputElement;
 	let search_modal: HTMLInputElement;
@@ -33,12 +40,14 @@
 	let add_button: HTMLButtonElement;
 	// State variables
 	const own_profile = profile.id == user_id;
-	let current_medium = 'movies';
+	let current_medium = get(current_medium_store);
 	let current_tab_index = 1;
-	let current_year = String(new Date().getFullYear());
+	let current_year = get(current_year_store);
 	let current_mode = 0;
+	let sorting_method: SortingMethod = get(sorting_method_store);
 	let current_suggestions: mediaObject[] = [];
 	let current_season_suggestions: tvSeason[] = [];
+	let challenge_data: UserChallenge[] = challenges;
 	let last_selection: mediaObject = {} as mediaObject;
 	let selected_date = new Date();
 	let search_val: string;
@@ -55,11 +64,57 @@
 	let header_text = getModeString(current_mode);
 	let input_timeout = setTimeout(function () {}, 0);
 	let is_initializing = true;
+	$: current_medium_store.set(current_medium);
+	$: current_year_store.set(current_year);
+	$: sorting_method_store.set(sorting_method);
 	const fuse_options: IFuseOptions<mediaObject> = {
 		keys: ['title'],
 		isCaseSensitive: false,
 		minMatchCharLength: 3
 	};
+
+	function getDateTimestamp(dateValue?: string): number {
+		if (!dateValue) {
+			return Number.NEGATIVE_INFINITY;
+		}
+		const timestamp = new Date(dateValue).getTime();
+		return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+	}
+
+	function compareMedia(a: mediaObject, b: mediaObject, method: SortingMethod): number {
+		switch (method) {
+			case 'date_added_asc':
+				return getDateTimestamp(a.added) - getDateTimestamp(b.added);
+			case 'date_added_desc':
+				return getDateTimestamp(b.added) - getDateTimestamp(a.added);
+			case 'release_date_asc':
+				return getDateTimestamp(a.release) - getDateTimestamp(b.release);
+			case 'release_date_desc':
+				return getDateTimestamp(b.release) - getDateTimestamp(a.release);
+			case 'review_score_asc':
+				return (a.rating || 0) - (b.rating || 0);
+			case 'review_score_desc':
+				return (b.rating || 0) - (a.rating || 0);
+			case 'title_desc':
+				return (b.title || '').localeCompare(a.title || '', 'de', { sensitivity: 'base' });
+			case 'title_asc':
+			default:
+				return (a.title || '').localeCompare(b.title || '', 'de', { sensitivity: 'base' });
+		}
+	}
+
+	function sortMediaList(list: mediaObject[]): mediaObject[] {
+		return [...list].sort((a, b) => compareMedia(a, b, sorting_method));
+	}
+
+	function applySortingToVisibleData() {
+		for (let index = 0; index < media_data.length; index += 1) {
+			media_data[index] = sortMediaList(media_data[index]);
+		}
+		for (let index = 0; index < media_data_unfiltered.length; index += 1) {
+			media_data_unfiltered[index] = sortMediaList(media_data_unfiltered[index]);
+		}
+	}
 
 	// Load data and set up inital states depending on online status and sync status
 	onMount(async () => {
@@ -142,9 +197,14 @@
 		for (let media of media_data) {
 			media_data_unfiltered.push(media);
 		}
+		applySortingToVisibleData();
+		challenge_data = challenges;
 		years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
 		await tick();
 		requestAnimationFrame(() => {
+			if (!carousel) {
+				return;
+			}
 			carousel.scrollLeft = carousel.clientWidth * current_tab_index;
 			setTimeout(() => {
 				is_initializing = false;
@@ -197,6 +257,9 @@
 			if (is_initializing) {
 				return;
 			}
+			if (!carousel) {
+				return;
+			}
 			if (event.type == 'scroll') {
 				if (carousel.clientWidth === 0) {
 					return;
@@ -233,6 +296,7 @@
 			for (let [index, media] of media_data.entries()) {
 				media_data_unfiltered[index] = media;
 			}
+			applySortingToVisibleData();
 		}, 20);
 	}
 	// Handle the switch between the modes Media-Log, Backlog and Stats
@@ -240,7 +304,7 @@
 		current_mode = event.mode;
 		header_text = getModeString(current_mode);
 		if (current_mode != 1) {
-			await refreshCardList(new Date().getFullYear.toString());
+			await refreshCardList(new Date().getFullYear().toString());
 		} else {
 			await refreshCardList('Gesamt');
 			years_in_db = years_in_db.slice(-1);
@@ -264,6 +328,7 @@
 			media_data_unfiltered[index] = media;
 		}
 		current_year = year;
+		applySortingToVisibleData();
 	}
 	// Refreshes the current card list to visualize recent changes
 	async function refreshCardList(set_year: string) {
@@ -318,6 +383,7 @@
 		for (let [index, media] of media_data.entries()) {
 			media_data_unfiltered[index] = media;
 		}
+		applySortingToVisibleData();
 	}
 	// Handles input changes in the add medium form
 	function handleInput() {
@@ -344,7 +410,7 @@
 	// Handles input changes in the search bar filter
 	async function handleFilter(detail: { value: string }) {
 		if (detail.value.trim().length == 0) {
-			media_data = media_data_unfiltered;
+			media_data = media_data_unfiltered.map((list) => [...list]);
 		} else {
 			let fuses: Fuse<mediaObject>[] = [];
 			for (let media of media_data_unfiltered) {
@@ -356,6 +422,45 @@
 					.map((res) => res.item) as mediaObject[];
 			}
 		}
+		for (let index = 0; index < media_data.length; index += 1) {
+			media_data[index] = sortMediaList(media_data[index]);
+		}
+	}
+
+	function handleChallengeUpdated(event: CustomEvent) {
+		const challenge = event.detail as UserChallenge;
+		const existingIndex = challenge_data.findIndex(
+			(item) =>
+				(item.id && challenge.id && item.id === challenge.id) ||
+				(item.medium === challenge.medium &&
+					item.year === challenge.year &&
+					item.challenge_type === challenge.challenge_type)
+		);
+		if (existingIndex >= 0) {
+			challenge_data[existingIndex] = challenge;
+			challenge_data = [...challenge_data];
+		} else {
+			challenge_data = [...challenge_data, challenge];
+		}
+	}
+
+	function handleChallengeDeleted(event: CustomEvent) {
+		const challenge = event.detail as UserChallenge;
+		const index = challenge_data.findIndex(
+			(item) =>
+				item.medium === challenge.medium &&
+				item.year === challenge.year &&
+				item.challenge_type === challenge.challenge_type
+		);
+		if (index >= 0) {
+			challenge_data.splice(index, 1);
+			challenge_data = [...challenge_data];
+		}
+	}
+
+	function handleSortingMethodChange(detail: { method: SortingMethod }) {
+		sorting_method = detail.method;
+		applySortingToVisibleData();
 	}
 	// Handles reaching the end of the current suggestions and lazy loads more suggestions
 	async function handleSuggestionScroll(e: Event) {
@@ -373,7 +478,7 @@
 					'Content-Type': 'application/json'
 				}
 			});
-			const json_res = await res.json();
+			const json_res = (await res.json()) as mediaObject[];
 			if (json_res.length != 0) {
 				current_suggestions = [...current_suggestions, ...json_res];
 			} else {
@@ -418,8 +523,8 @@
 
 	/**
 	 * @param backlog_event
-	 * 0 == remove from backlog and transfer notes
-	 * 1 == remove from backlog and discard notes
+	 * 0 == remove from backlog and transfer reviews
+	 * 1 == remove from backlog and discard reviews
 	 * 2 == keep in backlog
 	 */
 	async function addMedium(backlog_event: number) {
@@ -429,12 +534,12 @@
 		last_selection.backlogged = current_mode;
 		const sync_timestamp = new Date();
 		// Handle Backlog Events
-		let backlog_notes: string = '';
+		let backlog_reviews: string = '';
 		if (backlog_event in [0, 1]) {
 			for (let backlog_match of backlog_matches) {
-				// Merge Backlog Notes
+				// Merge Backlog Reviews
 				if (backlog_match.notes) {
-					backlog_notes += backlog_match.notes + '\n';
+					backlog_reviews += backlog_match.notes + '\n';
 				}
 				//DexieDB
 				switch (current_medium) {
@@ -486,8 +591,8 @@
 				}
 			}
 		}
-		if (backlog_event == 0 && backlog_notes.length != 0) {
-			last_selection.notes = backlog_notes.substring(0, backlog_notes.length - 1);
+		if (backlog_event == 0 && backlog_reviews.length != 0) {
+			last_selection.notes = backlog_reviews.substring(0, backlog_reviews.length - 1);
 		}
 		// Supabase
 		try {
@@ -506,7 +611,8 @@
 					'Content-Type': 'application/json'
 				}
 			});
-			last_selection.id = (await res.json()).data.id;
+			const json = (await res.json()) as { data?: { id?: number } };
+			last_selection.id = json.data?.id;
 		} catch (error) {
 			console.log(error);
 		}
@@ -636,7 +742,9 @@
 		<MediaSelectionBar
 			onSwitchMedium={handleMediaSwitch}
 			onFilter={handleFilter}
+			onSortChange={handleSortingMethodChange}
 			tab_index={current_tab_index}
+			{sorting_method}
 			{current_mode}
 		></MediaSelectionBar>
 	</nav>
@@ -653,9 +761,14 @@
 					{own_profile}
 					media_data={media_data[0]}
 					current_medium={'games'}
+					{current_year}
+					{sorting_method}
+					challenges={challenge_data}
 					{current_mode}
 					on:delete={deleteMedium}
 					on:refresh={() => refreshCardList(current_year)}
+					on:challenge_updated={handleChallengeUpdated}
+					on:challenge_deleted={handleChallengeDeleted}
 					on:swipe={handleMediaSwitch}
 				></CardList>
 			</div>
@@ -664,9 +777,14 @@
 					{own_profile}
 					media_data={media_data[1]}
 					current_medium={'movies'}
+					{current_year}
+					{sorting_method}
+					challenges={challenge_data}
 					{current_mode}
 					on:delete={deleteMedium}
 					on:refresh={() => refreshCardList(current_year)}
+					on:challenge_updated={handleChallengeUpdated}
+					on:challenge_deleted={handleChallengeDeleted}
 					on:swipe={handleMediaSwitch}
 				></CardList>
 			</div>
@@ -675,9 +793,14 @@
 					{own_profile}
 					media_data={media_data[2]}
 					current_medium={'shows'}
+					{current_year}
+					{sorting_method}
+					challenges={challenge_data}
 					{current_mode}
 					on:delete={deleteMedium}
 					on:refresh={() => refreshCardList(current_year)}
+					on:challenge_updated={handleChallengeUpdated}
+					on:challenge_deleted={handleChallengeDeleted}
 					on:swipe={handleMediaSwitch}
 				></CardList>
 			</div>
@@ -686,9 +809,14 @@
 					{own_profile}
 					media_data={media_data[3]}
 					current_medium={'books'}
+					{current_year}
+					{sorting_method}
+					challenges={challenge_data}
 					{current_mode}
 					on:delete={deleteMedium}
 					on:refresh={() => refreshCardList(current_year)}
+					on:challenge_updated={handleChallengeUpdated}
+					on:challenge_deleted={handleChallengeDeleted}
 					on:swipe={handleMediaSwitch}
 				></CardList>
 			</div>
@@ -828,7 +956,7 @@
 					onclick={() => {
 						backlog_button_1.disabled = true;
 						addMedium(0);
-					}}>Entfernen und Notizen übernehmen</button
+					}}>Entfernen und Reviews übernehmen</button
 				>
 				<button
 					bind:this={backlog_button_2}
@@ -836,7 +964,7 @@
 					onclick={() => {
 						backlog_button_2.disabled = true;
 						addMedium(1);
-					}}>Entfernen und Notizen verwerfen</button
+					}}>Entfernen und Reviews verwerfen</button
 				>
 				<button
 					bind:this={backlog_button_3}

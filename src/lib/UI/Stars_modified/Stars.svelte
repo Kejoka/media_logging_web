@@ -24,14 +24,14 @@
 	<div class="range-stars">
 		<div class="stars">
 			{#each Array(config.countStars) as star, id}
-				{#if parseInt(config.score) == id}
+				{#if Math.floor(config.score) == id}
 					<Star
 						id={config.name + id}
 						readOnly={config.readOnly}
 						starConfig={config.starConfig}
-						fillPercentage={config.score - parseInt(config.score)}
+						fillPercentage={config.score - Math.floor(config.score)}
 					/>
-				{:else if parseInt(config.score) > id}
+				{:else if parseInt(config.score.toString()) > id}
 					<Star
 						id={config.name + id}
 						readOnly={config.readOnly}
@@ -65,7 +65,7 @@
 			{#if config.scoreFormat}
 				{config.scoreFormat()}
 			{:else}
-				({parseFloat((config.score / config.countStars) * 100).toFixed(2)}%)
+				({((config.score / config.countStars) * 100).toFixed(2)}%)
 			{/if}
 		</span>
 	{/if}

@@ -4,7 +4,7 @@ const RETRIES: number = 3;
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase } }) {
-	const req_body = await request.json();
+	const req_body = (await request.json()) as { search_val: string };
 	const search_val = req_body['search_val'];
 
 	let try_count = 0;

@@ -6,7 +6,7 @@
 	$: input_value = '';
 
 	function onItemClicked(item: any) {
-		document.activeElement?.blur();
+		(document.activeElement as HTMLElement | null)?.blur();
 		goto(`/${item}`);
 	}
 

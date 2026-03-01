@@ -4,7 +4,12 @@ const RETRIES: number = 3;
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
-	const req_body = await request.json();
+	const req_body = (await request.json()) as {
+		score: number;
+		current_medium: string;
+		medium: { id: number | string };
+		sync_timestamp: string;
+	};
 	const new_score = req_body['score'];
 	const current_medium = req_body['current_medium'];
 	const update_id = req_body['medium']['id'];

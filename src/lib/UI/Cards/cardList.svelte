@@ -14,19 +14,169 @@
 	import { DateInput } from 'date-picker-svelte';
 	import StatCard from './statCard.svelte';
 	import ChartCard from './chartCard.svelte';
+	import ChallengeCard from './challengeCard.svelte';
+	import Star from '../Stars_modified/Star.svelte';
+	import type { SortingMethod, UserChallenge } from '$lib/types';
 	export let media_data: mediaObject[];
 	export let current_medium: string;
 	export let current_mode: number;
 	export let own_profile: boolean;
+	export let current_year: string;
+	export let sorting_method: SortingMethod = 'date_added_desc';
+	export let challenges: UserChallenge[] = [];
 	let delete_modal: HTMLInputElement;
 	let streaming_modal: HTMLInputElement;
 	let edit_modal: HTMLInputElement;
 	let to_delete: mediaObject = { title: '' };
 	let to_edit: mediaObject = { title: '' };
+	let original_to_edit_release: string | null = null;
+	let original_to_edit_added: string | null = null;
 	let to_editRelease: Date = new Date();
 	let to_editAdded: Date = new Date();
-	let streaming_data: { ads?: Object[]; buy?: Object[]; flatrate?: Object[]; rent?: Object[] } = {};
+	type StreamingProvider = {
+		logo_path: string;
+		provider_name: string;
+		// add other properties if needed
+	};
+	let streaming_data: {
+		ads?: StreamingProvider[];
+		buy?: StreamingProvider[];
+		flatrate?: StreamingProvider[];
+		rent?: StreamingProvider[];
+	} = {};
 	const dispatch = createEventDispatcher();
+	const monthFormatter = new Intl.DateTimeFormat('de-DE', { month: 'long' });
+
+	// Determine if we're in a year-specific view or "Gesamt" (all years)
+	$: isYearSpecific = current_year !== 'Gesamt' && Number.isFinite(Number(current_year));
+
+	// Get separator key and label based on sorting method
+	function getSeparatorKey(medium: mediaObject): string {
+		switch (true) {
+			case sorting_method.startsWith('date_added'):
+				return getDateAddedSeparatorKey(medium.added);
+			case sorting_method.startsWith('release_date'):
+				return getReleaseDateSeparatorKey(medium.release);
+			case sorting_method.startsWith('review_score'):
+				return getRatingSeparatorKey(medium.rating || 0);
+			case sorting_method.startsWith('title'):
+				return getTitleSeparatorKey(medium.title || '');
+			default:
+				return 'unbekannt';
+		}
+	}
+
+	function getDateAddedSeparatorKey(dateValue?: string): string {
+		if (!dateValue) {
+			return 'unbekannt';
+		}
+		const date = new Date(dateValue);
+		if (Number.isNaN(date.getTime())) {
+			return 'unbekannt';
+		}
+		// For date_added: separate by month-year if in year view, full year-month if in backlog/Gesamt
+		if (current_mode === 1 || !isYearSpecific) {
+			return `${date.getFullYear()}-${date.getMonth()}`;
+		}
+		return `${date.getFullYear()}-${date.getMonth()}`;
+	}
+
+	function getReleaseDateSeparatorKey(dateValue?: string): string {
+		if (!dateValue) {
+			return 'unbekannt';
+		}
+		const date = new Date(dateValue);
+		if (Number.isNaN(date.getTime())) {
+			return 'unbekannt';
+		}
+		// For release_date: separate by year only
+		return `year-${date.getFullYear()}`;
+	}
+
+	function getRatingSeparatorKey(rating: number): string {
+		// Round to nearest 0.5
+		const rounded = Math.round(rating * 2) / 2;
+		if (rating === 0) {
+			return 'rating-no-rating';
+		}
+		return `rating-${rounded}`;
+	}
+
+	function getTitleSeparatorKey(title: string): string {
+		if (!title || title.length === 0) {
+			return 'unbekannt';
+		}
+		return title.charAt(0).toUpperCase();
+	}
+
+	function formatMonthLabel(dateValue?: string): string {
+		if (!dateValue) {
+			return 'Unbekannt';
+		}
+		const date = new Date(dateValue);
+		if (Number.isNaN(date.getTime())) {
+			return 'Unbekannt';
+		}
+		const month = monthFormatter.format(date).replace(/^[a-z]/, (char) => char.toUpperCase());
+		// Add year if in backlog mode or Gesamt view
+		if (current_mode === 1 || !isYearSpecific) {
+			return `${month} ${date.getFullYear()}`;
+		}
+		return month;
+	}
+
+	function formatSeparatorLabel(medium: mediaObject): string {
+		switch (true) {
+			case sorting_method.startsWith('date_added'):
+				return formatMonthLabel(medium.added);
+			case sorting_method.startsWith('release_date'):
+				return formatYearLabel(medium.release);
+			case sorting_method.startsWith('review_score'): {
+				const rating = medium.rating || 0;
+				if (rating === 0) {
+					return 'Keine Bewertung';
+				}
+				const rounded = Math.round(rating * 2) / 2;
+				return `${rounded} Sterne`;
+			}
+			case sorting_method.startsWith('title'):
+				return medium.title?.charAt(0).toUpperCase() || 'Unbekannt';
+			default:
+				return 'Unbekannt';
+		}
+	}
+
+	function formatYearLabel(dateValue?: string): string {
+		if (!dateValue) {
+			return 'Unbekannt';
+		}
+		const date = new Date(dateValue);
+		if (Number.isNaN(date.getTime())) {
+			return 'Unbekannt';
+		}
+		return date.getFullYear().toString();
+	}
+
+	function shouldRenderSeparator(index: number): boolean {
+		if (index === 0) {
+			return true;
+		}
+		const currentKey = getSeparatorKey(media_data[index]);
+		const previousKey = getSeparatorKey(media_data[index - 1]);
+		const shouldRender = currentKey !== previousKey;
+		console.log(media_data[index], media_data[index - 1]);
+		console.log(
+			`[${index}] Current: ${currentKey} | Previous: ${previousKey} | Render: ${shouldRender}`
+		);
+		return shouldRender;
+	}
+
+	// Reaktive Variable für Separator-Keys - wird neu berechnet, wenn sich Sortierung ändert
+	$: separatorKeys = media_data.map((medium, index) => ({
+		index,
+		key: getSeparatorKey(medium),
+		shouldRender: index === 0 || getSeparatorKey(medium) !== getSeparatorKey(media_data[index - 1])
+	}));
 
 	function getRatingConfig(score: number) {
 		return {
@@ -123,9 +273,32 @@
 
 	function showEditForm(event: CustomEvent) {
 		to_edit = event.detail;
+		original_to_edit_release = to_edit.release || null;
+		original_to_edit_added = to_edit.added || null;
 		to_editRelease = new Date(to_edit.release || '');
 		to_editAdded = new Date(to_edit.added || '');
 		edit_modal.checked = true;
+	}
+
+	function getDayKey(dateValue: string | null): string | null {
+		if (!dateValue) {
+			return null;
+		}
+		const parsed = new Date(dateValue);
+		if (Number.isNaN(parsed.getTime())) {
+			return null;
+		}
+		return parsed.toISOString().substring(0, 10);
+	}
+
+	function toIsoOrFallback(date: Date, fallback: string | null): string {
+		if (!Number.isNaN(date.getTime())) {
+			return date.toISOString();
+		}
+		if (fallback) {
+			return fallback;
+		}
+		return new Date().toISOString();
 	}
 
 	async function showProviderList(event: CustomEvent) {
@@ -140,7 +313,8 @@
 					'Content-Type': 'application/json'
 				}
 			});
-			streaming_data = (await res.json()).results.DE;
+			const data = (await res.json()) as { results: { DE: typeof streaming_data } };
+			streaming_data = data.results.DE;
 			streaming_modal.checked = true;
 		} catch (error) {
 			console.log(error);
@@ -148,9 +322,21 @@
 	}
 
 	async function updateMedium() {
+		const releaseFromPicker = toIsoOrFallback(to_editRelease, original_to_edit_release);
+		const addedFromPicker = toIsoOrFallback(to_editAdded, original_to_edit_added);
+
+		const keepOriginalRelease =
+			getDayKey(original_to_edit_release) !== null &&
+			getDayKey(original_to_edit_release) === getDayKey(releaseFromPicker);
+		const keepOriginalAdded =
+			getDayKey(original_to_edit_added) !== null &&
+			getDayKey(original_to_edit_added) === getDayKey(addedFromPicker);
+
+		to_edit.release = keepOriginalRelease
+			? original_to_edit_release || releaseFromPicker
+			: releaseFromPicker;
+		to_edit.added = keepOriginalAdded ? original_to_edit_added || addedFromPicker : addedFromPicker;
 		media_data[media_data.findIndex((obj) => obj.id == to_edit.id)] = to_edit;
-		to_edit.release = to_editRelease.toISOString();
-		to_edit.added = to_editAdded.toISOString();
 		const sync_timestamp = new Date();
 		// DexieDB
 		switch (current_medium) {
@@ -275,7 +461,48 @@
 
 <div class="scrollbar-hide grow overflow-x-hidden overflow-y-auto bg-base-300 pt-2">
 	{#if current_mode != 2}
-		{#each media_data as medium}
+		{#each media_data as medium, index (medium.id)}
+			{#if separatorKeys[index].shouldRender}
+				<div class="mx-3 mt-4 mb-2 flex items-center gap-3">
+					{#if sorting_method.startsWith('review_score')}
+						<!-- Rating separator with stars or no rating label -->
+						{#if (medium.rating || 0) === 0}
+							<p class="text-sm font-semibold text-base-content/70">Keine Bewertung</p>
+						{:else}
+							<div class="flex items-center gap-2 text-base-content/70">
+								<div class="flex gap-0.5">
+									{#each Array(5) as _, i}
+										{@const rating = Math.round((medium.rating || 0) * 2) / 2}
+										{@const starIndex = i + 1}
+										<div class="h-4 w-4">
+											<Star
+												id={`sep-${index}-${i}`}
+												fillPercentage={rating >= starIndex
+													? 1
+													: rating >= starIndex - 0.5
+														? 0.5
+														: 0}
+												starConfig={{
+													size: 14,
+													fillColor: 'var(--color-accent)',
+													strokeColor: 'var(--color-accent)',
+													unfilledColor: 'var(--color-base-300)',
+													strokeUnfilledColor: 'var(--color-base-300)'
+												}}
+												readOnly={true}
+											/>
+										</div>
+									{/each}
+								</div>
+							</div>
+						{/if}
+					{:else}
+						<!-- Text separator -->
+						<p class="text-sm font-semibold text-base-content/70">{formatSeparatorLabel(medium)}</p>
+					{/if}
+					<div class="h-px flex-1 bg-base-content/20"></div>
+				</div>
+			{/if}
 			{@const config = getRatingConfig(medium.rating || 0)}
 			{#if current_medium === 'games'}
 				<GameCard
@@ -325,6 +552,15 @@
 	{:else}
 		{#key media_data}
 			{#if media_data.length != 0}
+				<ChallengeCard
+					{media_data}
+					{current_medium}
+					{current_year}
+					{own_profile}
+					{challenges}
+					on:challenge_updated={(event) => dispatch('challenge_updated', event.detail)}
+					on:challenge_deleted={(event) => dispatch('challenge_deleted', event.detail)}
+				></ChallengeCard>
 				{#if current_medium === 'games'}
 					<StatCard
 						{media_data}
@@ -559,10 +795,10 @@
 			<span class="label-text">Hinzugefügt</span>
 		</div>
 		<DateInput bind:value={to_editAdded} />
-		<!-- Notes -->
+		<!-- Review -->
 		<label class="form-control">
 			<div class="label">
-				<span class="label-text">Notizen</span>
+				<span class="label-text">Review</span>
 			</div>
 			<textarea class="textarea-bordered textarea h-24" bind:value={to_edit.notes}></textarea>
 		</label>

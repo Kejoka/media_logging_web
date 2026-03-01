@@ -9,6 +9,12 @@
 	export let own_profile: boolean;
 
 	let unique = {};
+
+	// Funktion um HTTP-URLs zu HTTPS zu konvertieren
+	function ensureHttps(url: string | null): string | null {
+		if (!url) return null;
+		return url.replace(/^http:\/\//, 'https://');
+	}
 </script>
 
 {#key unique}
@@ -19,7 +25,7 @@
 			<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] bg-base-100 select-none">
 				<figure class="w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh]">
 					{#if medium.image != null}
-						<img src={medium.image} alt={medium.title} />
+					<img src={ensureHttps(medium.image)} alt={medium.title} />
 					{:else}
 						<img src={'/placeholder.png'} alt={'Kein Bild'} />
 					{/if}
@@ -73,17 +79,17 @@
 			</div>
 			<div class="collapse-content px-2 pt-0">
 				{#if medium.notes}
-					<div class="chat-header mt-3">Notiz:</div>
-					{#each medium.notes.split('\n') as note}
+					<div class="chat-header mt-3">Review:</div>
+					{#each medium.notes.split('\n') as review}
 						<div class="chat-start chat">
 							<div class="chat-bubble w-fit">
-								{note}
+								{review}
 							</div>
 						</div>
 					{/each}
 				{:else if !own_profile}
 					<div class="chat-start mt-3 chat">
-						<div class="chat-bubble w-fit">Keine Notiz vorhanden.</div>
+						<div class="chat-bubble w-fit">Keine Review vorhanden.</div>
 					</div>
 				{/if}
 				{#if own_profile}
