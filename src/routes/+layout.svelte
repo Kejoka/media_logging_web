@@ -37,6 +37,7 @@
 		if (!isOwnProfile && !isAuthPage && !isAccountPage) {
 			checkIfFollowing();
 		}
+		console.log(user, isOwnProfile, isAuthPage, isAccountPage, match || null);
 	});
 
 	onMount(() => {
@@ -133,9 +134,6 @@
 				<div class="flex items-center">
 					{#if isOwnProfile && !isAccountPage}
 						<Icon />
-						{isOwnProfile}
-						{isAccountPage}
-						{user?.user_metadata.username}
 					{:else if !isOwnProfile && !isAccountPage}
 						<button
 							type="button"
@@ -143,9 +141,6 @@
 							onclick={() => goto(`/${user?.user_metadata.username}`)}
 						>
 							<Back />
-							{isOwnProfile}
-							{isAccountPage}
-							{user?.user_metadata.username}
 						</button>
 					{:else if isAccountPage}
 						<button
@@ -154,15 +149,9 @@
 							onclick={() => goto(`/${user?.user_metadata.username}`)}
 						>
 							<Back />
-							{isOwnProfile}
-							{isAccountPage}
-							{user?.user_metadata.username}
 						</button>
 					{:else}
 						<Icon />
-						{isOwnProfile}
-						{isAccountPage}
-						{user?.user_metadata.username}
 					{/if}
 				</div>
 
