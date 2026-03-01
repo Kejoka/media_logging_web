@@ -33,11 +33,12 @@
 		} else {
 			const match = path.match(/^\/(\w+)$/);
 			isOwnProfile = !!(match && match[1] === user.user_metadata.username);
+			console.log(match);
 		}
 		if (!isOwnProfile && !isAuthPage && !isAccountPage) {
 			checkIfFollowing();
 		}
-		console.log(user, isOwnProfile, isAuthPage, isAccountPage, match || null);
+		console.log(user, isOwnProfile, isAuthPage, isAccountPage);
 	});
 
 	onMount(() => {
