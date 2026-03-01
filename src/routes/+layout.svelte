@@ -12,33 +12,42 @@
 	import Notifications from '$lib/Icons/notifications.svelte';
 	import NotificationsUnread from '$lib/Icons/notifications_unread.svelte';
 	import NotificationPanel from '$lib/UI/NotificationPanel.svelte';
+	import {
+		is_account_page,
+		is_auth_page,
+		is_own_profile,
+		is_profile_root_page,
+		route_profile_username
+	} from '../stores/uiState';
 
 	let { data, children } = $props();
-	let { supabase, session, user } = $derived(data);
+	let { supabase, session, user, ownProfileUsername } = $derived(data);
 
 	// Determine if the current page is the user's own profile or someone else's
-	let isOwnProfile = $state(false);
 	let followingUser = $state(false);
 	let notificationPanelOpen = $state(false);
 	let unreadCount = $state(0);
-	const isAuthPage = $derived(page.url.pathname === '/' || page.url.pathname.startsWith('/auth/'));
-	const isAccountPage = $derived(page.url.pathname === '/account');
 
 	$effect(() => {
 		const path = page.url.pathname;
-		if (!user) {
-			isOwnProfile = false;
-		} else if (isAccountPage) {
-			isOwnProfile = true;
-		} else {
-			const match = path.match(/^\/(\w+)$/);
-			isOwnProfile = !!(match && match[1] === user.user_metadata.username);
-			console.log(match);
-		}
-		if (!isOwnProfile && !isAuthPage && !isAccountPage) {
+		const authPage = path === '/' || path.startsWith('/auth/');
+		const accountPage = path === '/account';
+		const pathSegments = path.split('/').filter(Boolean);
+		const firstSegment = pathSegments[0] ?? null;
+		const profileRootPage = pathSegments.length === 1 && firstSegment !== null;
+
+		is_auth_page.set(authPage);
+		is_account_page.set(accountPage);
+		is_profile_root_page.set(profileRootPage);
+		route_profile_username.set(firstSegment);
+
+		const ownProfile =
+			!!user && (accountPage || !!(firstSegment && ownProfileUsername === firstSegment));
+		is_own_profile.set(ownProfile);
+
+		if (!ownProfile && !authPage && !accountPage && profileRootPage) {
 			checkIfFollowing();
 		}
-		console.log(user, isOwnProfile, isAuthPage, isAccountPage);
 	});
 
 	onMount(() => {
@@ -54,7 +63,7 @@
 
 		// Check unread notifications periodically
 		const checkUnread = async () => {
-			if (user && isOwnProfile && !notificationPanelOpen) {
+			if (user && $is_own_profile && !notificationPanelOpen) {
 				try {
 					const res = await fetch('/api/v1/getNotifications', {
 						method: 'POST',
@@ -86,10 +95,11 @@
 
 	async function checkIfFollowing() {
 		if (!user) return;
+		if (!$route_profile_username) return;
 		const res = await fetch('/api/v1/followCheck', {
 			method: 'POST',
 			body: JSON.stringify({
-				followee: page.url.pathname.slice(1)
+				followee: $route_profile_username
 			}),
 			headers: {
 				'Content-Type': 'application/json'
@@ -100,10 +110,11 @@
 	}
 
 	async function toggleFollow() {
+		if (!$route_profile_username) return;
 		const res = await fetch('/api/v1/followUser', {
 			method: 'POST',
 			body: JSON.stringify({
-				followee: page.url.pathname.slice(1)
+				followee: $route_profile_username
 			}),
 			headers: {
 				'Content-Type': 'application/json'
@@ -128,26 +139,26 @@
 
 <!-- Main Div -->
 <div class="flex h-screen flex-col">
-	{#if !isAuthPage && session}
+	{#if !$is_auth_page && session}
 		<nav class="sticky top-0 right-0 left-0 z-10 bg-base-300 shadow-lg shadow-black/30">
 			<div class="relative flex min-h-12 w-full flex-row items-center px-4 py-2">
 				<!-- Left icons -->
 				<div class="flex items-center">
-					{#if isOwnProfile && !isAccountPage}
+					{#if $is_own_profile && !$is_account_page}
 						<Icon />
-					{:else if !isOwnProfile && !isAccountPage}
+					{:else if !$is_own_profile && !$is_account_page}
 						<button
 							type="button"
 							class="m-0 cursor-pointer border-none bg-transparent p-0"
-							onclick={() => goto(`/${user?.user_metadata.username}`)}
+							onclick={() => goto(ownProfileUsername ? `/${ownProfileUsername}` : '/account')}
 						>
 							<Back />
 						</button>
-					{:else if isAccountPage}
+					{:else if $is_account_page}
 						<button
 							type="button"
 							class="m-0 cursor-pointer border-none bg-transparent p-0"
-							onclick={() => goto(`/${user?.user_metadata.username}`)}
+							onclick={() => goto(ownProfileUsername ? `/${ownProfileUsername}` : '/account')}
 						>
 							<Back />
 						</button>
@@ -157,31 +168,31 @@
 				</div>
 
 				<!-- Centered title -->
-				{#if isOwnProfile && !isAccountPage}
+				{#if $is_own_profile && !$is_account_page}
 					<p
 						class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-bold whitespace-nowrap text-neutral-300 transition hover:text-neutral-400"
 					>
 						Deine Medien
 					</p>
-				{:else if !isOwnProfile && !isAccountPage}
+				{:else if !$is_own_profile && !$is_account_page && $is_profile_root_page}
 					<p
 						class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-bold whitespace-nowrap text-neutral-300 transition hover:text-neutral-400"
 					>
-						{page.url.pathname.slice(1) + "'s"} Medien
+						{$route_profile_username + "'s"} Medien
 					</p>
 				{/if}
 
 				<!-- Right icons -->
 				<div class="ml-auto flex items-center gap-2">
-					{#if !isOwnProfile && !followingUser}
+					{#if !$is_own_profile && !followingUser && $is_profile_root_page}
 						<button onclick={toggleFollow}>
 							<UserFollow />
 						</button>
-					{:else if !isOwnProfile && followingUser}
+					{:else if !$is_own_profile && followingUser && $is_profile_root_page}
 						<button onclick={toggleFollow}>
 							<UserUnfollow />
 						</button>
-					{:else if isOwnProfile}
+					{:else if $is_own_profile}
 						<button onclick={() => (notificationPanelOpen = !notificationPanelOpen)}>
 							{#if unreadCount > 0}
 								<NotificationsUnread />
@@ -204,7 +215,7 @@
 	</main>
 
 	<!-- Notification Panel -->
-	{#if !isAuthPage && session && isOwnProfile}
+	{#if !$is_auth_page && session && $is_own_profile}
 		<NotificationPanel
 			bind:isOpen={notificationPanelOpen}
 			onUnreadCountChange={(count) => (unreadCount = count)}

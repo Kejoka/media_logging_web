@@ -21,7 +21,7 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const fullName = formData.get('fullName') as string;
 		let username = (formData.get('username') as string) ?? '';
-		username = username.trim().toLowerCase();
+		username = username.trim();
 		const website = formData.get('website') as string;
 		const avatarUrl = formData.get('avatarUrl') as string;
 
@@ -43,13 +43,13 @@ export const actions: Actions = {
 				});
 			}
 
-			if (!/^[a-z0-9_]+$/.test(username)) {
+			if (!/^[A-Za-z0-9_]+$/.test(username)) {
 				return fail(400, {
 					fullName,
 					username,
 					website,
 					avatarUrl,
-					error: 'Username can only contain lowercase letters, numbers, and underscores'
+					error: 'Username can only contain letters, numbers, and underscores'
 				});
 			}
 			const { data: existingUser, error: existingUserError } = await supabase
