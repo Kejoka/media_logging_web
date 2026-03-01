@@ -20,7 +20,6 @@
 	let isOwnProfile = $state(false);
 	let followingUser = $state(false);
 	let notificationPanelOpen = $state(false);
-	let notificationPanel: any = $state(null);
 	let unreadCount = $state(0);
 	const isAuthPage = $derived(page.url.pathname === '/' || page.url.pathname.startsWith('/auth/'));
 	const isAccountPage = $derived(page.url.pathname === '/account');
@@ -134,6 +133,9 @@
 				<div class="flex items-center">
 					{#if isOwnProfile && !isAccountPage}
 						<Icon />
+						{isOwnProfile}
+						{isAccountPage}
+						{user?.user_metadata.username}
 					{:else if !isOwnProfile && !isAccountPage}
 						<button
 							type="button"
@@ -141,6 +143,9 @@
 							onclick={() => goto(`/${user?.user_metadata.username}`)}
 						>
 							<Back />
+							{isOwnProfile}
+							{isAccountPage}
+							{user?.user_metadata.username}
 						</button>
 					{:else if isAccountPage}
 						<button
@@ -149,9 +154,15 @@
 							onclick={() => goto(`/${user?.user_metadata.username}`)}
 						>
 							<Back />
+							{isOwnProfile}
+							{isAccountPage}
+							{user?.user_metadata.username}
 						</button>
 					{:else}
 						<Icon />
+						{isOwnProfile}
+						{isAccountPage}
+						{user?.user_metadata.username}
 					{/if}
 				</div>
 
