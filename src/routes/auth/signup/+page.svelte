@@ -60,13 +60,11 @@
 								autocomplete="username"
 								required
 								minlength={3}
-								pattern="^[a-z0-9_]+$"
+								pattern="^[A-Za-z0-9_]+$"
 								placeholder="Dein Benutzername..."
 								value={form?.username ?? ''}
 								oninput={(e) =>
-									(e.currentTarget.value = e.currentTarget.value
-										.toLowerCase()
-										.replace(/[^a-z0-9_]/g, ''))}
+									(e.currentTarget.value = e.currentTarget.value.replace(/[^A-Za-z0-9_]/g, ''))}
 								class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-neutral-500 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
 							/>
 							<p class="mt-1 text-xs text-neutral-500">

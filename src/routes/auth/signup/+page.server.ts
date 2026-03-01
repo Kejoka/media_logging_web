@@ -25,7 +25,7 @@ export const actions: Actions = {
 		const password = formData.get('password') as string;
 		const confirmPassword = formData.get('confirmPassword') as string;
 		let username = (formData.get('username') as string) ?? '';
-		username = username.trim().toLowerCase();
+		username = username.trim();
 
 		if (!email) {
 			return fail(400, { error: 'Email is required', email, username });
@@ -44,10 +44,10 @@ export const actions: Actions = {
 			});
 		}
 
-		// Only allow lowercase letters, numbers and underscores to keep usernames URL-safe
-		if (!/^[a-z0-9_]+$/.test(username)) {
+		// Only allow letters, numbers and underscores to keep usernames URL-safe
+		if (!/^[A-Za-z0-9_]+$/.test(username)) {
 			return fail(400, {
-				error: 'Benutzername darf nur Kleinbuchstaben, Zahlen und Unterstriche enthalten',
+				error: 'Benutzername darf nur Buchstaben, Zahlen und Unterstriche enthalten',
 				email,
 				username
 			});
