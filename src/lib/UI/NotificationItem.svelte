@@ -4,19 +4,86 @@
 	type NotificationItemType = {
 		id: string | number;
 		username: string;
-		activity_type: 'add' | 'update' | 'delete' | 'bulk_add' | 'follow';
+		activity_type: 'add' | 'update' | 'delete' | 'follow';
 		media_type: 'games' | 'movies' | 'shows' | 'books' | null;
 		media_title?: string;
 		media_image?: string;
-		count?: number;
 		created_at: string;
 		isUnread: boolean;
+		details?: {
+			media_id?: string | number;
+			media_year?: number;
+			[key: string]: any;
+		};
 	};
 
-	let { notification }: { notification: NotificationItemType } = $props();
+	let { 
+		notification,
+		onDismiss
+	}: { 
+		notification: NotificationItemType;
+		onDismiss?: (notificationId: string | number) => void;
+	} = $props();
 
-	function handleClick() {
-		goto(`/${notification.username}`);
+	let isLoading = $state(false);
+
+	async function handleDismiss(e: Event) {
+		e.stopPropagation();
+		isLoading = true;
+		try {
+			const res = await fetch('/api/v1/dismissNotification', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ notificationId: notification.id })
+			});
+
+			if (!res.ok) {
+				throw new Error('Failed to dismiss notification');
+			}
+
+			// Notify parent component
+			if (onDismiss) {
+				onDismiss(notification.id);
+			}
+		} catch (err) {
+			console.error('Error dismissing notification:', err);
+		} finally {
+			isLoading = false;
+		}
+	}
+
+	async function handleClick() {
+		// Mark as dismissed when clicked
+		try {
+			await fetch('/api/v1/dismissNotification', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ notificationId: notification.id })
+			});
+		} catch (err) {
+			console.error('Error auto-dismissing notification:', err);
+		}
+
+		// Build URL with media parameters including year
+		const mediaId = notification.details?.media_id;
+		const mediaType = notification.media_type;
+		const mediaYear = notification.details?.media_year;
+		let url = `/${notification.username}`;
+		
+		const params = new URLSearchParams();
+		if (mediaId) params.append('mediaId', String(mediaId));
+		if (mediaType) params.append('mediaType', mediaType);
+		if (mediaYear) params.append('mediaYear', String(mediaYear));
+		
+		if (params.size > 0) {
+			url += `?${params.toString()}`;
+		}
+
+		await goto(url);
 	}
 
 	function getMediaTypeIcon(mediaType: string) {
@@ -45,17 +112,6 @@
 		}
 
 		const mediaName = getMediaTypeName(notification.media_type || 'games');
-
-		if (notification.activity_type === 'bulk_add') {
-			const pluralNames: Record<string, string> = {
-				games: 'Spiele',
-				movies: 'Filme',
-				shows: 'Serien',
-				books: 'Bücher'
-			};
-			const plural = pluralNames[notification.media_type || 'games'] || 'Medien';
-			return `hat ${notification.count} ${plural} hinzugefügt`;
-		}
 
 		switch (notification.activity_type) {
 			case 'add':
@@ -95,7 +151,7 @@
 		<div class="shrink-0">
 			{#if notification.activity_type === 'follow'}
 				<span class="text-2xl">👤</span>
-			{:else if notification.media_image && notification.activity_type !== 'bulk_add'}
+			{:else if notification.media_image}
 				<img
 					src={notification.media_image}
 					alt={notification.media_title}
@@ -112,7 +168,7 @@
 				<span class="font-semibold">{notification.username}</span>
 				<span class="text-neutral-400"> {getActivityText(notification)}</span>
 			</p>
-			{#if notification.media_title && notification.activity_type !== 'bulk_add'}
+			{#if notification.media_title}
 				<p class="mt-1 truncate text-sm text-neutral-500">
 					{notification.media_title}
 				</p>
@@ -122,11 +178,36 @@
 			</p>
 		</div>
 
-		<!-- Unread indicator -->
-		{#if notification.isUnread}
-			<div class="shrink-0">
+		<!-- Unread indicator and Dismiss button -->
+		<div class="shrink-0 flex items-center gap-2">
+			{#if notification.isUnread}
 				<div class="h-2 w-2 rounded-full bg-info"></div>
-			</div>
-		{/if}
+			{/if}
+			<!-- Dismiss button (X) -->
+			<button
+				onclick={handleDismiss}
+				disabled={isLoading}
+				class="p-1 rounded-lg transition hover:bg-base-200 hover:opacity-70 disabled:opacity-50"
+				aria-label="Benachrichtigung löschen"
+				title="Benachrichtigung löschen"
+			>
+				{#if isLoading}
+					<span class="loading loading-spinner loading-xs"></span>
+				{:else}
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="h-4 w-4 opacity-50 hover:opacity-100"
+						viewBox="0 0 20 20"
+						fill="currentColor"
+					>
+						<path
+							fill-rule="evenodd"
+							d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+							clip-rule="evenodd"
+						/>
+					</svg>
+				{/if}
+			</button>
+		</div>
 	</div>
 </div>

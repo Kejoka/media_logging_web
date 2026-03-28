@@ -23,14 +23,12 @@
 			</div>
 
 			{#if form?.success}
-				<div
-					class="mb-6 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-400"
-				>
+				<div class="ml-alert-success mb-6 rounded-lg px-4 py-3 text-sm">
 					{form.message}
 				</div>
 				<a
 					href="/account"
-					class="mt-4 block w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-emerald-500"
+					class="ml-action-positive ml-focus mt-4 block w-full rounded-lg px-4 py-2.5 text-center text-sm font-semibold transition"
 				>
 					Gehe zu deinem Konto
 				</a>
@@ -66,7 +64,7 @@
 								required
 								minlength={8}
 								placeholder="••••••••"
-								class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-neutral-500 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
+								class="ml-focus w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-neutral-500 transition"
 							/>
 							<p class="mt-1 text-xs text-neutral-500">Mindestens 8 Zeichen</p>
 						</div>
@@ -83,14 +81,14 @@
 								required
 								minlength={8}
 								placeholder="••••••••"
-								class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-neutral-500 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
+								class="ml-focus w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-neutral-500 transition"
 							/>
 						</div>
 
 						<button
 							type="submit"
 							disabled={loading}
-							class="w-full cursor-pointer rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+							class="ml-action-positive ml-focus w-full cursor-pointer rounded-lg px-4 py-2.5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50"
 						>
 							{loading ? 'Aktualisiere...' : 'Passwort aktualisieren'}
 						</button>

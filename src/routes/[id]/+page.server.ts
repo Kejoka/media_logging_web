@@ -65,6 +65,10 @@ export const load: PageServerLoad = async ({
 		movies,
 		shows,
 		books,
-		challenges: challenges.data || []
+		challenges: challenges.data || [],
+		// Query parameters for routing from notifications
+		mediaId: url.searchParams.get('mediaId'),
+		mediaType: url.searchParams.get('mediaType'),
+		mediaYear: url.searchParams.get('mediaYear')
 	};
 };

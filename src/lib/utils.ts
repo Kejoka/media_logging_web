@@ -3,7 +3,41 @@ export function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function getMediaCodeString(current_medium: string): string {
+export const MEDIA_TYPE_ORDER = ['games', 'movies', 'shows', 'books'] as const;
+
+export type MediaType = (typeof MEDIA_TYPE_ORDER)[number];
+
+export function isMediaType(value: string): value is MediaType {
+	return MEDIA_TYPE_ORDER.includes(value as MediaType);
+}
+
+export function normalize_enabled_media_types(value?: string | null): MediaType[] {
+	const raw_values = value
+		?.split(',')
+		.map((entry) => entry.trim())
+		.filter((entry) => entry.length > 0);
+
+	if (!raw_values || raw_values.length === 0) {
+		return [...MEDIA_TYPE_ORDER];
+	}
+
+	const unique_values = Array.from(new Set(raw_values.filter((entry) => isMediaType(entry)))) as MediaType[];
+	if (unique_values.length === 0) {
+		return [...MEDIA_TYPE_ORDER];
+	}
+
+	return MEDIA_TYPE_ORDER.filter((type) => unique_values.includes(type));
+}
+
+export function serialize_enabled_media_types(media_types: MediaType[]): string {
+	const filtered = MEDIA_TYPE_ORDER.filter((type) => media_types.includes(type));
+	return filtered.join(',');
+}
+
+/**
+ * Converts a medium code used in the DB/API to a German UI label.
+ */
+export function get_media_type_display_label(current_medium: string): string {
 	switch (current_medium) {
 		case 'games':
 			return 'Game';
@@ -18,7 +52,10 @@ export function getMediaCodeString(current_medium: string): string {
 	}
 }
 
-export function getModeString(current_mode: number) {
+/**
+ * Converts the numeric UI mode to the headline label shown in the app.
+ */
+export function get_ui_mode_label_from_code(current_mode: number) {
 	switch (current_mode) {
 		case 0:
 			return 'Medien Log';
@@ -29,6 +66,21 @@ export function getModeString(current_mode: number) {
 		default:
 			return 'ERROR';
 	}
+}
+
+/**
+ * Trims string inputs and applies a fallback if the value is empty.
+ * Keeps validation behavior consistent between server endpoints.
+ */
+export function validate_and_trim_field(
+	value: string | undefined | null,
+	default_value: string | null
+): string | null {
+	if (!value) {
+		return default_value;
+	}
+	const trimmed_value = value.trim();
+	return trimmed_value.length > 0 ? trimmed_value : default_value;
 }
 
 export function getMediaCodeIndex(current_medium: string): number {

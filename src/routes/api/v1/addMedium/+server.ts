@@ -1,9 +1,9 @@
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
-	const req_body = (await request.json()) as Record<string, any>;
-	const current_medium = req_body['current_medium'];
-	const medium = req_body['last_selection'];
-	const sync_timestamp = req_body['sync_timestamp'];
+	const medium_data_from_request = (await request.json()) as Record<string, any>;
+	const current_medium = medium_data_from_request.current_medium;
+	const medium = medium_data_from_request.last_selection;
+	const sync_timestamp = medium_data_from_request.sync_timestamp;
 	const { session } = await safeGetSession();
 	let error;
 	try {
@@ -39,7 +39,11 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						activity_type: 'add',
 						media_type: current_medium,
 						media_title: medium.title,
-						details: { backlogged: medium.backlogged || 0 }
+						details: { 
+							media_id: error.data.id,
+							media_year: new Date(medium.added).getFullYear(),
+							backlogged: medium.backlogged || 0 
+						}
 					});
 				}
 				return new Response(JSON.stringify(error));
@@ -68,7 +72,11 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						activity_type: 'add',
 						media_type: current_medium,
 						media_title: medium.title,
-						details: { backlogged: medium.backlogged || 0 }
+						details: { 
+							media_id: error.data.id,
+							media_year: new Date(medium.added).getFullYear(),
+							backlogged: medium.backlogged || 0 
+						}
 					});
 				}
 				return new Response(JSON.stringify(error));
@@ -98,7 +106,11 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						activity_type: 'add',
 						media_type: current_medium,
 						media_title: medium.title,
-						details: { backlogged: medium.backlogged || 0 }
+						details: { 
+							media_id: error.data.id,
+							media_year: new Date(medium.added).getFullYear(),
+							backlogged: medium.backlogged || 0 
+						}
 					});
 				}
 				return new Response(JSON.stringify(error));
@@ -129,7 +141,11 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						activity_type: 'add',
 						media_type: current_medium,
 						media_title: medium.title,
-						details: { backlogged: medium.backlogged || 0 }
+						details: { 
+							media_id: error.data.id,
+							media_year: new Date(medium.added).getFullYear(),
+							backlogged: medium.backlogged || 0 
+						}
 					});
 				}
 				return new Response(JSON.stringify(error));

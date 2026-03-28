@@ -249,7 +249,7 @@
 			{/each}
 		</div>
 		{#if available_templates_to_create.length > 0 && own_profile}
-			<button class="btn mt-3 w-full btn-sm btn-secondary" on:click={openCreateModal}
+			<button class="btn mt-3 w-full btn-sm btn-success" on:click={openCreateModal}
 				>Weitere Challenge hinzufügen
 			</button>
 		{/if}
@@ -257,7 +257,7 @@
 		<p class="text-base font-semibold">Jahres-Challenges</p>
 		<p class="mt-1 text-sm opacity-70">Setze dir ein Ziel für {medium_label} in {selected_year}.</p>
 		{#if own_profile}
-			<button class="btn mt-3 btn-sm btn-primary" on:click={openCreateModal}
+			<button class="btn mt-3 btn-sm btn-success" on:click={openCreateModal}
 				>Challenge erstellen</button
 			>
 		{:else}
@@ -313,7 +313,7 @@
 		{#if error_message}
 			<p class="mt-2 text-sm text-error">{error_message}</p>
 		{/if}
-		<button class="btn mt-4 btn-primary" disabled={is_saving} on:click={saveChallenge}>
+		<button class="btn mt-4 btn-success" disabled={is_saving} on:click={saveChallenge}>
 			{is_saving ? 'Speichern...' : 'Speichern'}
 		</button>
 	</div>

@@ -4,16 +4,16 @@ const RETRIES: number = 3;
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
-	const req_body = (await request.json()) as {
+	const request_body = (await request.json()) as {
 		score: number;
 		current_medium: string;
 		medium: { id: number | string };
 		sync_timestamp: string;
 	};
-	const new_score = req_body['score'];
-	const current_medium = req_body['current_medium'];
-	const update_id = req_body['medium']['id'];
-	const sync_timestamp = req_body['sync_timestamp'];
+	const new_score = request_body.score;
+	const current_medium = request_body.current_medium;
+	const update_id = request_body.medium.id;
+	const sync_timestamp = request_body.sync_timestamp;
 	const { session } = await safeGetSession();
 
 	let try_count = 0;

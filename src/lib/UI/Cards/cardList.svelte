@@ -3,7 +3,7 @@
 	import TvCard from './tvCard.svelte';
 	import {
 		dexieDB,
-		redoDexieChanges,
+		sync_offline_changes_to_server,
 		type mediaObject,
 		type OfflineChangeObject
 	} from '$lib/dbUtils';
@@ -16,6 +16,14 @@
 	import ChartCard from './chartCard.svelte';
 	import ChallengeCard from './challengeCard.svelte';
 	import Star from '../Stars_modified/Star.svelte';
+	import NoteBubbleEditor from '$lib/UI/NoteBubbleEditor.svelte';
+	import TagInput from '$lib/UI/TagInput.svelte';
+	import movieGenres from '$lib/movieGenres';
+	import tvGenres from '$lib/tvGenres';
+	import gameGenres from '$lib/gameGenres';
+	import bookGenres from '$lib/bookGenres';
+	import gamePlatforms from '$lib/gamePlatforms';
+	import { decodeReviewNotes, encodeReviewNotes, isLegacyReviewNotes } from '$lib/reviewNotes';
 	import type { SortingMethod, UserChallenge } from '$lib/types';
 	export let media_data: mediaObject[];
 	export let current_medium: string;
@@ -33,6 +41,14 @@
 	let original_to_edit_added: string | null = null;
 	let to_editRelease: Date = new Date();
 	let to_editAdded: Date = new Date();
+	let to_editGenreTags: string[] = [];
+	let to_editPlatformTags: string[] = [];
+	let to_editSeasonStart: number | null = null;
+	let to_editSeasonEnd: number | null = null;
+	let to_editEpisode = 0;
+	let show_advanced_fields = false;
+	let legacyMigrationRunning = false;
+	let migratedLegacyNoteIds: number[] = [];
 	type StreamingProvider = {
 		logo_path: string;
 		provider_name: string;
@@ -46,6 +62,86 @@
 	} = {};
 	const dispatch = createEventDispatcher();
 	const monthFormatter = new Intl.DateTimeFormat('de-DE', { month: 'long' });
+
+	function splitCommaSeparatedValues(value?: string): string[] {
+		if (!value) {
+			return [];
+		}
+		return value
+			.split(',')
+			.map((entry) => entry.trim())
+			.filter((entry) => entry.length > 0);
+	}
+
+	function joinCommaSeparatedValues(values: string[]): string | null {
+		const normalized = values
+			.map((entry) => entry.trim())
+			.filter((entry) => entry.length > 0)
+			.filter((entry, index, self) => self.indexOf(entry) === index);
+		if (normalized.length === 0) {
+			return null;
+		}
+		return normalized.join(', ');
+	}
+
+	function parseSeasonRange(rawSeasons?: string): { start: number | null; end: number | null } {
+		if (!rawSeasons || rawSeasons.trim().length === 0) {
+			return { start: null, end: null };
+		}
+		const normalized = rawSeasons.trim();
+		if (normalized.includes('-')) {
+			const [startRaw, endRaw] = normalized.split('-').map((entry) => entry.trim());
+			const start = Number.parseInt(startRaw, 10);
+			const end = Number.parseInt(endRaw, 10);
+			if (!Number.isNaN(start) && start > 0 && !Number.isNaN(end) && end > 0) {
+				return { start: Math.min(start, end), end: Math.max(start, end) };
+			}
+			return { start: null, end: null };
+		}
+		const single = Number.parseInt(normalized, 10);
+		if (!Number.isNaN(single) && single > 0) {
+			return { start: single, end: single };
+		}
+		return { start: null, end: null };
+	}
+
+	function serializeSeasonRange(start: number | null, end: number | null): string | null {
+		if (start === null || Number.isNaN(start) || start <= 0) {
+			return null;
+		}
+		if (end === null || Number.isNaN(end) || end <= 0 || end === start) {
+			return String(start);
+		}
+		const minSeason = Math.min(start, end);
+		const maxSeason = Math.max(start, end);
+		return `${minSeason}-${maxSeason}`;
+	}
+
+	function clampNonNegativeInt(value: unknown): number {
+		const parsed = Number(value);
+		if (!Number.isFinite(parsed)) {
+			return 0;
+		}
+		return Math.max(Math.round(parsed), 0);
+	}
+
+	function getCurrentGenreSuggestions(): string[] {
+		switch (current_medium) {
+			case 'movies':
+				return movieGenres.genres.map((entry) => entry.name);
+			case 'shows':
+				return tvGenres.genres.map((entry) => entry.name);
+			case 'games':
+				return gameGenres.genres.map((entry) => entry.name);
+			case 'books':
+				return bookGenres.genres.map((entry) => entry.name);
+			default:
+				return [];
+		}
+	}
+
+	$: genreSuggestions = getCurrentGenreSuggestions();
+	$: platformSuggestions = gamePlatforms.platforms.map((entry) => entry.name);
 
 	// Determine if we're in a year-specific view or "Gesamt" (all years)
 	$: isYearSpecific = current_year !== 'Gesamt' && Number.isFinite(Number(current_year));
@@ -230,7 +326,7 @@
 			try {
 				const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
 				if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-					redoDexieChanges();
+					sync_offline_changes_to_server();
 				}
 				const res = await fetch('/api/v1/updateScore', {
 					method: 'POST',
@@ -277,6 +373,13 @@
 		original_to_edit_added = to_edit.added || null;
 		to_editRelease = new Date(to_edit.release || '');
 		to_editAdded = new Date(to_edit.added || '');
+		to_editGenreTags = splitCommaSeparatedValues(to_edit.genres);
+		to_editPlatformTags = splitCommaSeparatedValues(to_edit.platforms);
+		const seasonRange = parseSeasonRange(to_edit.seasons);
+		to_editSeasonStart = seasonRange.start;
+		to_editSeasonEnd = seasonRange.end;
+		to_editEpisode = clampNonNegativeInt(to_edit.episode);
+		show_advanced_fields = false;
 		edit_modal.checked = true;
 	}
 
@@ -324,6 +427,7 @@
 	async function updateMedium() {
 		const releaseFromPicker = toIsoOrFallback(to_editRelease, original_to_edit_release);
 		const addedFromPicker = toIsoOrFallback(to_editAdded, original_to_edit_added);
+		const normalizedNotes = encodeReviewNotes(decodeReviewNotes(to_edit.notes).bubbles);
 
 		const keepOriginalRelease =
 			getDayKey(original_to_edit_release) !== null &&
@@ -336,6 +440,15 @@
 			? original_to_edit_release || releaseFromPicker
 			: releaseFromPicker;
 		to_edit.added = keepOriginalAdded ? original_to_edit_added || addedFromPicker : addedFromPicker;
+		to_edit.notes = normalizedNotes;
+		to_edit.genres = joinCommaSeparatedValues(to_editGenreTags) || undefined;
+		if (current_medium === 'games') {
+			to_edit.platforms = joinCommaSeparatedValues(to_editPlatformTags) || undefined;
+		}
+		if (current_medium === 'shows') {
+			to_edit.seasons = serializeSeasonRange(to_editSeasonStart, to_editSeasonEnd) || undefined;
+			to_edit.episode = clampNonNegativeInt(to_editEpisode);
+		}
 		media_data[media_data.findIndex((obj) => obj.id == to_edit.id)] = to_edit;
 		const sync_timestamp = new Date();
 		// DexieDB
@@ -426,11 +539,11 @@
 		try {
 			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
 			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-				redoDexieChanges();
+				sync_offline_changes_to_server();
 			}
 			const res = await fetch('/api/v1/updateMedium', {
 				method: 'POST',
-				body: JSON.stringify({ to_edit, current_medium, sync_timestamp }),
+				body: JSON.stringify({ medium_fields_to_update: to_edit, current_medium, sync_timestamp }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
@@ -456,6 +569,112 @@
 		}
 		dispatch('refresh');
 		edit_modal.checked = false;
+	}
+
+	async function updateLocalLegacyNotes(mediumId: number, notes: string) {
+		const normalizedNotes = notes.trim().length > 0 ? notes.trim() : undefined;
+		switch (current_medium) {
+			case 'games':
+				await dexieDB.games.update(mediumId, { notes: normalizedNotes });
+				break;
+			case 'movies':
+				await dexieDB.movies.update(mediumId, { notes: normalizedNotes });
+				break;
+			case 'shows':
+				await dexieDB.shows.update(mediumId, { notes: normalizedNotes });
+				break;
+			case 'books':
+				await dexieDB.books.update(mediumId, { notes: normalizedNotes });
+				break;
+			default:
+				break;
+		}
+	}
+
+	async function migrateLegacyNotes() {
+		if (!own_profile || legacyMigrationRunning) {
+			return;
+		}
+
+		legacyMigrationRunning = true;
+		try {
+			for (const medium of media_data) {
+				if (typeof medium.id !== 'number') {
+					continue;
+				}
+				if (migratedLegacyNoteIds.includes(medium.id) || !isLegacyReviewNotes(medium.notes)) {
+					continue;
+				}
+
+				const encodedNotes = encodeReviewNotes(decodeReviewNotes(medium.notes).bubbles);
+				if (encodedNotes.length === 0) {
+					if (!migratedLegacyNoteIds.includes(medium.id)) {
+						migratedLegacyNoteIds = [...migratedLegacyNoteIds, medium.id];
+					}
+					continue;
+				}
+
+				const sync_timestamp = new Date();
+				const migratedCard = { ...medium, notes: encodedNotes } as mediaObject;
+				const cardIndex = media_data.findIndex((entry) => entry.id === medium.id);
+				if (cardIndex !== -1) {
+					media_data[cardIndex] = migratedCard;
+				}
+
+				await updateLocalLegacyNotes(medium.id, encodedNotes);
+				await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
+
+				try {
+					const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+					if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
+						sync_offline_changes_to_server();
+					}
+					await fetch('/api/v1/updateMedium', {
+						method: 'POST',
+						body: JSON.stringify({
+							medium_fields_to_update: migratedCard,
+							current_medium,
+							sync_timestamp
+						}),
+						headers: {
+							'Content-Type': 'application/json'
+						}
+					});
+				} catch (error) {
+					console.log(error);
+					let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+					if (dexie_prefs) {
+						if (!navigator.onLine) {
+							const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
+							tmp.push({ event: 'update', medium: current_medium, card: migratedCard });
+							dexie_prefs.changed_offline = JSON.stringify(tmp);
+						}
+						dexie_prefs.updated_at = sync_timestamp.toISOString();
+						await dexieDB.prefs.update(0, dexie_prefs);
+					}
+				}
+
+				if (!migratedLegacyNoteIds.includes(medium.id)) {
+					migratedLegacyNoteIds = [...migratedLegacyNoteIds, medium.id];
+				}
+			}
+		} finally {
+			legacyMigrationRunning = false;
+		}
+	}
+
+	$: {
+		const hasLegacyNotes =
+			own_profile &&
+			media_data.some(
+				(medium) =>
+					typeof medium.id === 'number' &&
+					!migratedLegacyNoteIds.includes(medium.id) &&
+					isLegacyReviewNotes(medium.notes)
+			);
+		if (hasLegacyNotes && !legacyMigrationRunning) {
+			void migrateLegacyNotes();
+		}
 	}
 </script>
 
@@ -762,105 +981,157 @@
 </div>
 <!-- Edit_modal -->
 <input type="checkbox" id="edit_modal" class="modal-toggle" bind:this={edit_modal} />
-<div class="modal" role="dialog">
-	<div class="modal-box flex flex-col justify-evenly">
-		<!-- Title -->
-		<label class="form-control w-full max-w-xs">
-			<div class="label">
-				<span class="label-text">Titel</span>
-			</div>
-			<input type="text" bind:value={to_edit.title} class="input-bordered input w-full max-w-xs" />
-		</label>
-		<!-- Image -->
-		<label class="form-control w-full max-w-xs">
-			<div class="label">
-				<span class="label-text">Bild-URL</span>
-			</div>
-			<input type="text" bind:value={to_edit.image} class="input-bordered input w-full max-w-xs" />
-		</label>
-		<!-- Release  -->
-		<div class="label">
-			<span class="label-text">Release-Datum</span>
+<div class="modal overflow-y-auto" role="dialog">
+	<div
+		class="modal-box my-[4dvh] flex max-h-[90dvh] w-[94vw] max-w-2xl flex-col gap-4 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-100 p-4 sm:p-6 scrollbar-hide"
+	>
+		<div class="mb-1">
+			<p class="text-lg font-bold">Eintrag bearbeiten</p>
 		</div>
-		<DateInput bind:value={to_editRelease} />
-		<!-- Genres -->
-		<label class="form-control w-full max-w-xs">
-			<div class="label">
-				<span class="label-text">Genre-Liste</span>
+
+		<div class="grid gap-4 sm:grid-cols-2">
+			<label class="w-full sm:col-span-2">
+				<div class="label pb-1">
+					<span class="label-text font-medium">Titel</span>
+				</div>
+				<div class="w-full p-2">
+					<input type="text" bind:value={to_edit.title} class="ml-input" />
+				</div>
+			</label>
+
+			<div class="w-full">
+				<div class="label pb-1">
+					<span class="label-text font-medium">Release-Datum</span>
+				</div>
+				<div class="w-full p-2">
+					<DateInput bind:value={to_editRelease} max={new Date()} min={new Date(1888, 9, 14)} />
+				</div>
 			</div>
-			<input type="text" bind:value={to_edit.genres} class="input-bordered input w-full max-w-xs" />
-		</label>
-		<!-- Added -->
-		<div class="label">
-			<span class="label-text">Hinzugefügt</span>
+
+			<div class="w-full">
+				<div class="label pb-1">
+					<span class="label-text font-medium">Hinzugefügt</span>
+				</div>
+				<div class="w-full p-2">
+					<DateInput bind:value={to_editAdded} max={new Date()} min={new Date(1888, 9, 14)} />
+				</div>
+			</div>
+
+			<div class="sm:col-span-2">
+				<TagInput
+					label="Genres"
+					bind:value={to_editGenreTags}
+					suggestions={genreSuggestions}
+					placeholder="Genre auswählen oder selbst eingeben"
+				/>
+			</div>
+
+			{#if current_medium === 'games'}
+				<div class="sm:col-span-2">
+					<TagInput
+						label="Plattformen"
+						bind:value={to_editPlatformTags}
+						suggestions={platformSuggestions}
+						placeholder="Plattform auswählen oder selbst eingeben"
+					/>
+				</div>
+			{:else if current_medium === 'shows'}
+				<div class="w-full">
+					<div class="label pb-1">
+						<span class="label-text font-medium">Staffel von</span>
+					</div>
+					<input
+						type="number"
+						min="1"
+						step="1"
+						bind:value={to_editSeasonStart}
+						class="ml-input"
+						placeholder="z.B. 1"
+					/>
+				</div>
+				<div class="w-full">
+					<div class="label pb-1">
+						<span class="label-text font-medium">Staffel bis</span>
+					</div>
+					<input
+						type="number"
+						min="1"
+						step="1"
+						bind:value={to_editSeasonEnd}
+						class="ml-input"
+						placeholder="optional"
+					/>
+				</div>
+				<div class="w-full sm:col-span-2">
+					<div class="label pb-1">
+						<span class="label-text font-medium">Aktuelle Episode</span>
+					</div>
+					<div class="ml-section flex items-center justify-between gap-2 p-2">
+						<button
+							type="button"
+							class="btn btn-sm h-9 min-h-9 w-12"
+							on:click={() => (to_editEpisode = Math.max(to_editEpisode - 1, 0))}
+						>
+							-
+						</button>
+						<input
+							type="number"
+							min="0"
+							step="1"
+							bind:value={to_editEpisode}
+							class="ml-input w-full text-center"
+						/>
+						<button
+							type="button"
+							class="btn btn-sm h-9 min-h-9 w-12"
+							on:click={() => (to_editEpisode = to_editEpisode + 1)}
+						>
+							+
+						</button>
+					</div>
+					<p class="mt-1 text-xs opacity-65">Wird als Zahl gespeichert, nie kleiner als 0.</p>
+				</div>
+			{:else if current_medium === 'books'}
+				<label class="form-control w-full">
+					<div class="label pb-1">
+						<span class="label-text font-medium">Autor</span>
+					</div>
+					<input type="text" bind:value={to_edit.author} class="ml-input" />
+				</label>
+				<label class="form-control w-full">
+					<div class="label pb-1">
+						<span class="label-text font-medium">Seitenzahl</span>
+					</div>
+					<input type="number" min="0" step="1" bind:value={to_edit.pagecount} class="ml-input" />
+				</label>
+			{/if}
 		</div>
-		<DateInput bind:value={to_editAdded} />
-		<!-- Review -->
+
 		<label class="form-control">
-			<div class="label">
-				<span class="label-text">Review</span>
+			<div class="label pb-1">
+				<span class="label-text font-medium">Review-Notizen</span>
 			</div>
-			<textarea class="textarea-bordered textarea h-24" bind:value={to_edit.notes}></textarea>
+			<div class="ml-section p-2">
+				<NoteBubbleEditor bind:value={to_edit.notes} />
+			</div>
 		</label>
-		{#if current_medium === 'games'}
-			<!-- Platforms	 -->
-			<label class="form-control w-full max-w-xs">
-				<div class="label">
-					<span class="label-text">Plattform-Liste</span>
-				</div>
-				<input
-					type="text"
-					bind:value={to_edit.platforms}
-					class="input-bordered input w-full max-w-xs"
-				/>
-			</label>
-		{:else if current_medium === 'shows'}
-			<!-- Staffeln	 -->
-			<label class="form-control w-full max-w-xs">
-				<div class="label">
-					<span class="label-text">Staffeln</span>
-				</div>
-				<input
-					type="text"
-					bind:value={to_edit.seasons}
-					class="input-bordered input w-full max-w-xs"
-				/>
-			</label>
-			<!-- Episoden	 -->
-			<label class="form-control w-full max-w-xs">
-				<div class="label">
-					<span class="label-text">Episode</span>
-				</div>
-				<input
-					type="text"
-					bind:value={to_edit.episode}
-					class="input-bordered input w-full max-w-xs"
-				/>
-			</label>
-		{:else if current_medium === 'books'}
-			<!-- Author	 -->
-			<label class="form-control w-full max-w-xs">
-				<div class="label">
-					<span class="label-text">Autor</span>
-				</div>
-				<input
-					type="text"
-					bind:value={to_edit.author}
-					class="input-bordered input w-full max-w-xs"
-				/>
-			</label>
-			<!-- pagecount	 -->
-			<label class="form-control w-full max-w-xs">
-				<div class="label">
-					<span class="label-text">Seitenzahl</span>
-				</div>
-				<input
-					type="text"
-					bind:value={to_edit.pagecount}
-					class="input-bordered input w-full max-w-xs"
-				/>
-			</label>
-		{/if}
+
+		<div class="collapse collapse-arrow border border-base-content/10 bg-base-200/50 overflow-y-auto">
+			<input type="checkbox" bind:checked={show_advanced_fields} />
+			<div class="collapse-title py-3 text-sm font-semibold">Erweiterte Felder</div>
+			<div class="collapse-content pt-1">
+				<label class="form-control w-full">
+					<div class="label pb-1">
+						<span class="label-text font-medium">Bild-URL</span>
+					</div>
+					<input type="url" bind:value={to_edit.image} class="ml-input" placeholder="https://..." />
+					<p class="mt-1 text-xs opacity-65">
+						Nur anpassen, wenn du bewusst ein anderes Cover verwenden willst.
+					</p>
+				</label>
+			</div>
+		</div>
+
 		<button class="btn mt-3 font-bold btn-success" on:click={updateMedium}
 			>Änderungen speichern</button
 		>
@@ -945,3 +1216,12 @@
 		class="modal-backdrop -z-20">Close</button
 	>
 </div>
+
+<style>
+	:global(body) {
+		--date-picker-background: var(--color-base-200);
+		--date-picker-foreground: var(--color-base-content);
+		--date-picker-highlight: var(--color-primary);
+		--date-picker-highlight-foreground: var(--color-primary-content);
+	}
+</style>

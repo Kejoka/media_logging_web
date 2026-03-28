@@ -1,0 +1,99 @@
+<script lang="ts">
+	import { decodeReviewNotes, encodeReviewNotes, type ReviewNoteBubble } from '$lib/reviewNotes';
+
+	export let value: string | null | undefined = '';
+
+	let bubbles: ReviewNoteBubble[] = [];
+	let lastSerialized = '';
+	let loadedFromLegacy = false;
+
+	$: incomingValue = value || '';
+	$: if (incomingValue !== lastSerialized) {
+		const decoded = decodeReviewNotes(incomingValue);
+		bubbles = decoded.bubbles.map((bubble) => ({ ...bubble }));
+		loadedFromLegacy = decoded.isLegacy;
+		lastSerialized = incomingValue;
+	}
+
+	function persistBubbles() {
+		const encoded = encodeReviewNotes(bubbles);
+		value = encoded;
+		lastSerialized = encoded;
+	}
+
+	function updateBubbleText(index: number, text: string) {
+		bubbles[index] = { ...bubbles[index], text };
+		bubbles = [...bubbles];
+		persistBubbles();
+	}
+
+	function toggleSpoiler(index: number, checked: boolean) {
+		bubbles[index] = { ...bubbles[index], spoiler: checked };
+		bubbles = [...bubbles];
+		persistBubbles();
+	}
+
+	function addBubble() {
+		bubbles = [...bubbles, { text: '', spoiler: false }];
+		persistBubbles();
+	}
+
+	function removeBubble(index: number) {
+		bubbles = bubbles.filter((_, bubbleIndex) => bubbleIndex !== index);
+		persistBubbles();
+	}
+</script>
+
+<div class="flex flex-col gap-3">
+	{#if loadedFromLegacy}
+		<div class="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning-content">
+			Vorhandene Review-Notizen wurden aus dem alten Format geladen. Beim Speichern werden sie ins
+			neue Blasen-Format migriert.
+		</div>
+	{/if}
+
+	{#if bubbles.length === 0}
+		<p class="text-sm text-base-content/70">Noch keine Review-Notizen vorhanden.</p>
+	{/if}
+
+	{#each bubbles as bubble, index (index)}
+		<div class="rounded-lg border border-base-300 bg-base-200 p-3">
+			<div class="mb-2 flex items-center justify-between">
+				<p class="text-sm font-semibold">Notiz {index + 1}</p>
+				<button
+					type="button"
+					class="btn btn-xs btn-error"
+					on:click={() => removeBubble(index)}
+					aria-label={`Notiz ${index + 1} entfernen`}
+				>
+					Entfernen
+				</button>
+			</div>
+
+			<textarea
+				class="textarea-bordered textarea h-20 w-full"
+				value={bubble.text}
+				on:input={(event) =>
+					updateBubbleText(index, (event.currentTarget as HTMLTextAreaElement).value)}
+				placeholder="Notiztext"
+			></textarea>
+
+			<label class="mt-2 flex cursor-pointer items-center gap-2 text-sm">
+				<input
+					type="checkbox"
+					class="checkbox checkbox-sm"
+					checked={bubble.spoiler}
+					on:change={(event) =>
+						toggleSpoiler(index, (event.currentTarget as HTMLInputElement).checked)}
+				/>
+				<span>Als Spoiler markieren</span>
+			</label>
+		</div>
+	{/each}
+
+	<div class="flex justify-start">
+		<button type="button" class="btn btn-outline btn-sm" on:click={addBubble}
+			>Neue Notizblase</button
+		>
+	</div>
+</div>

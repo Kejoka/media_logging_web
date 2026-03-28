@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import type { SortingMethod } from '$lib/types';
+import { MEDIA_TYPE_ORDER, type MediaType } from '$lib/utils';
 
 const is_client = typeof window !== 'undefined';
 
@@ -7,6 +8,11 @@ const is_client = typeof window !== 'undefined';
  * Currently selected medium (games, movies, shows, books)
  */
 export const current_medium = writable<string>(is_client ? 'movies' : 'movies');
+
+/**
+ * User-configured media types that should be visible in own profile views.
+ */
+export const enabled_media_types = writable<MediaType[]>([...MEDIA_TYPE_ORDER]);
 
 /**
  * Currently selected year (as string, e.g., "2025")

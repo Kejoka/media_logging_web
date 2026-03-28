@@ -1,10 +1,10 @@
 import Dexie, { type EntityTable } from 'dexie';
 
-export function getYears(db_data: mediaObject[] | undefined, active_year: string) {
+export function getYears(media_entries: mediaObject[] | undefined, active_year: string) {
 	const current_year = new Date().getFullYear();
-	const safe_data = db_data ?? [];
+	const safe_media_entries = media_entries ?? [];
 	let unique_years = [
-		...new Set(safe_data.map((obj) => new Date(obj.added || 404).getFullYear()))
+		...new Set(safe_media_entries.map((obj) => new Date(obj.added || 404).getFullYear()))
 	].sort();
 	if (unique_years.indexOf(current_year) == -1) {
 		unique_years.push(current_year);
@@ -24,28 +24,39 @@ export function getYears(db_data: mediaObject[] | undefined, active_year: string
 	return new_year_objects;
 }
 
-export function indexToMedium(index: number) {
+/**
+ * Maps carousel tab indices to the corresponding media table key.
+ */
+export function get_media_type_from_index(index: number) {
 	return ['games', 'movies', 'shows', 'books'][index] || 'error';
 }
 
-export async function redoDexieChanges() {
+/**
+ * Replays offline changes from Dexie to Supabase once the client is back online.
+ *
+ * Important: newly created records receive a new server-side ID. We keep a local
+ * mapping of old->new IDs so later queued changes for the same item target the
+ * correct row on the server.
+ */
+export async function sync_offline_changes_to_server() {
 	const changes: OfflineChangeObject[] = JSON.parse(
 		(await dexieDB.prefs.toArray()).at(0)?.changed_offline || ''
 	);
 	const sync_timestamp = new Date();
-	let failed_changes: OfflineChangeObject[] = [];
-	let res;
-	let id_changes = [];
+	const failed_changes: OfflineChangeObject[] = [];
+	let request_response;
+	const synced_id_mappings: { old: number | undefined; new: number; medium: string }[] = [];
 	for (const change of changes) {
-		id_changes.forEach((id_change) => {
-			if (id_change.medium === change.medium && id_change.old == change.card.id) {
-				change.card.id = id_change.new;
+		// Apply ID remapping for items that were created offline earlier in the queue.
+		synced_id_mappings.forEach((id_mapping) => {
+			if (id_mapping.medium === change.medium && id_mapping.old == change.card.id) {
+				change.card.id = id_mapping.new;
 			}
 		});
 		switch (change.event) {
 			case 'add':
 				try {
-					res = await fetch('/api/v1/addMedium', {
+					request_response = await fetch('/api/v1/addMedium', {
 						method: 'POST',
 						body: JSON.stringify({
 							last_selection: change.card,
@@ -56,26 +67,26 @@ export async function redoDexieChanges() {
 							'Content-Type': 'application/json'
 						}
 					});
-					const supabase_res = (await res.json()) as { data: { id: number } };
+					const supabase_response = (await request_response.json()) as { data: { id: number } };
 					switch (change.medium) {
 						case 'games':
-							await dexieDB.games.update(change.card.id, { id: supabase_res.data.id });
+							await dexieDB.games.update(change.card.id, { id: supabase_response.data.id });
 							break;
 						case 'movies':
-							await dexieDB.movies.update(change.card.id, { id: supabase_res.data.id });
+							await dexieDB.movies.update(change.card.id, { id: supabase_response.data.id });
 							break;
 						case 'shows':
-							await dexieDB.shows.update(change.card.id, { id: supabase_res.data.id });
+							await dexieDB.shows.update(change.card.id, { id: supabase_response.data.id });
 							break;
 						case 'books':
-							await dexieDB.books.update(change.card.id, { id: supabase_res.data.id });
+							await dexieDB.books.update(change.card.id, { id: supabase_response.data.id });
 							break;
 						default:
 							break;
 					}
-					id_changes.push({
+					synced_id_mappings.push({
 						old: change.card.id,
-						new: supabase_res.data.id,
+						new: supabase_response.data.id,
 						medium: change.medium
 					});
 				} catch (error) {
@@ -85,7 +96,7 @@ export async function redoDexieChanges() {
 				break;
 			case 'delete':
 				try {
-					res = await fetch('/api/v1/deleteMedium', {
+					request_response = await fetch('/api/v1/deleteMedium', {
 						method: 'POST',
 						body: JSON.stringify({
 							medium_id: change.card.id,
@@ -103,10 +114,10 @@ export async function redoDexieChanges() {
 				break;
 			case 'update':
 				try {
-					res = await fetch('/api/v1/updateMedium', {
+					request_response = await fetch('/api/v1/updateMedium', {
 						method: 'POST',
 						body: JSON.stringify({
-							to_edit: change.card,
+							medium_fields_to_update: change.card,
 							current_medium: change.medium,
 							sync_timestamp
 						}),
@@ -121,7 +132,7 @@ export async function redoDexieChanges() {
 				break;
 			case 'score':
 				try {
-					res = await fetch('/api/v1/updateScore', {
+					request_response = await fetch('/api/v1/updateScore', {
 						method: 'POST',
 						body: JSON.stringify({
 							score: change.card.rating,
@@ -140,7 +151,7 @@ export async function redoDexieChanges() {
 				break;
 			case 'episode':
 				try {
-					res = await fetch('/api/v1/updateEpisode', {
+					request_response = await fetch('/api/v1/updateEpisode', {
 						method: 'POST',
 						body: JSON.stringify({
 							new_value: change.card.episode,
@@ -155,7 +166,7 @@ export async function redoDexieChanges() {
 				break;
 			case 'trophy':
 				try {
-					res = await fetch('/api/v1/updateTrophy', {
+					request_response = await fetch('/api/v1/updateTrophy', {
 						method: 'POST',
 						body: JSON.stringify({
 							new_value: change.card.trophy,
@@ -409,4 +420,5 @@ export type UserInfo = {
 	id: number;
 	updated_at: string;
 	changed_offline: string;
+	current_user_id?: string; // Track which user's data is in Dexie
 };

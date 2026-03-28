@@ -79,13 +79,28 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		const uniqueFollowActivities = relevantFollowActivities.filter((a) => !activityIds.has(a.id));
 		const allActivities = [...(activities || []), ...uniqueFollowActivities];
 
+		// Get user's dismissed activities
+		const { data: dismissedActivities, error: dismissedError } = await supabase
+			.from('dismissed_activities')
+			.select('activity_id')
+			.eq('user_id', session.user.id);
+
+		if (dismissedError) throw dismissedError;
+
+		const dismissedActivityIds = new Set(
+			(dismissedActivities || []).map((d) => d.activity_id)
+		);
+
+		// Filter out dismissed activities
+		const visibleActivities = allActivities.filter((a) => !dismissedActivityIds.has(a.id));
+
 		// Sort combined activities by date
-		allActivities.sort(
+		visibleActivities.sort(
 			(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
 		);
 
 		// Get usernames for all activities
-		const userIds = [...new Set(allActivities.map((a) => a.user_id))];
+		const userIds = [...new Set(visibleActivities.map((a) => a.user_id))];
 		const { data: profiles } = await supabase
 			.from('profiles')
 			.select('id, username')
@@ -94,7 +109,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		const usernameMap = new Map(profiles?.map((p) => [p.id, p.username]) || []);
 
 		// Enrich activities with username and format them
-		const enrichedActivities = allActivities.map((activity) => ({
+		const enrichedActivities = visibleActivities.map((activity) => ({
 			...activity,
 			username: usernameMap.get(activity.user_id) || 'Unknown User',
 			isUnread: new Date(activity.created_at) > new Date(lastReadAt)
@@ -103,12 +118,12 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		// Count unread notifications
 		const unreadCount = enrichedActivities.filter((a) => a.isUnread).length;
 
-		// Group activities by user for better presentation
-		const groupedActivities = groupActivitiesByUser(enrichedActivities);
+		// Format activities (no grouping - show each individually)
+		const formattedActivities = formatActivities(enrichedActivities);
 
 		return new Response(
 			JSON.stringify({
-				notifications: groupedActivities,
+				notifications: formattedActivities,
 				unreadCount
 			})
 		);
@@ -120,80 +135,20 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	}
 }
 
-// Helper function to group activities by user and time
-function groupActivitiesByUser(activities: any[]) {
-	const grouped: any[] = [];
-	const userGroups = new Map();
+// Helper function to format activities - no grouping, show each individually
+function formatActivities(activities: any[]) {
+	const formatted: any[] = [];
 
 	activities.forEach((activity) => {
-		// Don't group follow activities - add unique ID prefix
-		if (activity.activity_type === 'follow') {
-			grouped.push({
-				...activity,
-				id: `follow_${activity.id}`
-			});
-			return;
-		}
-
-		const key = `${activity.user_id}_${activity.media_type}`;
-		if (!userGroups.has(key)) {
-			userGroups.set(key, []);
-		}
-		userGroups.get(key).push(activity);
-	});
-
-	userGroups.forEach((userActivities) => {
-		// Group activities within short time windows (e.g., 1 hour)
-		const timeGroups = [];
-		let currentGroup: any[] = [];
-		let lastTime: Date | null = null;
-
-		userActivities.forEach((activity: any) => {
-			const activityTime = new Date(activity.created_at);
-			if (lastTime && Math.abs(activityTime.getTime() - lastTime.getTime()) < 60 * 60 * 1000) {
-				// Within 1 hour
-				currentGroup.push(activity);
-			} else {
-				if (currentGroup.length > 0) {
-					timeGroups.push(currentGroup);
-				}
-				currentGroup = [activity];
-				lastTime = activityTime;
-			}
-		});
-
-		if (currentGroup.length > 0) {
-			timeGroups.push(currentGroup);
-		}
-
-		// Create grouped notifications
-		timeGroups.forEach((group) => {
-			if (group.length > 1 && group.every((a: any) => a.activity_type === 'add')) {
-				// Group multiple adds
-				grouped.push({
-					id: `group_${group[0].id}`,
-					username: group[0].username,
-					activity_type: 'bulk_add',
-					media_type: group[0].media_type,
-					count: group.length,
-					created_at: group[0].created_at,
-					isUnread: group.some((a: any) => a.isUnread),
-					items: group
-				});
-			} else {
-				// Keep individual activities with unique ID prefix
-				grouped.push(
-					...group.map((a: any) => ({
-						...a,
-						id: `activity_${a.id}`
-					}))
-				);
-			}
+		// Add unique ID prefix based on activity type
+		formatted.push({
+			...activity,
+			id: `activity_${activity.id}`
 		});
 	});
 
 	// Sort: follow activities first, then by date
-	return grouped.sort((a, b) => {
+	return formatted.sort((a, b) => {
 		// Prioritize follow activities
 		if (a.activity_type === 'follow' && b.activity_type !== 'follow') return -1;
 		if (a.activity_type !== 'follow' && b.activity_type === 'follow') return 1;

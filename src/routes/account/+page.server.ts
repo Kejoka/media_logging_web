@@ -1,5 +1,11 @@
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import {
+	MEDIA_TYPE_ORDER,
+	isMediaType,
+	serialize_enabled_media_types,
+	type MediaType
+} from '$lib/utils';
 
 export const load: PageServerLoad = async ({ locals: { supabase, safeGetSession } }) => {
 	const { session } = await safeGetSession();
@@ -10,7 +16,7 @@ export const load: PageServerLoad = async ({ locals: { supabase, safeGetSession 
 
 	const { data: profile } = await supabase
 		.from('profiles')
-		.select(`username`)
+		.select(`username, enabled_media_types`)
 		.eq('id', session.user.id)
 		.single();
 	return { session, profile };
@@ -24,11 +30,28 @@ export const actions: Actions = {
 		username = username.trim();
 		const website = formData.get('website') as string;
 		const avatarUrl = formData.get('avatarUrl') as string;
+		const enabled_media_types_values = formData
+			.getAll('enabled_media_types')
+			.map((value) => String(value));
+		const enabled_media_types = MEDIA_TYPE_ORDER.filter((type) =>
+			enabled_media_types_values.some((value) => isMediaType(value) && value === type)
+		) as MediaType[];
 
 		const { session } = await safeGetSession();
 
 		if (!session) {
 			redirect(303, '/');
+		}
+
+		if (enabled_media_types.length === 0) {
+			return fail(400, {
+				fullName,
+				username,
+				website,
+				avatarUrl,
+				enabled_media_types,
+				error: 'Mindestens ein Medientyp muss aktiv bleiben'
+			});
 		}
 
 		// Validate and check if username is taken by another user
@@ -39,6 +62,7 @@ export const actions: Actions = {
 					username,
 					website,
 					avatarUrl,
+					enabled_media_types,
 					error: 'Username must be at least 3 characters'
 				});
 			}
@@ -49,6 +73,7 @@ export const actions: Actions = {
 					username,
 					website,
 					avatarUrl,
+					enabled_media_types,
 					error: 'Username can only contain letters, numbers, and underscores'
 				});
 			}
@@ -65,6 +90,7 @@ export const actions: Actions = {
 					username,
 					website,
 					avatarUrl,
+					enabled_media_types,
 					error: 'Database error checking username'
 				});
 			}
@@ -75,6 +101,7 @@ export const actions: Actions = {
 					username,
 					website,
 					avatarUrl,
+					enabled_media_types,
 					error: 'Username is already taken'
 				});
 			}
@@ -89,6 +116,7 @@ export const actions: Actions = {
 		if (username != null && username !== '') updates.username = username;
 		if (website != null && website !== '') updates.website = website;
 		if (avatarUrl != null && avatarUrl !== '') updates.avatar_url = avatarUrl;
+		updates.enabled_media_types = serialize_enabled_media_types(enabled_media_types);
 
 		const { data: updatedProfile, error } = await supabase
 			.from('profiles')
@@ -102,6 +130,7 @@ export const actions: Actions = {
 				username,
 				website,
 				avatarUrl,
+				enabled_media_types,
 				error: error.message
 			});
 		}
@@ -111,6 +140,7 @@ export const actions: Actions = {
 			username,
 			website,
 			avatarUrl,
+			enabled_media_types,
 			success: true
 		};
 	},

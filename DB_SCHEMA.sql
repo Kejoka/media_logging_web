@@ -6,6 +6,7 @@ create table profiles (
   id uuid references auth.users on delete cascade not null primary key,
   updated_at timestamp with time zone,
   username text unique,
+  enabled_media_types text not null default 'games,movies,shows,books',
   last_synced timestamp,
 
   constraint username_length check (char_length(username) >= 3)

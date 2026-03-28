@@ -39,7 +39,7 @@
 <div class="relative w-full">
 	<div class="relative">
 		<input
-			class="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 pr-10 text-sm text-white placeholder-neutral-500 transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 focus:outline-none"
+			class="ml-focus w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 pr-10 text-sm text-white placeholder-neutral-500 transition"
 			oninput={handleInput}
 			placeholder="Andere Nutzer finden..."
 			bind:value={input_value}

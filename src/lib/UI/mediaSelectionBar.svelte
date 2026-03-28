@@ -5,10 +5,12 @@
 	import Controller from '$lib/Icons/controller.svelte';
 	import Sort from '$lib/Icons/sort.svelte';
 	import type { SortingMethod } from '$lib/types';
+	import { type MediaType } from '$lib/utils';
 
-	export let tab_index: number;
+	export let current_medium: MediaType;
+	export let active_media_types: MediaType[];
 	export let current_mode: number;
-	export let onSwitchMedium: ((detail: { medium: number }) => void) | undefined = undefined;
+	export let onSwitchMedium: ((detail: { medium: MediaType }) => void) | undefined = undefined;
 	export let onFilter: ((detail: { value: string }) => void) | undefined = undefined;
 	export let onSortChange: ((detail: { method: SortingMethod }) => void) | undefined = undefined;
 	export let sorting_method: SortingMethod = 'date_added_desc';
@@ -25,7 +27,7 @@
 
 	const RATING_SORTS: SortingMethod[] = ['review_score_desc', 'review_score_asc'];
 
-	function mediaSwitch(medium: number) {
+	function mediaSwitch(medium: MediaType) {
 		search_filter = '';
 		onSwitchMedium?.({ medium });
 	}
@@ -71,47 +73,30 @@
 
 <svelte:window on:click={handleClickOutside} />
 
-<div role="tablist" class="tabs-border tabs flex-row justify-evenly bg-base-100 pt-1 pb-2">
-	<button
-		role="tab"
-		class="tab {tab_index == 0 ? 'tab-active' : ''}"
-		onclick={() => mediaSwitch(0)}
-	>
-		<div class="flex w-fit flex-row items-center gap-2">
-			<Controller></Controller>
-			<p>Games</p>
-		</div>
-	</button>
-	<button
-		role="tab"
-		class="tab {tab_index == 1 ? 'tab-active' : ''}"
-		onclick={() => mediaSwitch(1)}
-	>
-		<div class="flex w-fit flex-row items-center gap-2">
-			<Movie></Movie>
-			<p>Filme</p>
-		</div>
-	</button>
-	<button
-		role="tab"
-		class="tab {tab_index == 2 ? 'tab-active' : ''}"
-		onclick={() => mediaSwitch(2)}
-	>
-		<div class="flex w-fit flex-row items-center gap-2">
-			<Tv></Tv>
-			<p>Serien</p>
-		</div>
-	</button>
-	<button
-		role="tab"
-		class="tab {tab_index == 3 ? 'tab-active' : ''}"
-		onclick={() => mediaSwitch(3)}
-	>
-		<div class="flex w-fit flex-row items-center gap-2">
-			<Book></Book>
-			<p>Bücher</p>
-		</div>
-	</button>
+<div role="tablist" class="tabs-border tabs flex-row justify-evenly bg-base-100 pt-1 pb-2 shadow-lg shadow-base-300">
+	{#each active_media_types as media_type}
+		<button
+			role="tab"
+			class="tab {current_medium === media_type ? 'tab-active' : ''}"
+			onclick={() => mediaSwitch(media_type)}
+		>
+			<div class="flex w-fit flex-row items-center gap-2">
+				{#if media_type === 'games'}
+					<Controller></Controller>
+					<p>Games</p>
+				{:else if media_type === 'movies'}
+					<Movie></Movie>
+					<p>Filme</p>
+				{:else if media_type === 'shows'}
+					<Tv></Tv>
+					<p>Serien</p>
+				{:else if media_type === 'books'}
+					<Book></Book>
+					<p>Bücher</p>
+				{/if}
+			</div>
+		</button>
+	{/each}
 </div>
 {#if current_mode != 2}
 	<div class="sticky w-full rounded-b-lg">
@@ -129,7 +114,7 @@
 					<label class="relative grow">
 						<input
 							type="text"
-							class="input-bordered input w-full pr-10"
+							class="ml-input"
 							placeholder="Suche"
 							bind:value={search_filter}
 							oninput={handleInput}
