@@ -1,28 +1,108 @@
 <script lang="ts">
 	import {
 		dexieDB,
-		redoDexieChanges,
+		sync_offline_changes_to_server,
 		type mediaObject,
 		type OfflineChangeObject
 	} from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
+	import RatingPickerModal from '$lib/UI/Stars_modified/RatingPickerModal.svelte';
+	import { decodeReviewNotes } from '$lib/reviewNotes';
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
-	export let config;
+	export let config: any;
 	export let current_mode: number;
 	export let own_profile: boolean;
 	let unique = {};
+	let ratingModalOpen = false;
+	let modalScore = 0;
+	let modalOpenVersion = 0;
+	let pointerStart: { x: number; y: number } | null = null;
+	let pointerStartScore = 0;
+	let suppressInlineScoreUpdateUntil = 0;
+	let revealedSpoilers: number[] = [];
+	let lastNotesValue = '';
+	const TAP_THRESHOLD = 8;
+
+	$: decodedNotes = decodeReviewNotes(medium.notes);
+
+	$: {
+		const currentNotesValue = medium.notes || '';
+		if (currentNotesValue !== lastNotesValue) {
+			revealedSpoilers = [];
+			lastNotesValue = currentNotesValue;
+		}
+	}
+
+	function handleRatingPointerDown(event: PointerEvent) {
+		if (!own_profile) {
+			return;
+		}
+		pointerStartScore = resolveScore(config?.score);
+		pointerStart = { x: event.clientX, y: event.clientY };
+	}
+
+	function resolveScore(rawScore: unknown): number {
+		const parsed = Number(rawScore);
+		if (Number.isFinite(parsed)) {
+			return Math.max(0, Math.min(5, Math.round(parsed * 2) / 2));
+		}
+		const fallback = Number(medium.rating ?? 0);
+		return Number.isFinite(fallback) ? Math.max(0, Math.min(5, Math.round(fallback * 2) / 2)) : 0;
+	}
+
+	function openRatingModal(scoreToOpenWith: unknown) {
+		modalScore = resolveScore(scoreToOpenWith);
+		modalOpenVersion += 1;
+		ratingModalOpen = true;
+	}
+
+	function handleRatingPointerUp(event: PointerEvent) {
+		if (!own_profile || !pointerStart) {
+			return;
+		}
+		const movedDistance = Math.hypot(
+			event.clientX - pointerStart.x,
+			event.clientY - pointerStart.y
+		);
+		pointerStart = null;
+		if (movedDistance <= TAP_THRESHOLD) {
+			suppressInlineScoreUpdateUntil = Date.now() + 250;
+			config.score = pointerStartScore;
+			openRatingModal(pointerStartScore);
+		}
+	}
+
+	function handleRatingPointerCancel() {
+		pointerStart = null;
+	}
+
+	function handleModalScoreChange(event: CustomEvent<{ score: number }>) {
+		dispatch('update_score', { new_score: event.detail.score, medium });
+	}
+
+	function handleInlineScoreChange() {
+		if (Date.now() < suppressInlineScoreUpdateUntil) {
+			config.score = medium.rating || 0;
+			return;
+		}
+		dispatch('update_score', { new_score: config.score, medium });
+	}
+
+	function revealSpoiler(index: number) {
+		if (!revealedSpoilers.includes(index)) {
+			revealedSpoilers = [...revealedSpoilers, index];
+		}
+	}
 
 	function restart() {
 		unique = {};
 	}
 
-	async function handleImageInteraction(event: MouseEvent, medium: mediaObject) {
-		if (medium.episode != undefined && event.type == 'click') {
-			medium.episode = Number(medium.episode) + 1;
-		} else if (medium.episode != undefined && event.type == 'press') {
-			medium.episode = Math.max(Number(medium.episode) - 1, 0);
+	async function handleImageInteraction(medium: mediaObject, delta: number) {
+		if (medium.episode != undefined) {
+			medium.episode = Math.max(Number(medium.episode) + delta, 0);
 		}
 		const sync_timestamp = new Date();
 		// DexieDB
@@ -33,7 +113,7 @@
 		try {
 			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
 			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-				redoDexieChanges();
+				sync_offline_changes_to_server();
 			}
 			const res = await fetch('/api/v1/updateEpisode', {
 				method: 'POST',
@@ -61,6 +141,15 @@
 			}
 		}
 	}
+
+	async function handleImageIncrement(medium: mediaObject) {
+		await handleImageInteraction(medium, 1);
+	}
+
+	async function handleImageDecrement(event: Event, medium: mediaObject) {
+		event.stopPropagation();
+		await handleImageInteraction(medium, -1);
+	}
 </script>
 
 {#key unique}
@@ -73,7 +162,7 @@
 					type="button"
 					class="w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh] border-0 bg-transparent p-0"
 					aria-label="Episode erhöhen"
-					on:click={(e) => handleImageInteraction(e, medium)}
+					on:click={() => handleImageIncrement(medium)}
 				>
 					<figure class="h-full w-full">
 						<div class="relative h-full overflow-hidden">
@@ -97,6 +186,21 @@
 									<p>
 										{medium.episode}
 									</p>
+								</div>
+								<div
+									role="button"
+									tabindex="0"
+									class="absolute left-1 bottom-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-base-content/10 bg-base-300/85 text-sm font-bold"
+									title="Episode verringern"
+									on:click={(event) => handleImageDecrement(event, medium)}
+									on:keydown={(event) => {
+										if (event.key === 'Enter' || event.key === ' ') {
+											event.preventDefault();
+											handleImageDecrement(event, medium);
+										}
+									}}
+								>
+									-
 								</div>
 							{/if}
 						</div>
@@ -144,26 +248,42 @@
 				</div>
 				{#if current_mode == 0}
 					<div class="my-auto h-fit px-2">
-						<StarRating
-							{config}
-							on:change={() => dispatch('update_score', { new_score: config.score, medium })}
-						></StarRating>
+						<button
+							type="button"
+							class="inline-flex"
+							on:pointerdown={handleRatingPointerDown}
+							on:pointerup={handleRatingPointerUp}
+							on:pointercancel={handleRatingPointerCancel}
+							on:click|stopPropagation
+						>
+							<StarRating {config} on:change={handleInlineScoreChange}></StarRating>
+						</button>
 					</div>
 				{/if}
 			</div>
 			<div class="collapse-content px-2 pt-0">
-				{#if medium.notes}
-					<div class="chat-header mt-3">Review:</div>
-					{#each medium.notes.split('\n') as review}
+				{#if decodedNotes.bubbles.length > 0}
+					<div class="chat-header mt-3">Review-Notizen:</div>
+					{#each decodedNotes.bubbles as bubble, index (index)}
 						<div class="chat-start chat">
-							<div class="chat-bubble w-fit">
-								{review}
-							</div>
+							{#if bubble.spoiler && !revealedSpoilers.includes(index)}
+								<button
+									type="button"
+									class="chat-bubble w-fit max-w-full cursor-pointer text-left wrap-break-word transition"
+									on:click={() => revealSpoiler(index)}
+								>
+									<span class="blur-sm">{bubble.text}</span>
+								</button>
+							{:else}
+								<div class="chat-bubble w-fit max-w-full wrap-break-word transition">
+									{bubble.text}
+								</div>
+							{/if}
 						</div>
 					{/each}
 				{:else if !own_profile}
 					<div class="chat-start mt-3 chat">
-						<div class="chat-bubble w-fit">Keine Review vorhanden.</div>
+						<div class="chat-bubble w-fit">Keine Review-Notizen vorhanden.</div>
 					</div>
 				{/if}
 				{#if own_profile}
@@ -185,4 +305,16 @@
 			</div>
 		</div>
 	</div>
+{/key}
+
+{#key modalOpenVersion}
+	<RatingPickerModal
+		open={ratingModalOpen}
+		title={medium.title || ''}
+		score={modalScore}
+		on:close={() => {
+			ratingModalOpen = false;
+		}}
+		on:scoreChange={handleModalScoreChange}
+	/>
 {/key}

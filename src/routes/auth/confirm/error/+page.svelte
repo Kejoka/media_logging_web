@@ -32,7 +32,7 @@
 			</p>
 			<a
 				href="/"
-				class="inline-block rounded-lg bg-emerald-600 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-500"
+				class="ml-action-positive ml-focus inline-block rounded-lg px-6 py-2.5 text-sm font-semibold transition"
 			>
 				Zurück zur Anmeldung
 			</a>

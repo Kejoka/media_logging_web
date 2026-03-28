@@ -12,16 +12,19 @@
 	import Notifications from '$lib/Icons/notifications.svelte';
 	import NotificationsUnread from '$lib/Icons/notifications_unread.svelte';
 	import NotificationPanel from '$lib/UI/NotificationPanel.svelte';
+	import { dexieDB } from '$lib/dbUtils';
 	import {
+		enabled_media_types,
 		is_account_page,
 		is_auth_page,
 		is_own_profile,
 		is_profile_root_page,
 		route_profile_username
 	} from '../stores/uiState';
+	import { MEDIA_TYPE_ORDER, normalize_enabled_media_types } from '$lib/utils';
 
 	let { data, children } = $props();
-	let { supabase, session, user, ownProfileUsername } = $derived(data);
+	let { supabase, session, user, ownProfileUsername, ownProfileEnabledMediaTypes } = $derived(data);
 
 	// Determine if the current page is the user's own profile or someone else's
 	let followingUser = $state(false);
@@ -29,6 +32,9 @@
 	let unreadCount = $state(0);
 
 	$effect(() => {
+		const raw_media_types = ownProfileEnabledMediaTypes?.join(',') ?? MEDIA_TYPE_ORDER.join(',');
+		enabled_media_types.set(normalize_enabled_media_types(raw_media_types));
+
 		const path = page.url.pathname;
 		const authPage = path === '/' || path.startsWith('/auth/');
 		const accountPage = path === '/account';
@@ -56,6 +62,11 @@
 		}
 
 		const { data } = supabase.auth.onAuthStateChange((event, _session) => {
+			// Clear Dexie DB when user signs out to prevent data leakage to next user
+			if (event === 'SIGNED_OUT') {
+				void dexieDB.delete().then(() => dexieDB.open());
+			}
+			
 			if (_session?.expires_at !== session?.expires_at) {
 				invalidate('supabase:auth');
 			}

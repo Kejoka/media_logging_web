@@ -4,8 +4,7 @@
 	import {
 		dexieDB,
 		getYears,
-		indexToMedium,
-		redoDexieChanges,
+		sync_offline_changes_to_server,
 		type mediaObject,
 		type OfflineChangeObject,
 		type tvSeason
@@ -17,17 +16,24 @@
 	import {
 		current_medium as current_medium_store,
 		current_year as current_year_store,
+		enabled_media_types,
 		sorting_method as sorting_method_store
 	} from '../../stores/uiState';
 	import Fuse, { type IFuseOptions } from 'fuse.js';
-	import { getMediaCodeIndex, getMediaCodeString, getModeString } from '$lib/utils';
+	import {
+		MEDIA_TYPE_ORDER,
+		type MediaType,
+		getMediaCodeIndex,
+		get_media_type_display_label,
+		get_ui_mode_label_from_code
+	} from '$lib/utils';
 	import type { SortingMethod, UserChallenge } from '$lib/types';
 	import MediaSelectionBar from '$lib/UI/mediaSelectionBar.svelte';
 	import ModeSelectionBar from '$lib/UI/modeSelectionBar.svelte';
 	export let data;
-	let { session, profile, user_id, games, movies, shows, books, challenges = [] } = data;
+	let { session, profile, user_id, games, movies, shows, books, challenges = [], mediaId, mediaType, mediaYear } = data;
 	$: is_online = $online_status;
-	$: ({ session, profile, user_id, games, movies, shows, books, challenges = [] } = data);
+	$: ({ session, profile, user_id, games, movies, shows, books, challenges = [], mediaId, mediaType, mediaYear } = data);
 	// HTML bind variables
 	let date_modal: HTMLInputElement;
 	let search_modal: HTMLInputElement;
@@ -40,8 +46,9 @@
 	let add_button: HTMLButtonElement;
 	// State variables
 	const own_profile = profile.id == user_id;
-	let current_medium = get(current_medium_store);
+	let current_medium = get(current_medium_store) as MediaType;
 	let current_tab_index = 1;
+	let active_media_types: MediaType[] = [...MEDIA_TYPE_ORDER];
 	let current_year = get(current_year_store);
 	let current_mode = 0;
 	let sorting_method: SortingMethod = get(sorting_method_store);
@@ -51,7 +58,8 @@
 	let last_selection: mediaObject = {} as mediaObject;
 	let selected_date = new Date();
 	let search_val: string;
-	let form_text: string = getMediaCodeString(current_medium);
+	let search_author = '';
+	let form_text: string = get_media_type_display_label(current_medium);
 	let loading = false;
 	let last_search_page = 1;
 	// Media data variables
@@ -61,9 +69,18 @@
 	let media_data_unfiltered: mediaObject[][] = [];
 	let backlog_matches: mediaObject[];
 	// Misc variables
-	let header_text = getModeString(current_mode);
+	let header_text = get_ui_mode_label_from_code(current_mode);
 	let input_timeout = setTimeout(function () {}, 0);
 	let is_initializing = true;
+	$: active_media_types = own_profile
+		? $enabled_media_types.length > 0
+			? $enabled_media_types
+			: [...MEDIA_TYPE_ORDER]
+		: [...MEDIA_TYPE_ORDER];
+	$: if (!active_media_types.includes(current_medium)) {
+		current_medium = active_media_types[0] ?? 'movies';
+	}
+	$: current_tab_index = Math.max(active_media_types.findIndex((type) => type === current_medium), 0);
 	$: current_medium_store.set(current_medium);
 	$: current_year_store.set(current_year);
 	$: sorting_method_store.set(sorting_method);
@@ -79,6 +96,68 @@
 		}
 		const timestamp = new Date(dateValue).getTime();
 		return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+	}
+
+	// Helper to get tab index from media type
+	function getTabIndexFromMediaType(type: string | null): number {
+		if (!type) {
+			return 0;
+		}
+		const dynamic_index = active_media_types.findIndex((media_type) => media_type === type);
+		if (dynamic_index >= 0) {
+			return dynamic_index;
+		}
+		return Math.max(active_media_types.findIndex((media_type) => media_type === 'movies'), 0);
+	}
+
+	// Helper to scroll to and expand a media card
+	async function scrollToAndExpandCard(
+		mediaId: string | number,
+		mediaType: string | null
+	) {
+		// Wait for DOM to be ready
+		await tick();
+
+		// Find the card in the media data
+		const data_index = getMediaCodeIndex(mediaType || 'movies');
+		let card: mediaObject | undefined = media_data[data_index]?.find(
+			(m) => String(m.id) === String(mediaId)
+		);
+
+		if (!card) return;
+
+		// Select the card (trigger expansion)
+		last_selection = card;
+
+		// Wait a bit for DOM to update
+		await tick();
+
+		// Get the suffix for the media type
+		const suffixMap: Record<string, string> = {
+			games: '_g',
+			movies: '_m',
+			shows: '_s',
+			books: '_b'
+		};
+		const suffix = suffixMap[mediaType || 'movies'] || '_m';
+
+		// Find and expand the card by checking its radio button
+		const cardElement = document.getElementById(String(mediaId) + suffix);
+		if (cardElement instanceof HTMLInputElement) {
+			cardElement.checked = true;
+		}
+
+		// Scroll the card into view
+		const cardWrapper = document.querySelector(`[data-media-id="${mediaId}"]`);
+		if (cardWrapper) {
+			cardWrapper.scrollIntoView({ behavior: 'smooth', block: 'center' });
+		} else {
+			// Fallback: try to find the card by ID
+			const element = document.getElementById(String(mediaId) + suffix)?.closest('.px-2');
+			if (element) {
+				element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			}
+		}
 	}
 
 	function compareMedia(a: mediaObject, b: mediaObject, method: SortingMethod): number {
@@ -119,9 +198,38 @@
 	// Load data and set up inital states depending on online status and sync status
 	onMount(async () => {
 		is_initializing = true;
-		current_tab_index = 1;
-		current_medium = 'movies';
-		form_text = getMediaCodeString(current_medium);
+		const fallback_medium = active_media_types.includes('movies')
+			? 'movies'
+			: (active_media_types[0] ?? 'movies');
+		const medium_from_notification = mediaType as MediaType | null;
+		if (medium_from_notification && active_media_types.includes(medium_from_notification)) {
+			current_medium = medium_from_notification;
+		} else {
+			current_medium = fallback_medium;
+		}
+		current_tab_index = getTabIndexFromMediaType(current_medium);
+		// If year is provided from notification, use it
+		if (mediaYear) {
+			current_year = String(mediaYear);
+		}
+		form_text = get_media_type_display_label(current_medium);
+		
+		// Check if user has changed - if so, clear all Dexie tables
+		const existingPrefs = await dexieDB.prefs.toArray();
+		if (existingPrefs.length > 0 && existingPrefs[0].current_user_id !== user_id) {
+			console.log('USER CHANGED - CLEARING DEXIE DB');
+			// Clear all tables
+			await dexieDB.games.clear();
+			await dexieDB.movies.clear();
+			await dexieDB.shows.clear();
+			await dexieDB.books.clear();
+			await dexieDB.games_other.clear();
+			await dexieDB.movies_other.clear();
+			await dexieDB.shows_other.clear();
+			await dexieDB.books_other.clear();
+			await dexieDB.prefs.clear();
+		}
+		
 		// If user is online
 		if (is_online) {
 			if (!own_profile) {
@@ -132,7 +240,8 @@
 					await dexieDB.prefs.add({
 						id: 0,
 						updated_at: new Date(profile.updated_at).toISOString(),
-						changed_offline: '[]'
+						changed_offline: '[]',
+						current_user_id: user_id
 					});
 					await cloneSupabase(false);
 				} else {
@@ -141,7 +250,7 @@
 						new Date((await dexieDB.prefs.toArray())[0].updated_at) > new Date(profile.updated_at)
 					) {
 						console.log('NOT IN SYNC, NEW CHANGES IN DEXIE');
-						await redoDexieChanges();
+						await sync_offline_changes_to_server();
 					}
 					// Online, not in sync, supabase most recent
 					else if (
@@ -150,7 +259,8 @@
 						console.log('NOT IN SYNC, NEW CHANGES IN SUPABASE');
 						await cloneSupabase(false);
 						await dexieDB.prefs.update(0, {
-							updated_at: new Date(profile.updated_at).toISOString()
+							updated_at: new Date(profile.updated_at).toISOString(),
+							current_user_id: user_id
 						});
 					}
 				}
@@ -163,7 +273,8 @@
 				await dexieDB.prefs.add({
 					id: 0,
 					updated_at: new Date('01.01.2000').toISOString(),
-					changed_offline: '[]'
+					changed_offline: '[]',
+					current_user_id: user_id
 				});
 			}
 		}
@@ -200,12 +311,25 @@
 		applySortingToVisibleData();
 		challenge_data = challenges;
 		years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
+		
+		// Ensure current_user_id is stored in prefs for next login detection
+		const prefs = await dexieDB.prefs.toArray();
+		if (prefs.length > 0) {
+			await dexieDB.prefs.update(0, { current_user_id: user_id });
+		}
+		
 		await tick();
 		requestAnimationFrame(() => {
 			if (!carousel) {
 				return;
 			}
 			carousel.scrollLeft = carousel.clientWidth * current_tab_index;
+			
+			// If mediaId is provided, scroll to and expand the card
+			if (mediaId && mediaType) {
+				void scrollToAndExpandCard(mediaId, mediaType);
+			}
+			
 			setTimeout(() => {
 				is_initializing = false;
 			}, 100);
@@ -265,15 +389,24 @@
 					return;
 				}
 				const index = Math.round(carousel.scrollLeft / carousel.clientWidth);
-				if (index < 0 || index > 3) {
+				if (index < 0 || index >= active_media_types.length) {
 					return;
 				}
 				current_tab_index = index;
+				current_medium = active_media_types[index] ?? active_media_types[0] ?? 'movies';
 			} else {
-				current_tab_index = event.medium;
-				carousel.scrollLeft = event.medium * carousel.clientWidth;
+				const medium_to_select =
+					event?.medium ??
+					event?.detail?.medium ??
+					active_media_types[current_tab_index] ??
+					active_media_types[0];
+				if (!active_media_types.includes(medium_to_select)) {
+					return;
+				}
+				current_medium = medium_to_select;
+				current_tab_index = getTabIndexFromMediaType(medium_to_select);
+				carousel.scrollLeft = current_tab_index * carousel.clientWidth;
 			}
-			current_medium = indexToMedium(current_tab_index);
 			// YearBar Data
 			if (current_mode != 1) {
 				years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
@@ -282,7 +415,7 @@
 			} else {
 				years_in_db = years_in_db.slice(-1);
 			}
-			form_text = getMediaCodeString(current_medium);
+			form_text = get_media_type_display_label(current_medium);
 			// Year Filter
 			if (isNaN(Number(current_year))) {
 				for (let [index, media] of total_media_data.entries()) {
@@ -302,7 +435,7 @@
 	// Handle the switch between the modes Media-Log, Backlog and Stats
 	async function handleModeSwitch(event: any) {
 		current_mode = event.mode;
-		header_text = getModeString(current_mode);
+		header_text = get_ui_mode_label_from_code(current_mode);
 		if (current_mode != 1) {
 			await refreshCardList(new Date().getFullYear().toString());
 		} else {
@@ -398,7 +531,7 @@
 		input_timeout = setTimeout(async () => {
 			const res = await fetch('/api/v1/getSearchSuggestions', {
 				method: 'POST',
-				body: JSON.stringify({ search_val, last_search_page, current_medium }),
+				body: JSON.stringify({ search_val, search_author, last_search_page, current_medium }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
@@ -473,7 +606,7 @@
 			last_search_page += 1;
 			const res = await fetch('/api/v1/getSearchSuggestions', {
 				method: 'POST',
-				body: JSON.stringify({ search_val, last_search_page, current_medium }),
+				body: JSON.stringify({ search_val, search_author, last_search_page, current_medium }),
 				headers: {
 					'Content-Type': 'application/json'
 				}
@@ -598,7 +731,7 @@
 		try {
 			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
 			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-				redoDexieChanges();
+				sync_offline_changes_to_server();
 			}
 			const res = await fetch('/api/v1/addMedium', {
 				method: 'POST',
@@ -698,7 +831,7 @@
 		try {
 			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
 			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-				redoDexieChanges();
+				sync_offline_changes_to_server();
 			}
 			const res = await fetch('/api/v1/deleteMedium', {
 				method: 'POST',
@@ -743,7 +876,8 @@
 			onSwitchMedium={handleMediaSwitch}
 			onFilter={handleFilter}
 			onSortChange={handleSortingMethodChange}
-			tab_index={current_tab_index}
+			{current_medium}
+			{active_media_types}
 			{sorting_method}
 			{current_mode}
 		></MediaSelectionBar>
@@ -756,70 +890,24 @@
 			onscroll={handleMediaSwitch}
 			class="carousel h-full w-full overflow-y-auto"
 		>
-			<div class="carousel-item w-full">
-				<CardList
-					{own_profile}
-					media_data={media_data[0]}
-					current_medium={'games'}
-					{current_year}
-					{sorting_method}
-					challenges={challenge_data}
-					{current_mode}
-					on:delete={deleteMedium}
-					on:refresh={() => refreshCardList(current_year)}
-					on:challenge_updated={handleChallengeUpdated}
-					on:challenge_deleted={handleChallengeDeleted}
-					on:swipe={handleMediaSwitch}
-				></CardList>
-			</div>
-			<div class="carousel-item w-full">
-				<CardList
-					{own_profile}
-					media_data={media_data[1]}
-					current_medium={'movies'}
-					{current_year}
-					{sorting_method}
-					challenges={challenge_data}
-					{current_mode}
-					on:delete={deleteMedium}
-					on:refresh={() => refreshCardList(current_year)}
-					on:challenge_updated={handleChallengeUpdated}
-					on:challenge_deleted={handleChallengeDeleted}
-					on:swipe={handleMediaSwitch}
-				></CardList>
-			</div>
-			<div class="carousel-item w-full">
-				<CardList
-					{own_profile}
-					media_data={media_data[2]}
-					current_medium={'shows'}
-					{current_year}
-					{sorting_method}
-					challenges={challenge_data}
-					{current_mode}
-					on:delete={deleteMedium}
-					on:refresh={() => refreshCardList(current_year)}
-					on:challenge_updated={handleChallengeUpdated}
-					on:challenge_deleted={handleChallengeDeleted}
-					on:swipe={handleMediaSwitch}
-				></CardList>
-			</div>
-			<div class="carousel-item w-full">
-				<CardList
-					{own_profile}
-					media_data={media_data[3]}
-					current_medium={'books'}
-					{current_year}
-					{sorting_method}
-					challenges={challenge_data}
-					{current_mode}
-					on:delete={deleteMedium}
-					on:refresh={() => refreshCardList(current_year)}
-					on:challenge_updated={handleChallengeUpdated}
-					on:challenge_deleted={handleChallengeDeleted}
-					on:swipe={handleMediaSwitch}
-				></CardList>
-			</div>
+			{#each active_media_types as media_type}
+				<div class="carousel-item w-full">
+					<CardList
+						{own_profile}
+						media_data={media_data[getMediaCodeIndex(media_type)]}
+						current_medium={media_type}
+						{current_year}
+						{sorting_method}
+						challenges={challenge_data}
+						{current_mode}
+						on:delete={deleteMedium}
+						on:refresh={() => refreshCardList(current_year)}
+						on:challenge_updated={handleChallengeUpdated}
+						on:challenge_deleted={handleChallengeDeleted}
+						on:swipe={handleMediaSwitch}
+					></CardList>
+				</div>
+			{/each}
 		</div>
 		<!-- Modals from here on -->
 		<!-- SearchModal -->
@@ -835,7 +923,7 @@
 				<label class="mb-3 flex items-center gap-2">
 					<input
 						type="text"
-						class="input-bordered input grow"
+						class="ml-input"
 						placeholder="Suche"
 						bind:value={search_val}
 						oninput={handleInput}
@@ -853,6 +941,17 @@
 						/>
 					</svg>
 				</label>
+				{#if current_medium === 'books'}
+					<label class="mb-3 block">
+						<input
+							type="text"
+							class="ml-input"
+							placeholder="Autor (optional)"
+							bind:value={search_author}
+							oninput={handleInput}
+						/>
+					</label>
+				{/if}
 				<div class="scrollbar-hide max-h-[50vh] overflow-y-auto" onscroll={handleSuggestionScroll}>
 					{#each current_suggestions as suggestion}
 						<button
@@ -931,7 +1030,7 @@
 				></DatePicker>
 				<button
 					bind:this={add_button}
-					class="btn mt-3 btn-neutral"
+					class="btn mt-3 btn-success"
 					onclick={() => {
 						add_button.disabled = true;
 						checkBacklog();
@@ -1031,11 +1130,12 @@
 			onclick={() => {
 				last_search_page = 1;
 				search_val = '';
+				search_author = '';
 				selected_date = new Date();
 				search_modal.checked = true;
 				current_suggestions = [];
 			}}
-			class="btn h-fit rounded-none rounded-t-lg border-none bg-base-100 pb-2 text-2xl shadow-[0_-4px_10px_rgba(0,0,0,0.3)] btn-neutral hover:bg-base-200"
+			class="btn relative z-20 h-fit overflow-visible rounded-none rounded-t-lg border-none bg-base-100 pb-2 text-2xl shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.3),0_-4px_6px_-4px_rgba(0,0,0,0.3)] btn-neutral hover:bg-base-200"
 		>
 			+
 		</button>
@@ -1046,7 +1146,9 @@
 
 <style>
 	:global(body) {
-		--date-picker-foreground: var(--color-neutral-content);
-		--date-picker-background: var(--color-neutral);
+		--date-picker-foreground: var(--color-base-content);
+		--date-picker-background: var(--color-base-200);
+		--date-picker-highlight: var(--color-primary);
+		--date-picker-highlight-foreground: var(--color-primary-content);
 	}
 </style>

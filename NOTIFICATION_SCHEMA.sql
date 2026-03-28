@@ -53,3 +53,31 @@ CREATE POLICY "Users can insert their own read status" ON notification_read_stat
 -- Policy: Users can update their own read status
 CREATE POLICY "Users can update their own read status" ON notification_read_status
   FOR UPDATE USING ((SELECT auth.uid()) = user_id);
+
+-- Create dismissed_activities table to track per-user notification dismissals
+CREATE TABLE dismissed_activities (
+  id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+  user_id uuid NOT NULL REFERENCES auth.users ON DELETE CASCADE,
+  activity_id bigint NOT NULL REFERENCES user_activities ON DELETE CASCADE,
+  dismissed_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE(user_id, activity_id)
+);
+
+-- Create index for faster queries
+CREATE INDEX idx_dismissed_activities_user_id ON dismissed_activities(user_id);
+CREATE INDEX idx_dismissed_activities_activity_id ON dismissed_activities(activity_id);
+
+-- Enable RLS
+ALTER TABLE dismissed_activities ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Users can view their own dismissed activities
+CREATE POLICY "Users can view their own dismissed activities" ON dismissed_activities
+  FOR SELECT USING ((SELECT auth.uid()) = user_id);
+
+-- Policy: Users can insert their own dismissed activities
+CREATE POLICY "Users can insert their own dismissed activities" ON dismissed_activities
+  FOR INSERT WITH CHECK ((SELECT auth.uid()) = user_id);
+
+-- Policy: Users can delete their own dismissed activities (to undo dismissal)
+CREATE POLICY "Users can delete their own dismissed activities" ON dismissed_activities
+  FOR DELETE USING ((SELECT auth.uid()) = user_id);

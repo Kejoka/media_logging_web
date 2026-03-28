@@ -32,5 +32,11 @@ export const load: LayoutLoad = async ({ fetch, data, depends }) => {
 	 */
 	const session = isBrowser() ? (await supabase.auth.getSession()).data.session : data.session;
 
-	return { supabase, session, user: data.user, ownProfileUsername: data.ownProfileUsername };
+	return {
+		supabase,
+		session,
+		user: data.user,
+		ownProfileUsername: data.ownProfileUsername,
+		ownProfileEnabledMediaTypes: data.ownProfileEnabledMediaTypes
+	};
 };

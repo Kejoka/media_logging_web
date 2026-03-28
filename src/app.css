@@ -7,6 +7,117 @@
 @plugin '@tailwindcss/typography';
 @plugin '@tailwindcss/forms';
 
+.ml-input {
+	width: 100%;
+	border-radius: 0.5rem;
+	border: 1px solid color-mix(in oklab, var(--color-base-content) 10%, transparent);
+	background-color: color-mix(in oklab, var(--color-base-200) 50%, transparent);
+	padding: 0.625rem 1rem;
+	color: var(--color-base-content);
+	transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.ml-input::placeholder {
+	color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
+}
+
+.ml-input:focus {
+	border-color: #5e84bf;
+	box-shadow: 0 0 0 2px rgba(94, 132, 191, 0.26);
+	outline: none;
+}
+
+.ml-focus:focus {
+	border-color: #5e84bf;
+	box-shadow: 0 0 0 2px rgba(94, 132, 191, 0.26);
+	outline: none;
+}
+
+.ml-action-positive {
+	background-color: #2f7a60;
+	color: #edf9f3;
+}
+
+.ml-action-positive:hover {
+	background-color: #3a9274;
+}
+
+.ml-action-positive:focus-visible {
+	box-shadow: 0 0 0 2px rgba(94, 132, 191, 0.22);
+	outline: none;
+}
+
+.ml-link-accent {
+	color: #86aee2;
+}
+
+.ml-link-accent:hover {
+	color: #9abde9;
+}
+
+.ml-alert-success {
+	border: 1px solid rgba(58, 146, 116, 0.38);
+	background-color: rgba(47, 122, 96, 0.2);
+	color: #bde7d7;
+}
+
+.btn.btn-success {
+	background-color: #2f7a60;
+	border-color: #285f4d;
+	color: #edf9f3;
+}
+
+.btn.btn-success:hover {
+	background-color: #3a9274;
+	border-color: #2f7a60;
+}
+
+.btn.btn-warning {
+	background-color: #86672f;
+	border-color: #6f5527;
+	color: #fff7dd;
+}
+
+.btn.btn-warning:hover {
+	background-color: #9c7a38;
+	border-color: #86672f;
+}
+
+.btn.btn-error {
+	background-color: #8c424c;
+	border-color: #763740;
+	color: #ffeef1;
+}
+
+.btn.btn-error:hover {
+	background-color: #a34d59;
+	border-color: #8c424c;
+}
+
+.btn.btn-info {
+	background-color: #335f89;
+	border-color: #2b5073;
+	color: #eef6ff;
+}
+
+.btn.btn-info:hover {
+	background-color: #3d72a4;
+	border-color: #335f89;
+}
+
+.btn.btn-primary,
+.btn.btn-secondary {
+	background-color: #4a5366;
+	border-color: #3f4758;
+	color: #f3f5f8;
+}
+
+.btn.btn-primary:hover,
+.btn.btn-secondary:hover {
+	background-color: #57637a;
+	border-color: #4a5366;
+}
+
 /* Gesamte Scrollleiste */
 ::-webkit-scrollbar {
 	width: 0.5vw; /* Breite der vertikalen Scrollleiste */

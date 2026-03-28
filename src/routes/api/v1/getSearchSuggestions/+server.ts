@@ -16,14 +16,16 @@ const RETRIES: number = 3;
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const { session } = await safeGetSession();
-	const req_body = (await request.json()) as {
+	const request_body = (await request.json()) as {
 		search_val: string;
+		search_author?: string;
 		last_search_page: number;
 		current_medium: string;
 	};
-	const search_val = req_body['search_val'];
-	const search_page = req_body['last_search_page'];
-	const current_medium = req_body['current_medium'];
+	const search_val = request_body.search_val;
+	const search_author = request_body.search_author?.trim() ?? '';
+	const search_page = request_body.last_search_page;
+	const current_medium = request_body.current_medium;
 	let search_results: mediaObject[] = [];
 
 	const params = {
@@ -38,15 +40,22 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		try {
 			switch (current_medium) {
 				case 'games':
+					// IGDB tokens can expire between requests. We keep one shared token in Supabase
+					// and refresh it only when expired to avoid unnecessary auth requests.
 					let igdb_token: string = '';
 					if (PUBLIC_IGDB_SUPABASE == 'true') {
 						const sync_timestamp = new Date();
-						const igdb_res: { id: number; token: string; created: string; expires_in: number } = (
+						const igdb_token_store_record: {
+							id: number;
+							token: string;
+							created: string;
+							expires_in: number;
+						} = (
 							await supabase.from('igdb_store').select().single()
 						).data;
-						if (!igdb_res) {
+						if (!igdb_token_store_record) {
 							console.log('No igdb data stored yet, requesting new token..');
-							const token_req = (await fetch(
+							const token_refresh_request = (await fetch(
 								`https://id.twitch.tv/oauth2/token?client_id=${PRIVATE_IGDB_CLIENT}&client_secret=${PRIVATE_IGDB_SECRET}&grant_type=client_credentials`,
 								{
 									method: 'POST',
@@ -60,24 +69,27 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 								[token: string]: any;
 							};
 							try {
-								console.log('New token received - ', token_req);
+								console.log('New token received - ', token_refresh_request);
 								const res = await supabase.from('igdb_store').insert({
-									token: token_req.access_token,
+									token: token_refresh_request.access_token,
 									created: sync_timestamp.toISOString(),
-									expires_in: token_req.expires_in
+									expires_in: token_refresh_request.expires_in
 								});
 								console.log('Added new token to supabase');
-								igdb_token = token_req.access_token;
+								igdb_token = token_refresh_request.access_token;
 							} catch (error) {
 								console.log(error);
 							}
 						} else {
 							console.log('Stored idgb token found');
-							const expire_date_check = new Date(igdb_res.created);
-							expire_date_check.setSeconds(expire_date_check.getSeconds() + igdb_res.expires_in);
+							const expire_date_check = new Date(igdb_token_store_record.created);
+							expire_date_check.setSeconds(
+								expire_date_check.getSeconds() + igdb_token_store_record.expires_in
+							);
+							// Refresh only when needed so all requests can keep using the same valid token.
 							if (expire_date_check < sync_timestamp) {
 								console.log('Token has already expired. Requesting new token...');
-								const token_req = (await fetch(
+								const token_refresh_request = (await fetch(
 									`https://id.twitch.tv/oauth2/token?client_id=${PRIVATE_IGDB_CLIENT}&client_secret=${PRIVATE_IGDB_SECRET}&grant_type=client_credentials`,
 									{
 										method: 'POST',
@@ -91,23 +103,23 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 									[token: string]: any;
 								};
 								try {
-									console.log('Received new token - ', token_req);
+									console.log('Received new token - ', token_refresh_request);
 									const res = await supabase
 										.from('igdb_store')
 										.update({
-											token: token_req.access_token,
+											token: token_refresh_request.access_token,
 											created: sync_timestamp.toISOString(),
-											expires_in: token_req.expires_in
+											expires_in: token_refresh_request.expires_in
 										})
-										.eq('id', igdb_res.id);
+										.eq('id', igdb_token_store_record.id);
 									console.log('Supabase Token has been updated');
-									igdb_token = token_req.access_token;
+									igdb_token = token_refresh_request.access_token;
 								} catch (error) {
 									console.log(error);
 								}
 							} else {
 								console.log('Supabase token has not expired yet. Using said token..');
-								igdb_token = igdb_res.token;
+								igdb_token = igdb_token_store_record.token;
 							}
 						}
 					} else {
@@ -122,16 +134,18 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						},
 						body: `fields name, cover.image_id, platforms.abbreviation, genres.name, first_release_date, total_rating; where (name ~ *\"${search_val}\"* & game_type = (0,2,4,8,9,10,11) & version_parent = 'null' & cover != 'null); sort first_release_date desc; limit 20; offset ${(search_page - 1) * 20};`
 					});
-					const igdb_res: any[] = await res.json();
-					igdb_res.forEach((result) => {
-						let iso_release;
+					const igdb_search_response: any[] = await res.json();
+					igdb_search_response.forEach((result) => {
+						let release_date_iso_format;
 						if (
 							result.first_release_date &&
 							!isNaN(new Date(result.first_release_date * 1000).getTime())
 						) {
-							iso_release = new Date(result.first_release_date * 1000).toISOString();
+							release_date_iso_format = new Date(
+								result.first_release_date * 1000
+							).toISOString();
 						} else {
-							iso_release = null;
+							release_date_iso_format = null;
 						}
 						let genres: string[] = [];
 						result.genres?.forEach((genre: { id: number; name: string }) => {
@@ -145,7 +159,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 							igdbid: result.id,
 							title: result.name,
 							image: `https://images.igdb.com/igdb/image/upload/t_cover_big/${result.cover.image_id}.jpg`,
-							release: iso_release,
+							release: release_date_iso_format,
 							genres: genres.join(', '),
 							platforms: platforms.join(', '),
 							averagerating: result.total_rating
@@ -214,7 +228,10 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					return new Response(JSON.stringify(search_results));
 				case 'books':
 					const books_url = new URL('https://www.googleapis.com/books/v1/volumes?q=search+terms');
-					books_url.searchParams.set('q', search_val);
+					const books_query = search_author
+						? `${search_val} inauthor:${search_author}`
+						: search_val;
+					books_url.searchParams.set('q', books_query);
 					const extra_params = {
 						maxResults: 20,
 						startIndex: (search_page - 1) * 20,

@@ -1,14 +1,20 @@
+import { validate_and_trim_field } from '$lib/utils.js';
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	interface ReqBody {
 		current_medium: string;
-		to_edit: any;
+		medium_fields_to_update?: any;
+		to_edit?: any;
 		sync_timestamp: string;
 	}
-	const req_body = (await request.json()) as ReqBody;
-	const current_medium = req_body['current_medium'];
-	const to_edit = req_body['to_edit'];
-	const sync_timestamp = req_body['sync_timestamp'];
+	const request_body = (await request.json()) as ReqBody;
+	const current_medium = request_body.current_medium;
+	const medium_fields_to_update = request_body.medium_fields_to_update ?? request_body.to_edit;
+	const sync_timestamp = request_body.sync_timestamp;
+	if (!medium_fields_to_update) {
+		return new Response('Missing medium_fields_to_update payload', { status: 400 });
+	}
 	const { session } = await safeGetSession();
 	let error;
 	try {
@@ -16,95 +22,96 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 			id: session?.user.id,
 			updated_at: sync_timestamp
 		});
+		// Normalize all optional text fields before persisting to keep server-side data consistent.
 		switch (current_medium) {
 			case 'games':
 				error = await supabase
 					.from(current_medium)
 					.update({
-						title: to_edit.title.trim().length > 0 ? to_edit.title.trim() : 'Kein Titel angegeben',
-						image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image.trim() : null,
-						release:
-							to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release.trim() : null,
-						genres:
-							to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres.trim() : null,
-						platforms:
-							to_edit.platforms && to_edit.platforms.trim().length > 0
-								? to_edit.platforms.trim()
-								: null,
-						added:
-							to_edit.added && to_edit.added.trim().length > 0
-								? to_edit.added.trim()
-								: new Date().toISOString(),
-						notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes.trim() : null
+						title: validate_and_trim_field(
+							medium_fields_to_update.title,
+							'Kein Titel angegeben'
+						),
+						image: validate_and_trim_field(medium_fields_to_update.image, null),
+						release: validate_and_trim_field(medium_fields_to_update.release, null),
+						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
+						platforms: validate_and_trim_field(medium_fields_to_update.platforms, null),
+						added: validate_and_trim_field(
+							medium_fields_to_update.added,
+							new Date().toISOString()
+						),
+						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
 					})
-					.eq('id', to_edit.id);
+					.eq('id', medium_fields_to_update.id);
 				return new Response(JSON.stringify(error));
 			case 'movies':
 				error = await supabase
 					.from(current_medium)
 					.update({
-						title:
-							to_edit.title && to_edit.title.trim().length > 0
-								? to_edit.title.trim()
-								: 'Kein Titel angegeben',
-						image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image.trim() : null,
-						release:
-							to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release.trim() : null,
-						genres:
-							to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres.trim() : null,
-						added:
-							to_edit.added && to_edit.added.trim().length > 0
-								? to_edit.added.trim()
-								: new Date().toISOString(),
-						notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes.trim() : null
+						title: validate_and_trim_field(
+							medium_fields_to_update.title,
+							'Kein Titel angegeben'
+						),
+						image: validate_and_trim_field(medium_fields_to_update.image, null),
+						release: validate_and_trim_field(medium_fields_to_update.release, null),
+						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
+						added: validate_and_trim_field(
+							medium_fields_to_update.added,
+							new Date().toISOString()
+						),
+						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
 					})
-					.eq('id', to_edit.id);
+					.eq('id', medium_fields_to_update.id);
 				return new Response(JSON.stringify(error));
 			case 'shows':
 				error = await supabase
 					.from(current_medium)
 					.update({
-						title:
-							to_edit.title && to_edit.title.trim().length > 0
-								? to_edit.title
-								: 'Kein Titel angegeben',
-						image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image : null,
-						release: to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release : null,
-						genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres : null,
-						added:
-							to_edit.added && to_edit.added.trim().length > 0
-								? to_edit.added
-								: new Date().toISOString(),
-						notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes : null,
-						seasons: to_edit.seasons && to_edit.seasons.trim().length > 0 ? to_edit.seasons : null,
+						title: validate_and_trim_field(
+							medium_fields_to_update.title,
+							'Kein Titel angegeben'
+						),
+						image: validate_and_trim_field(medium_fields_to_update.image, null),
+						release: validate_and_trim_field(medium_fields_to_update.release, null),
+						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
+						added: validate_and_trim_field(
+							medium_fields_to_update.added,
+							new Date().toISOString()
+						),
+						notes: validate_and_trim_field(medium_fields_to_update.notes, null),
+						seasons: validate_and_trim_field(medium_fields_to_update.seasons, null),
 						episode:
-							to_edit.episode && to_edit.episode.toString().trim().length > 0 ? to_edit.episode : 0
+							medium_fields_to_update.episode &&
+							medium_fields_to_update.episode.toString().trim().length > 0
+								? medium_fields_to_update.episode
+								: 0
 					})
-					.eq('id', to_edit.id);
+					.eq('id', medium_fields_to_update.id);
 				return new Response(JSON.stringify(error));
 			case 'books':
 				error = await supabase
 					.from(current_medium)
 					.update({
-						title:
-							to_edit.title && to_edit.title.trim().length > 0
-								? to_edit.title
-								: 'Kein Titel angegeben',
-						author: to_edit.author && to_edit.author.trim().length > 0 ? to_edit.author : null,
-						image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image : null,
-						release: to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release : null,
-						genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres : null,
+						title: validate_and_trim_field(
+							medium_fields_to_update.title,
+							'Kein Titel angegeben'
+						),
+						author: validate_and_trim_field(medium_fields_to_update.author, null),
+						image: validate_and_trim_field(medium_fields_to_update.image, null),
+						release: validate_and_trim_field(medium_fields_to_update.release, null),
+						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
 						pagecount:
-							to_edit.pagecount && to_edit.pagecount.toString().trim().length > 0
-								? to_edit.pagecount
+							medium_fields_to_update.pagecount &&
+							medium_fields_to_update.pagecount.toString().trim().length > 0
+								? medium_fields_to_update.pagecount
 								: null,
-						added:
-							to_edit.added && to_edit.added.trim().length > 0
-								? to_edit.added
-								: new Date().toISOString(),
-						notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes : null
+						added: validate_and_trim_field(
+							medium_fields_to_update.added,
+							new Date().toISOString()
+						),
+						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
 					})
-					.eq('id', to_edit.id);
+					.eq('id', medium_fields_to_update.id);
 				return new Response(JSON.stringify(error));
 			default:
 				throw 'Switch Statement failed';

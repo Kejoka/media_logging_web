@@ -10,7 +10,7 @@
 	type NotificationType = {
 		id: string | number;
 		username: string;
-		activity_type: 'add' | 'update' | 'delete' | 'bulk_add' | 'follow';
+		activity_type: 'add' | 'update' | 'delete' | 'follow';
 		media_type: 'games' | 'movies' | 'shows' | 'books' | null;
 		media_title?: string;
 		media_image?: string;
@@ -97,6 +97,21 @@
 		}
 	});
 
+	async function handleNotificationDismiss(notificationId: string | number) {
+		// Remove the notification from the list immediately
+		notifications = notifications.filter((n) => n.id !== notificationId);
+
+		// Update unread count if needed
+		if (unreadCount > 0) {
+			unreadCount--;
+		}
+
+		// Notify parent component of unread count change
+		if (onUnreadCountChange) {
+			onUnreadCountChange(unreadCount);
+		}
+	}
+
 	export function getUnreadCount() {
 		return unreadCount;
 	}
@@ -172,7 +187,7 @@
 			{:else}
 				<div class="divide-y divide-base-100">
 					{#each notifications as notification (notification.id)}
-						<NotificationItem {notification} />
+						<NotificationItem {notification} onDismiss={handleNotificationDismiss} />
 					{/each}
 				</div>
 			{/if}
