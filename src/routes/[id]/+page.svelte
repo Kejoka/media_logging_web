@@ -31,9 +31,35 @@
 	import MediaSelectionBar from '$lib/UI/mediaSelectionBar.svelte';
 	import ModeSelectionBar from '$lib/UI/modeSelectionBar.svelte';
 	export let data;
-	let { session, profile, user_id, games, movies, shows, books, challenges = [], mediaId, mediaType, mediaYear } = data;
+	let {
+		session,
+		profile,
+		user_id,
+		games,
+		movies,
+		shows,
+		books,
+		challenges = [],
+		mediaId,
+		mediaType,
+		mediaYear
+	} = data;
+	let mode: string | null = (data as { mode?: string | null }).mode ?? null;
 	$: is_online = $online_status;
-	$: ({ session, profile, user_id, games, movies, shows, books, challenges = [], mediaId, mediaType, mediaYear } = data);
+	$: ({
+		session,
+		profile,
+		user_id,
+		games,
+		movies,
+		shows,
+		books,
+		challenges = [],
+		mediaId,
+		mediaType,
+		mediaYear
+	} = data);
+	$: mode = (data as { mode?: string | null }).mode ?? null;
 	// HTML bind variables
 	let date_modal: HTMLInputElement;
 	let search_modal: HTMLInputElement;
@@ -198,6 +224,14 @@
 	// Load data and set up inital states depending on online status and sync status
 	onMount(async () => {
 		is_initializing = true;
+		const parsed_mode = Number(mode);
+		if (Number.isInteger(parsed_mode) && parsed_mode >= 0 && parsed_mode <= 2) {
+			current_mode = parsed_mode;
+			header_text = get_ui_mode_label_from_code(current_mode);
+			if (current_mode === 1) {
+				current_year = 'Gesamt';
+			}
+		}
 		const fallback_medium = active_media_types.includes('movies')
 			? 'movies'
 			: (active_media_types[0] ?? 'movies');
@@ -209,10 +243,11 @@
 		}
 		current_tab_index = getTabIndexFromMediaType(current_medium);
 		// If year is provided from notification, use it
-		if (mediaYear) {
+		if (mediaYear && current_mode !== 1) {
 			current_year = String(mediaYear);
 		}
 		form_text = get_media_type_display_label(current_medium);
+		const initial_backlogged_filter = current_mode === 1 ? 1 : 0;
 		
 		// Check if user has changed - if so, clear all Dexie tables
 		const existingPrefs = await dexieDB.prefs.toArray();
@@ -281,29 +316,58 @@
 		// Handle data from visited user profile
 		if (!own_profile) {
 			total_media_data.push(
-				await dexieDB.games_other.where({ backlogged: 0 }).reverse().sortBy('added')
+				await dexieDB.games_other
+					.where({ backlogged: initial_backlogged_filter })
+					.reverse()
+					.sortBy('added')
 			);
 			total_media_data.push(
-				await dexieDB.movies_other.where({ backlogged: 0 }).reverse().sortBy('added')
+				await dexieDB.movies_other
+					.where({ backlogged: initial_backlogged_filter })
+					.reverse()
+					.sortBy('added')
 			);
 			total_media_data.push(
-				await dexieDB.shows_other.where({ backlogged: 0 }).reverse().sortBy('added')
+				await dexieDB.shows_other
+					.where({ backlogged: initial_backlogged_filter })
+					.reverse()
+					.sortBy('added')
 			);
 			total_media_data.push(
-				await dexieDB.books_other.where({ backlogged: 0 }).reverse().sortBy('added')
+				await dexieDB.books_other
+					.where({ backlogged: initial_backlogged_filter })
+					.reverse()
+					.sortBy('added')
 			);
 		}
 		// Handle own data
 		else {
-			total_media_data.push(await dexieDB.games.where({ backlogged: 0 }).reverse().sortBy('added'));
 			total_media_data.push(
-				await dexieDB.movies.where({ backlogged: 0 }).reverse().sortBy('added')
+				await dexieDB.games.where({ backlogged: initial_backlogged_filter }).reverse().sortBy('added')
 			);
-			total_media_data.push(await dexieDB.shows.where({ backlogged: 0 }).reverse().sortBy('added'));
-			total_media_data.push(await dexieDB.books.where({ backlogged: 0 }).reverse().sortBy('added'));
+			total_media_data.push(
+				await dexieDB.movies.where({ backlogged: initial_backlogged_filter }).reverse().sortBy('added')
+			);
+			total_media_data.push(
+				await dexieDB.shows.where({ backlogged: initial_backlogged_filter }).reverse().sortBy('added')
+			);
+			total_media_data.push(
+				await dexieDB.books.where({ backlogged: initial_backlogged_filter }).reverse().sortBy('added')
+			);
 		}
-		for (let [index, media] of total_media_data.entries()) {
-			media_data[index] = media.filter((obj) => obj.added?.substring(0, 4) == current_year);
+		if (current_mode === 1) {
+			current_year = 'Gesamt';
+			for (let [index, media] of total_media_data.entries()) {
+				media_data[index] = media;
+			}
+		} else if (isNaN(Number(current_year))) {
+			for (let [index, media] of total_media_data.entries()) {
+				media_data[index] = media;
+			}
+		} else {
+			for (let [index, media] of total_media_data.entries()) {
+				media_data[index] = media.filter((obj) => obj.added?.substring(0, 4) == current_year);
+			}
 		}
 		for (let media of media_data) {
 			media_data_unfiltered.push(media);
@@ -311,6 +375,9 @@
 		applySortingToVisibleData();
 		challenge_data = challenges;
 		years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
+		if (current_mode === 1) {
+			years_in_db = years_in_db.slice(-1);
+		}
 		
 		// Ensure current_user_id is stored in prefs for next login detection
 		const prefs = await dexieDB.prefs.toArray();

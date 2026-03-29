@@ -13,6 +13,8 @@
 		details?: {
 			media_id?: string | number;
 			media_year?: number;
+			mode?: number | string;
+			backlogged?: number | string;
 			[key: string]: any;
 		};
 	};
@@ -72,12 +74,25 @@
 		const mediaId = notification.details?.media_id;
 		const mediaType = notification.media_type;
 		const mediaYear = notification.details?.media_year;
+		const rawMode = notification.details?.mode;
+		const rawBacklogged = notification.details?.backlogged;
+		const parsedMode =
+			typeof rawMode === 'number'
+				? rawMode
+				: rawMode != null
+					? Number(rawMode)
+					: rawBacklogged != null
+						? Number(rawBacklogged)
+						: Number.NaN;
 		let url = `/${notification.username}`;
 		
 		const params = new URLSearchParams();
 		if (mediaId) params.append('mediaId', String(mediaId));
 		if (mediaType) params.append('mediaType', mediaType);
 		if (mediaYear) params.append('mediaYear', String(mediaYear));
+		if (Number.isInteger(parsedMode) && parsedMode >= 0 && parsedMode <= 2) {
+			params.append('mode', String(parsedMode));
+		}
 		
 		if (params.size > 0) {
 			url += `?${params.toString()}`;

@@ -69,6 +69,7 @@ export const load: PageServerLoad = async ({
 		// Query parameters for routing from notifications
 		mediaId: url.searchParams.get('mediaId'),
 		mediaType: url.searchParams.get('mediaType'),
-		mediaYear: url.searchParams.get('mediaYear')
+		mediaYear: url.searchParams.get('mediaYear'),
+		mode: url.searchParams.get('mode')
 	};
 };
