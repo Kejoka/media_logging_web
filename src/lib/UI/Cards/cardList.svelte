@@ -1107,14 +1107,14 @@
 			{/if}
 		</div>
 
-		<label class="form-control">
+		<div class="form-control">
 			<div class="label pb-1">
 				<span class="label-text font-medium">Review-Notizen</span>
 			</div>
 			<div class="ml-section p-2">
 				<NoteBubbleEditor bind:value={to_edit.notes} />
 			</div>
-		</label>
+		</div>
 
 		<div class="collapse collapse-arrow border border-base-content/10 bg-base-200/50 overflow-y-auto">
 			<input type="checkbox" bind:checked={show_advanced_fields} />
