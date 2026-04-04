@@ -36,6 +36,9 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						release: validate_and_trim_field(medium_fields_to_update.release, null),
 						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
 						platforms: validate_and_trim_field(medium_fields_to_update.platforms, null),
+						...(medium_fields_to_update.trophy !== undefined
+							? { trophy: medium_fields_to_update.trophy }
+							: {}),
 						added: validate_and_trim_field(
 							medium_fields_to_update.added,
 							new Date().toISOString()

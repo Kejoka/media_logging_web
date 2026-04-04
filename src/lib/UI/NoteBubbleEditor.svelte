@@ -33,8 +33,14 @@
 		persistBubbles();
 	}
 
+	function togglePrivate(index: number, checked: boolean) {
+		bubbles[index] = { ...bubbles[index], private: checked };
+		bubbles = [...bubbles];
+		persistBubbles();
+	}
+
 	function addBubble() {
-		bubbles = [...bubbles, { text: '', spoiler: false }];
+		bubbles = [...bubbles, { text: '', spoiler: false, private: false }];
 		persistBubbles();
 	}
 
@@ -48,12 +54,16 @@
 	{#if loadedFromLegacy}
 		<div class="rounded-md border border-warning/40 bg-warning/10 p-2 text-xs text-warning-content">
 			Vorhandene Review-Notizen wurden aus dem alten Format geladen. Beim Speichern werden sie ins
-			neue Blasen-Format migriert.
+			neue Format migriert.
 		</div>
 	{/if}
 
+	<input type="date" name="huhu" id="test" />
+
 	{#if bubbles.length === 0}
-		<p class="text-sm text-base-content/70">Noch keine Review-Notizen vorhanden.</p>
+		<p class="rounded-md bg-base-200/50 px-3 py-2 text-sm text-base-content/65">
+			Noch keine Review-Notizen vorhanden.
+		</p>
 	{/if}
 
 	{#each bubbles as bubble, index (index)}
@@ -87,6 +97,17 @@
 						toggleSpoiler(index, (event.currentTarget as HTMLInputElement).checked)}
 				/>
 				<span>Als Spoiler markieren</span>
+			</label>
+
+			<label class="mt-2 flex cursor-pointer items-center gap-2 text-sm">
+				<input
+					type="checkbox"
+					class="checkbox checkbox-sm"
+					checked={bubble.private}
+					on:change={(event) =>
+						togglePrivate(index, (event.currentTarget as HTMLInputElement).checked)}
+				/>
+				<span>Privat (nur für dich sichtbar)</span>
 			</label>
 		</div>
 	{/each}

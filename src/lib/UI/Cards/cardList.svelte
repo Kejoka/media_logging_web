@@ -45,6 +45,7 @@
 	let to_editSeasonStart: number | null = null;
 	let to_editSeasonEnd: number | null = null;
 	let to_editEpisode = 0;
+	let to_editTrophy = false;
 	let show_advanced_fields = false;
 	let legacyMigrationRunning = false;
 	let migratedLegacyNoteIds: number[] = [];
@@ -450,6 +451,7 @@
 		to_editSeasonStart = seasonRange.start;
 		to_editSeasonEnd = seasonRange.end;
 		to_editEpisode = clampNonNegativeInt(to_edit.episode);
+		to_editTrophy = Number(to_edit.trophy || 0) > 0;
 		show_advanced_fields = false;
 		edit_modal.checked = true;
 	}
@@ -520,6 +522,9 @@
 			to_edit.seasons = serializeSeasonRange(to_editSeasonStart, to_editSeasonEnd) || undefined;
 			to_edit.episode = clampNonNegativeInt(to_editEpisode);
 		}
+		if (current_medium === 'games') {
+			to_edit.trophy = to_editTrophy ? 1 : 0;
+		}
 		media_data[media_data.findIndex((obj) => obj.id == to_edit.id)] = to_edit;
 		const sync_timestamp = new Date();
 		// DexieDB
@@ -542,6 +547,8 @@
 						to_edit.added && to_edit.added.trim().length > 0
 							? to_edit.added.trim()
 							: new Date().toISOString(),
+					trophy:
+						to_edit.trophy && to_edit.trophy.toString().trim().length > 0 ? to_edit.trophy : 0,
 					notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes.trim() : null
 				} as mediaObject);
 				break;
@@ -1063,17 +1070,35 @@
 		<div class="mb-1">
 			<p class="text-lg font-bold">Eintrag bearbeiten</p>
 		</div>
-
 		<div class="grid gap-4 sm:grid-cols-2">
-			<label class="w-full sm:col-span-2">
+			<!-- Added-Date -->
+			<div class="w-full">
 				<div class="label pb-1">
-					<span class="label-text font-medium">Titel</span>
+					<span class="label-text font-medium">Hinzugefügt</span>
 				</div>
 				<div class="w-full p-2">
-					<input type="text" bind:value={to_edit.title} class="ml-input" />
+					<DateInput
+						bind:value={to_editAdded}
+						max={new Date()}
+						min={new Date(1888, 9, 14)}
+						dynamicPositioning={true}
+						class="ml-date-input w-full [--date-input-width:100%]"
+					/>
 				</div>
-			</label>
-
+			</div>
+			<!-- Trophy -->
+			{#if current_medium === 'games'}
+				<label
+					class="flex cursor-pointer items-center gap-3 rounded-xl border border-base-content/10 bg-base-100 p-3"
+				>
+					<input type="checkbox" bind:checked={to_editTrophy} class="checkbox checkbox-accent" />
+					<div class="flex flex-col">
+						<span class="font-medium">Komplettiert</span>
+						<span class="text-xs opacity-65">Entspricht dem Trophy-Status der GameCard.</span>
+					</div>
+				</label>
+			{/if}
+			<!-- Staffel / Episode -->
 			{#if current_medium === 'shows'}
 				<div class="w-full">
 					<div class="label pb-1">
@@ -1131,75 +1156,101 @@
 					<p class="mt-1 text-xs opacity-65">Wird als Zahl gespeichert, nie kleiner als 0.</p>
 				</div>
 			{/if}
-
-			<div class="w-full">
-				<div class="label pb-1">
-					<span class="label-text font-medium">Release-Datum</span>
-				</div>
-				<div class="w-full p-2">
-					<DateInput bind:value={to_editRelease} max={new Date()} min={new Date(1888, 9, 14)} />
-				</div>
-			</div>
-
-			<div class="w-full">
-				<div class="label pb-1">
-					<span class="label-text font-medium">Hinzugefügt</span>
-				</div>
-				<div class="w-full p-2">
-					<DateInput bind:value={to_editAdded} max={new Date()} min={new Date(1888, 9, 14)} />
-				</div>
-			</div>
-
-			<div class="sm:col-span-2">
-				<TagInput
-					label="Genres"
-					bind:value={to_editGenreTags}
-					suggestions={genreSuggestions}
-					placeholder="Genre auswählen oder selbst eingeben"
-				/>
-			</div>
-
-			{#if current_medium === 'games'}
-				<div class="sm:col-span-2">
-					<TagInput
-						label="Plattformen"
-						bind:value={to_editPlatformTags}
-						suggestions={platformSuggestions}
-						placeholder="Plattform auswählen oder selbst eingeben"
-					/>
-				</div>
-			{:else if current_medium === 'books'}
-				<label class="form-control w-full">
-					<div class="label pb-1">
-						<span class="label-text font-medium">Autor</span>
-					</div>
-					<input type="text" bind:value={to_edit.author} class="ml-input" />
-				</label>
-				<label class="form-control w-full">
-					<div class="label pb-1">
-						<span class="label-text font-medium">Seitenzahl</span>
-					</div>
-					<input type="number" min="0" step="1" bind:value={to_edit.pagecount} class="ml-input" />
-				</label>
-			{/if}
 		</div>
 
-		<div
-			class="collapse-arrow collapse overflow-y-auto border border-base-content/10 bg-base-200/50"
-		>
-			<input type="checkbox" bind:checked={show_advanced_fields} />
-			<div class="collapse-title py-3 text-sm font-semibold">Erweiterte Felder</div>
-			<div class="collapse-content pt-1">
-				<label class="form-control w-full">
-					<div class="label pb-1">
-						<span class="label-text font-medium">Bild-URL</span>
+		<div class="shrink-0 overflow-hidden rounded-2xl border border-base-content/10 bg-base-200/50">
+			<button
+				type="button"
+				class="flex min-h-12 w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold"
+				on:click={() => (show_advanced_fields = !show_advanced_fields)}
+			>
+				<span>Erweiterte Felder</span>
+				<span class="text-base-content/70">{show_advanced_fields ? '−' : '+'}</span>
+			</button>
+			{#if show_advanced_fields}
+				<div class="space-y-3 px-4 pt-1 pb-4">
+					<!-- Titel -->
+					<label class="w-full sm:col-span-2">
+						<div class="label pb-1">
+							<span class="label-text font-medium">Titel</span>
+						</div>
+						<div class="w-full p-2">
+							<input type="text" bind:value={to_edit.title} class="ml-input" />
+						</div>
+					</label>
+					<!-- Autor -->
+					{#if current_medium === 'books'}
+						<label class="form-control w-full">
+							<div class="label pb-1">
+								<span class="label-text font-medium">Autor</span>
+							</div>
+							<input type="text" bind:value={to_edit.author} class="ml-input" />
+						</label>
+						<label class="form-control w-full">
+							<div class="label pb-1">
+								<span class="label-text font-medium">Seitenzahl</span>
+							</div>
+							<input
+								type="number"
+								min="0"
+								step="1"
+								bind:value={to_edit.pagecount}
+								class="ml-input"
+							/>
+						</label>
+					{/if}
+					<!-- Release -->
+					<div class="w-full">
+						<div class="label pb-1">
+							<span class="label-text font-medium">Release-Datum</span>
+						</div>
+						<div class="w-full p-2">
+							<DateInput
+								bind:value={to_editRelease}
+								max={new Date()}
+								min={new Date(1888, 9, 14)}
+								dynamicPositioning={true}
+								class="ml-date-input w-full [--date-input-width:100%]"
+							/>
+						</div>
 					</div>
-					<input type="url" bind:value={to_edit.image} class="ml-input" placeholder="https://..." />
-					<p class="mt-1 text-xs opacity-65">
-						Nur anpassen, wenn du bewusst ein anderes Cover verwenden willst.
-					</p>
-				</label>
-			</div>
+					<!-- Genre-Tags -->
+					<div class="sm:col-span-2">
+						<TagInput
+							label="Genres"
+							bind:value={to_editGenreTags}
+							suggestions={genreSuggestions}
+							placeholder="Genre auswählen oder selbst eingeben"
+						/>
+					</div>
+					<!-- Platform-Tags -->
+					{#if current_medium === 'games'}
+						<div class="sm:col-span-2">
+							<TagInput
+								label="Plattformen"
+								bind:value={to_editPlatformTags}
+								suggestions={platformSuggestions}
+								placeholder="Plattform auswählen oder selbst eingeben"
+							/>
+						</div>
+					{/if}
+					<!-- Bild-URL -->
+					<label class="form-control w-full">
+						<div class="label pb-1">
+							<span class="label-text font-medium">Bild-URL</span>
+						</div>
+						<input
+							type="url"
+							bind:value={to_edit.image}
+							class="ml-input"
+							placeholder="https://..."
+						/>
+						<p class="mt-1 text-xs opacity-65">
+							Nur anpassen, wenn du bewusst ein anderes Cover verwenden willst.
+						</p>
+					</label>
+				</div>
+			{/if}
 		</div>
 
 		<button class="btn mt-3 font-bold btn-success" on:click={updateMedium}
@@ -1293,5 +1344,9 @@
 		--date-picker-foreground: var(--color-base-content);
 		--date-picker-highlight: var(--color-primary);
 		--date-picker-highlight-foreground: var(--color-primary-content);
+	}
+
+	:global(.ml-date-input input) {
+		border-radius: 0.5rem;
 	}
 </style>

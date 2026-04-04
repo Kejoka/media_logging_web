@@ -3,6 +3,7 @@ export const REVIEW_NOTES_PREFIX = 'MLW_NOTES_V1:';
 export type ReviewNoteBubble = {
 	text: string;
 	spoiler: boolean;
+	private: boolean;
 };
 
 type ReviewNotesPayload = {
@@ -20,7 +21,8 @@ function normalizeBubbles(bubbles: ReviewNoteBubble[]): ReviewNoteBubble[] {
 	return bubbles
 		.map((bubble) => ({
 			text: (bubble.text || '').trim(),
-			spoiler: Boolean(bubble.spoiler)
+			spoiler: Boolean(bubble.spoiler),
+			private: Boolean(bubble.private)
 		}))
 		.filter((bubble) => bubble.text.length > 0);
 }
@@ -30,7 +32,7 @@ function decodeLegacyNotes(notes: string): ReviewNoteBubble[] {
 		.split('\n')
 		.map((line) => line.trim())
 		.filter((line) => line.length > 0)
-		.map((line) => ({ text: line, spoiler: false }));
+		.map((line) => ({ text: line, spoiler: false, private: false }));
 }
 
 export function isLegacyReviewNotes(notes: string | null | undefined): boolean {

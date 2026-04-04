@@ -129,8 +129,6 @@
 			</div>
 		</form>
 
-		<div class="my-6 border-t border-white/10"></div>
-
 		<div class="mt-6 border-t border-white/10 pt-6">
 			<form method="post" action="?/signout" use:enhance={handleSignOut}>
 				<button

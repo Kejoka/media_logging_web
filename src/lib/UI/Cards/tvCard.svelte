@@ -31,6 +31,11 @@
 	const TAP_THRESHOLD = 8;
 
 	$: decodedNotes = decodeReviewNotes(medium.notes);
+	$: visibleNotes = own_profile
+		? decodedNotes.bubbles
+		: decodedNotes.bubbles.filter((bubble) => !bubble.private);
+	$: hasOnlyPrivateNotes =
+		!own_profile && decodedNotes.bubbles.length > 0 && visibleNotes.length === 0;
 
 	$: {
 		const currentNotesValue = medium.notes || '';
@@ -279,9 +284,9 @@
 				{/if}
 			</div>
 			<div class="collapse-content px-2 pt-0">
-				{#if decodedNotes.bubbles.length > 0}
+				{#if visibleNotes.length > 0}
 					<div class="chat-header mt-3">Review-Notizen:</div>
-					{#each decodedNotes.bubbles as bubble, index (index)}
+					{#each visibleNotes as bubble, index (index)}
 						<div class="chat-start chat">
 							{#if bubble.spoiler && !revealedSpoilers.includes(index)}
 								<button
@@ -298,10 +303,10 @@
 							{/if}
 						</div>
 					{/each}
+				{:else if !own_profile && hasOnlyPrivateNotes}
+					<p class="mt-3 text-sm text-base-content/60">Die Review-Notizen sind privat</p>
 				{:else if !own_profile}
-					<div class="chat-start mt-3 chat">
-						<div class="chat-bubble w-fit">Keine Review-Notizen vorhanden.</div>
-					</div>
+					<p class="mt-3 text-sm text-base-content/60">Keine Review-Notizen vorhanden.</p>
 				{/if}
 				{#if own_profile}
 					<div class="mt-3 flex flex-wrap justify-evenly gap-2">
