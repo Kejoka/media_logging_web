@@ -1088,7 +1088,7 @@
 		<div class="modal" role="dialog">
 			<div class="modal-box flex flex-col">
 				<p class="mb-1 text-center text-lg font-bold">{last_selection.title}</p>
-				<p class="mb-3 text-center text-base font-semibold">gesehen:</p>
+				<p class="mb-3 text-center text-base font-semibold">{current_medium === 'games' ? 'gespielt:' : current_medium === 'books' ? 'gelesen:' : 'gesehen:'}</p>
 				<DatePicker
 					bind:value={selected_date}
 					max={new Date()}

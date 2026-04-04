@@ -78,6 +78,13 @@
 		dispatch('update_score', { new_score: event.detail.score, medium });
 	}
 
+	function handleModalNotesChange(event: CustomEvent<{ notes: string }>) {
+		if ((medium.notes || '') === event.detail.notes) {
+			return;
+		}
+		dispatch('update_notes', { medium, notes: event.detail.notes });
+	}
+
 	function handleInlineScoreChange() {
 		if (Date.now() < suppressInlineScoreUpdateUntil) {
 			config.score = medium.rating || 0;
@@ -210,9 +217,11 @@
 		open={ratingModalOpen}
 		title={medium.title || ''}
 		score={modalScore}
+		notes={medium.notes || ''}
 		on:close={() => {
 			ratingModalOpen = false;
 		}}
 		on:scoreChange={handleModalScoreChange}
+		on:notesChange={handleModalNotesChange}
 	/>
 {/key}

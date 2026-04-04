@@ -16,7 +16,6 @@
 	import ChartCard from './chartCard.svelte';
 	import ChallengeCard from './challengeCard.svelte';
 	import Star from '../Stars_modified/Star.svelte';
-	import NoteBubbleEditor from '$lib/UI/NoteBubbleEditor.svelte';
 	import TagInput from '$lib/UI/TagInput.svelte';
 	import movieGenres from '$lib/movieGenres';
 	import tvGenres from '$lib/tvGenres';
@@ -351,6 +350,77 @@
 							medium: current_medium,
 							card: { id: event.detail.medium.id, rating: event.detail.new_score } as mediaObject
 						});
+						dexie_prefs.changed_offline = JSON.stringify(tmp);
+					}
+					dexie_prefs.updated_at = sync_timestamp.toISOString();
+					await dexieDB.prefs.update(0, dexie_prefs);
+				}
+			}
+		} catch (error) {
+			console.log(error);
+		}
+	}
+
+	async function updateNotes(event: CustomEvent<{ medium: mediaObject; notes: string }>) {
+		try {
+			const normalizedNotes = event.detail.notes.trim().length > 0 ? event.detail.notes.trim() : undefined;
+			const mediumIndex = media_data.findIndex((obj) => obj.id == event.detail.medium.id);
+			if (mediumIndex === -1) {
+				return;
+			}
+
+			const currentNotes = media_data[mediumIndex].notes || '';
+			const nextNotes = normalizedNotes || '';
+			if (currentNotes === nextNotes) {
+				return;
+			}
+
+			media_data[mediumIndex].notes = normalizedNotes;
+			const updatedMedium = { ...media_data[mediumIndex] } as mediaObject;
+			const sync_timestamp = new Date();
+
+			switch (current_medium) {
+				case 'games':
+					await dexieDB.games.update(updatedMedium.id, { notes: normalizedNotes });
+					break;
+				case 'movies':
+					await dexieDB.movies.update(updatedMedium.id, { notes: normalizedNotes });
+					break;
+				case 'shows':
+					await dexieDB.shows.update(updatedMedium.id, { notes: normalizedNotes });
+					break;
+				case 'books':
+					await dexieDB.books.update(updatedMedium.id, { notes: normalizedNotes });
+					break;
+				default:
+					break;
+			}
+
+			await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
+
+			try {
+				const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+				if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
+					sync_offline_changes_to_server();
+				}
+				await fetch('/api/v1/updateMedium', {
+					method: 'POST',
+					body: JSON.stringify({
+						medium_fields_to_update: updatedMedium,
+						current_medium,
+						sync_timestamp
+					}),
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
+			} catch (error) {
+				console.log(error);
+				let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
+				if (dexie_prefs) {
+					if (!navigator.onLine) {
+						const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
+						tmp.push({ event: 'update', medium: current_medium, card: updatedMedium });
 						dexie_prefs.changed_offline = JSON.stringify(tmp);
 					}
 					dexie_prefs.updated_at = sync_timestamp.toISOString();
@@ -728,6 +798,7 @@
 					on:delete={askDelete}
 					on:edit={showEditForm}
 					on:update_score={updateScore}
+					on:update_notes={updateNotes}
 					{own_profile}
 					{medium}
 					{config}
@@ -738,6 +809,7 @@
 					on:delete={askDelete}
 					on:edit={showEditForm}
 					on:update_score={updateScore}
+					on:update_notes={updateNotes}
 					on:showStreams={showProviderList}
 					{own_profile}
 					{medium}
@@ -749,6 +821,7 @@
 					on:delete={askDelete}
 					on:edit={showEditForm}
 					on:update_score={updateScore}
+					on:update_notes={updateNotes}
 					on:showStreams={showProviderList}
 					{own_profile}
 					{medium}
@@ -760,6 +833,7 @@
 					on:delete={askDelete}
 					on:edit={showEditForm}
 					on:update_score={updateScore}
+					on:update_notes={updateNotes}
 					{own_profile}
 					{medium}
 					{config}
@@ -1105,15 +1179,6 @@
 					<input type="number" min="0" step="1" bind:value={to_edit.pagecount} class="ml-input" />
 				</label>
 			{/if}
-		</div>
-
-		<div class="form-control">
-			<div class="label pb-1">
-				<span class="label-text font-medium">Review-Notizen</span>
-			</div>
-			<div class="ml-section p-2">
-				<NoteBubbleEditor bind:value={to_edit.notes} />
-			</div>
 		</div>
 
 		<div class="collapse collapse-arrow border border-base-content/10 bg-base-200/50 overflow-y-auto">

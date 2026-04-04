@@ -1,17 +1,21 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import Star from './Star.svelte';
+	import NoteBubbleEditor from '$lib/UI/NoteBubbleEditor.svelte';
 
 	export let open = false;
 	export let score = 0;
 	export let title = '';
+	export let notes: string | null | undefined = '';
 
 	const dispatch = createEventDispatcher<{
 		close: void;
 		scoreChange: { score: number };
+		notesChange: { notes: string };
 	}>();
 
 	let localScore = 0;
+	let localNotes = '';
 
 	function clampScore(value: number): number {
 		const clamped = Math.max(0, Math.min(5, value));
@@ -20,10 +24,20 @@
 
 	$: if (open) {
 		localScore = clampScore(score ?? 0);
+		localNotes = notes || '';
 	}
 
 	function closeModal() {
+		dispatch('notesChange', { notes: localNotes.trim() });
 		dispatch('close');
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (!open || event.key !== 'Escape') {
+			return;
+		}
+		event.preventDefault();
+		closeModal();
 	}
 
 	function updateScore(value: number) {
@@ -31,6 +45,8 @@
 		dispatch('scoreChange', { score: localScore });
 	}
 </script>
+
+<svelte:window on:keydown={handleKeydown} />
 
 <div class="modal" class:modal-open={open} role="dialog" aria-modal={open}>
 	<div class="modal-box">
@@ -75,6 +91,13 @@
 				{localScore.toFixed(1)} / 5.0
 			{/if}
 		</p>
+
+		<div class="mt-5">
+			<p class="mb-2 text-sm font-semibold">Review-Notizen</p>
+			<div class="rounded-lg border border-base-content/10 bg-base-200/40 p-3">
+				<NoteBubbleEditor bind:value={localNotes} />
+			</div>
+		</div>
 	</div>
 	<button type="button" class="modal-backdrop" aria-label="Modal schließen" on:click={closeModal}
 		>Close</button
