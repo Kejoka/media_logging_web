@@ -66,6 +66,7 @@ CREATE TABLE dismissed_activities (
 -- Create index for faster queries
 CREATE INDEX idx_dismissed_activities_user_id ON dismissed_activities(user_id);
 CREATE INDEX idx_dismissed_activities_activity_id ON dismissed_activities(activity_id);
+CREATE INDEX idx_dismissed_activities_dismissed_at ON dismissed_activities(dismissed_at DESC);
 
 -- Enable RLS
 ALTER TABLE dismissed_activities ENABLE ROW LEVEL SECURITY;
