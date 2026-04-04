@@ -9,9 +9,11 @@
 	import Icon from '$lib/Icons/Icon.svelte';
 	import UserFollow from '$lib/Icons/user_follow.svelte';
 	import UserUnfollow from '$lib/Icons/user_unfollow.svelte';
+	import Group from '$lib/Icons/group.svelte';
 	import Notifications from '$lib/Icons/notifications.svelte';
 	import NotificationsUnread from '$lib/Icons/notifications_unread.svelte';
 	import NotificationPanel from '$lib/UI/NotificationPanel.svelte';
+	import FollowerPanel from '$lib/UI/FollowerPanel.svelte';
 	import { dexieDB } from '$lib/dbUtils';
 	import {
 		enabled_media_types,
@@ -29,6 +31,7 @@
 	// Determine if the current page is the user's own profile or someone else's
 	let followingUser = $state(false);
 	let notificationPanelOpen = $state(false);
+	let followerPanelOpen = $state(false);
 	let unreadCount = $state(0);
 
 	$effect(() => {
@@ -53,6 +56,8 @@
 
 		if (!ownProfile && !authPage && !accountPage && profileRootPage) {
 			checkIfFollowing();
+		} else if (ownProfile || authPage || accountPage || !profileRootPage) {
+			followingUser = false;
 		}
 	});
 
@@ -66,7 +71,7 @@
 			if (event === 'SIGNED_OUT') {
 				void dexieDB.delete().then(() => dexieDB.open());
 			}
-			
+
 			if (_session?.expires_at !== session?.expires_at) {
 				invalidate('supabase:auth');
 			}
@@ -142,6 +147,20 @@
 			console.error('Error processing follow toggle response:', error);
 		}
 	}
+
+	function toggleNotificationPanel() {
+		notificationPanelOpen = !notificationPanelOpen;
+		if (notificationPanelOpen) {
+			followerPanelOpen = false;
+		}
+	}
+
+	function toggleFollowerPanel() {
+		followerPanelOpen = !followerPanelOpen;
+		if (followerPanelOpen) {
+			notificationPanelOpen = false;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -204,7 +223,14 @@
 							<UserUnfollow />
 						</button>
 					{:else if $is_own_profile}
-						<button onclick={() => (notificationPanelOpen = !notificationPanelOpen)}>
+						<button onclick={toggleFollowerPanel} aria-label="Follower anzeigen" title="Follower">
+							<Group />
+						</button>
+						<button
+							onclick={toggleNotificationPanel}
+							aria-label="Benachrichtigungen anzeigen"
+							title="Benachrichtigungen"
+						>
 							{#if unreadCount > 0}
 								<NotificationsUnread />
 							{:else}
@@ -231,5 +257,6 @@
 			bind:isOpen={notificationPanelOpen}
 			onUnreadCountChange={(count) => (unreadCount = count)}
 		/>
+		<FollowerPanel bind:isOpen={followerPanelOpen} />
 	{/if}
 </div>

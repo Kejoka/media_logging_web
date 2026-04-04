@@ -1,11 +1,10 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import AutoComplete from '$lib/UI/AutoComplete.svelte';
 	import { MEDIA_TYPE_ORDER, normalize_enabled_media_types } from '$lib/utils';
 	import type { SubmitFunction } from '@sveltejs/kit';
 
 	let { data, form } = $props();
-	let { session, supabase, profile } = $derived(data);
+	let { profile } = $derived(data);
 	let profileForm: HTMLFormElement;
 	let loading = $state(false);
 	let username = $derived(profile?.username ?? '');
@@ -19,7 +18,9 @@
 				? form.username
 				: fallback_username;
 
-		const fallback_media_types = normalize_enabled_media_types(profile?.enabled_media_types ?? null);
+		const fallback_media_types = normalize_enabled_media_types(
+			profile?.enabled_media_types ?? null
+		);
 		selectedMediaTypes =
 			form?.enabled_media_types && form.enabled_media_types.length > 0
 				? [...form.enabled_media_types]
@@ -129,14 +130,6 @@
 		</form>
 
 		<div class="my-6 border-t border-white/10"></div>
-
-		<div class="space-y-3">
-			<label for="user-search" class="mb-1.5 block text-sm font-medium text-neutral-300"
-				>Andere Nutzer finden</label
-			>
-			<p class="text-xs text-neutral-500">Suche nach Profilen anderer Nutzer</p>
-			<AutoComplete></AutoComplete>
-		</div>
 
 		<div class="mt-6 border-t border-white/10 pt-6">
 			<form method="post" action="?/signout" use:enhance={handleSignOut}>
