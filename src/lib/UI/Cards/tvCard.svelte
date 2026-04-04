@@ -8,6 +8,10 @@
 	import { createEventDispatcher } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
 	import RatingPickerModal from '$lib/UI/Stars_modified/RatingPickerModal.svelte';
+	import EditNoteIcon from '$lib/Icons/edit_note.svelte';
+	import DeleteIcon from '$lib/Icons/delete.svelte';
+	import InfoIcon from '$lib/Icons/info.svelte';
+	import RateReviewIcon from '$lib/Icons/rate_review.svelte';
 	import { decodeReviewNotes } from '$lib/reviewNotes';
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
@@ -17,6 +21,7 @@
 	let unique = {};
 	let ratingModalOpen = false;
 	let modalScore = 0;
+	let modalAllowRating = true;
 	let modalOpenVersion = 0;
 	let pointerStart: { x: number; y: number } | null = null;
 	let pointerStartScore = 0;
@@ -52,10 +57,15 @@
 		return Number.isFinite(fallback) ? Math.max(0, Math.min(5, Math.round(fallback * 2) / 2)) : 0;
 	}
 
-	function openRatingModal(scoreToOpenWith: unknown) {
+	function openRatingModal(scoreToOpenWith: unknown, allowRating = true) {
 		modalScore = resolveScore(scoreToOpenWith);
+		modalAllowRating = allowRating;
 		modalOpenVersion += 1;
 		ratingModalOpen = true;
+	}
+
+	function openReviewNotesModal() {
+		openRatingModal(medium.rating || 0, current_mode === 0);
 	}
 
 	function handleRatingPointerUp(event: PointerEvent) {
@@ -197,7 +207,7 @@
 								<div
 									role="button"
 									tabindex="0"
-									class="absolute left-1 bottom-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-base-content/10 bg-base-300/85 text-sm font-bold"
+									class="absolute bottom-1 left-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full border border-base-content/10 bg-base-300/85 text-sm font-bold"
 									title="Episode verringern"
 									on:click={(event) => handleImageDecrement(event, medium)}
 									on:keydown={(event) => {
@@ -294,21 +304,45 @@
 					</div>
 				{/if}
 				{#if own_profile}
-					<button
-						class="btn my-3 h-8 min-h-8 w-full rounded-lg font-bold btn-warning"
-						on:click={() => dispatch('edit', medium)}>Karte bearbeiten</button
-					>
-					<button
-						class="btn h-8 min-h-8 w-full rounded-lg font-bold btn-error"
-						on:click={() => dispatch('delete', medium)}>Karte löschen</button
-					>
+					<div class="mt-3 flex flex-wrap justify-evenly gap-2">
+						<button
+							type="button"
+							class="btn btn-circle w-1/5 text-warning"
+							aria-label="Karte bearbeiten"
+							title="Karte bearbeiten"
+							on:click={() => dispatch('edit', medium)}
+						>
+							<EditNoteIcon />
+						</button>
+						<button
+							type="button"
+							class="btn btn-circle w-1/5 text-accent"
+							aria-label="Review-Notizen"
+							title="Review-Notizen"
+							on:click={openReviewNotesModal}
+						>
+							<RateReviewIcon />
+						</button>
+						<button
+							type="button"
+							class="btn btn-circle w-1/5 text-info"
+							aria-label="Wo streamen?"
+							title="Wo streamen?"
+							on:click={() => dispatch('showStreams', medium)}
+						>
+							<InfoIcon />
+						</button>
+						<button
+							type="button"
+							class="btn btn-circle w-1/5 text-error"
+							aria-label="Karte löschen"
+							title="Karte löschen"
+							on:click={() => dispatch('delete', medium)}
+						>
+							<DeleteIcon />
+						</button>
+					</div>
 				{/if}
-				<button
-					class="btn mt-3 h-8 min-h-8 w-full rounded-lg font-bold btn-info"
-					on:click={() => dispatch('showStreams', medium)}
-				>
-					Wo streamen?
-				</button>
 			</div>
 		</div>
 	</div>
@@ -320,6 +354,7 @@
 		title={medium.title || ''}
 		score={modalScore}
 		notes={medium.notes || ''}
+		allowRating={modalAllowRating}
 		on:close={() => {
 			ratingModalOpen = false;
 		}}

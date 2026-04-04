@@ -363,7 +363,8 @@
 
 	async function updateNotes(event: CustomEvent<{ medium: mediaObject; notes: string }>) {
 		try {
-			const normalizedNotes = event.detail.notes.trim().length > 0 ? event.detail.notes.trim() : undefined;
+			const normalizedNotes =
+				event.detail.notes.trim().length > 0 ? event.detail.notes.trim() : undefined;
 			const mediumIndex = media_data.findIndex((obj) => obj.id == event.detail.medium.id);
 			if (mediumIndex === -1) {
 				return;
@@ -1057,7 +1058,7 @@
 <input type="checkbox" id="edit_modal" class="modal-toggle" bind:this={edit_modal} />
 <div class="modal overflow-y-auto" role="dialog">
 	<div
-		class="modal-box my-[4dvh] flex max-h-[90dvh] w-[94vw] max-w-2xl flex-col gap-4 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-100 p-4 sm:p-6 scrollbar-hide"
+		class="scrollbar-hide modal-box my-[4dvh] flex max-h-[80dvh] w-[94vw] max-w-2xl flex-col gap-4 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-100 p-4 sm:p-6"
 	>
 		<div class="mb-1">
 			<p class="text-lg font-bold">Eintrag bearbeiten</p>
@@ -1072,6 +1073,64 @@
 					<input type="text" bind:value={to_edit.title} class="ml-input" />
 				</div>
 			</label>
+
+			{#if current_medium === 'shows'}
+				<div class="w-full">
+					<div class="label pb-1">
+						<span class="label-text font-medium">Staffel von</span>
+					</div>
+					<input
+						type="number"
+						min="1"
+						step="1"
+						bind:value={to_editSeasonStart}
+						class="ml-input"
+						placeholder="z.B. 1"
+					/>
+				</div>
+				<div class="w-full">
+					<div class="label pb-1">
+						<span class="label-text font-medium">Staffel bis</span>
+					</div>
+					<input
+						type="number"
+						min="1"
+						step="1"
+						bind:value={to_editSeasonEnd}
+						class="ml-input"
+						placeholder="optional"
+					/>
+				</div>
+				<div class="w-full sm:col-span-2">
+					<div class="label pb-1">
+						<span class="label-text font-medium">Aktuelle Episode</span>
+					</div>
+					<div class="ml-section flex items-center justify-between gap-2 p-2">
+						<button
+							type="button"
+							class="btn h-9 min-h-9 w-12 btn-sm"
+							on:click={() => (to_editEpisode = Math.max(to_editEpisode - 1, 0))}
+						>
+							-
+						</button>
+						<input
+							type="number"
+							min="0"
+							step="1"
+							bind:value={to_editEpisode}
+							class="ml-input w-full text-center"
+						/>
+						<button
+							type="button"
+							class="btn h-9 min-h-9 w-12 btn-sm"
+							on:click={() => (to_editEpisode = to_editEpisode + 1)}
+						>
+							+
+						</button>
+					</div>
+					<p class="mt-1 text-xs opacity-65">Wird als Zahl gespeichert, nie kleiner als 0.</p>
+				</div>
+			{/if}
 
 			<div class="w-full">
 				<div class="label pb-1">
@@ -1109,62 +1168,6 @@
 						placeholder="Plattform auswählen oder selbst eingeben"
 					/>
 				</div>
-			{:else if current_medium === 'shows'}
-				<div class="w-full">
-					<div class="label pb-1">
-						<span class="label-text font-medium">Staffel von</span>
-					</div>
-					<input
-						type="number"
-						min="1"
-						step="1"
-						bind:value={to_editSeasonStart}
-						class="ml-input"
-						placeholder="z.B. 1"
-					/>
-				</div>
-				<div class="w-full">
-					<div class="label pb-1">
-						<span class="label-text font-medium">Staffel bis</span>
-					</div>
-					<input
-						type="number"
-						min="1"
-						step="1"
-						bind:value={to_editSeasonEnd}
-						class="ml-input"
-						placeholder="optional"
-					/>
-				</div>
-				<div class="w-full sm:col-span-2">
-					<div class="label pb-1">
-						<span class="label-text font-medium">Aktuelle Episode</span>
-					</div>
-					<div class="ml-section flex items-center justify-between gap-2 p-2">
-						<button
-							type="button"
-							class="btn btn-sm h-9 min-h-9 w-12"
-							on:click={() => (to_editEpisode = Math.max(to_editEpisode - 1, 0))}
-						>
-							-
-						</button>
-						<input
-							type="number"
-							min="0"
-							step="1"
-							bind:value={to_editEpisode}
-							class="ml-input w-full text-center"
-						/>
-						<button
-							type="button"
-							class="btn btn-sm h-9 min-h-9 w-12"
-							on:click={() => (to_editEpisode = to_editEpisode + 1)}
-						>
-							+
-						</button>
-					</div>
-					<p class="mt-1 text-xs opacity-65">Wird als Zahl gespeichert, nie kleiner als 0.</p>
-				</div>
 			{:else if current_medium === 'books'}
 				<label class="form-control w-full">
 					<div class="label pb-1">
@@ -1181,7 +1184,9 @@
 			{/if}
 		</div>
 
-		<div class="collapse collapse-arrow border border-base-content/10 bg-base-200/50 overflow-y-auto">
+		<div
+			class="collapse-arrow collapse overflow-y-auto border border-base-content/10 bg-base-200/50"
+		>
 			<input type="checkbox" bind:checked={show_advanced_fields} />
 			<div class="collapse-title py-3 text-sm font-semibold">Erweiterte Felder</div>
 			<div class="collapse-content pt-1">
@@ -1212,7 +1217,7 @@
 <!-- Streaming Provider Modal -->
 <input type="checkbox" id="streaming_modal" class="modal-toggle" bind:this={streaming_modal} />
 <div class="modal" role="dialog">
-	<div class="modal-box flex max-h-[65%] flex-col">
+	<div class="modal-box flex max-h-[80dvh] flex-col">
 		<div class="mb-4 flex flex-row">
 			<p class=" justify-center text-2xl font-bold">Wo streamen?</p>
 			<div class="flex h-6 w-1/2 justify-end">
