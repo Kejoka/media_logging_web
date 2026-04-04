@@ -203,7 +203,7 @@
 			</button>
 		</div>
 
-		<div class="flex-1 overflow-y-auto p-4">
+		<div class="scrollbar-hide flex-1 overflow-y-auto p-4">
 			<div class="space-y-5">
 				<div class="space-y-2">
 					<label for="follower-search" class="block text-sm font-medium text-neutral-300"

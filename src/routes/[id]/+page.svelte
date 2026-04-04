@@ -10,13 +10,14 @@
 		type tvSeason
 	} from '$lib/dbUtils.js';
 	import WheelDatePicker from '$lib/UI/WheelDatePicker.svelte';
-	import { onMount, tick } from 'svelte';
+	import { onDestroy, onMount, tick } from 'svelte';
 	import { get } from 'svelte/store';
 	import { online_status } from '../../stores/onlineStatus';
 	import {
 		current_medium as current_medium_store,
 		current_year as current_year_store,
 		enabled_media_types,
+		is_profile_transition_loading,
 		sorting_method as sorting_method_store
 	} from '../../stores/uiState';
 	import Fuse, { type IFuseOptions } from 'fuse.js';
@@ -226,6 +227,7 @@
 
 	// Load data and set up inital states depending on online status and sync status
 	onMount(async () => {
+		is_profile_transition_loading.set(true);
 		is_initializing = true;
 		const parsed_mode = Number(mode);
 		if (Number.isInteger(parsed_mode) && parsed_mode >= 0 && parsed_mode <= 2) {
@@ -414,8 +416,13 @@
 
 			setTimeout(() => {
 				is_initializing = false;
+				is_profile_transition_loading.set(false);
 			}, 100);
 		});
+	});
+
+	onDestroy(() => {
+		is_profile_transition_loading.set(true);
 	});
 
 	// Clones supabase contents depending on whether or not the user is on their own profile

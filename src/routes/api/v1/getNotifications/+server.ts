@@ -14,7 +14,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 
 		if (followingError) throw followingError;
 
-		const followedUserIds = following.map((f) => f.followee);
+		const followedUserIds = (following || []).map((f) => f.followee);
 
 		// Get the user's last read timestamp
 		const { data: readStatus } = await supabase
@@ -24,49 +24,71 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 			.single();
 
 		const lastReadAt = readStatus?.last_read_at || new Date(0).toISOString();
+
 		// Get activities from followed users in the last 14 days
 		const fourteenDaysAgo = new Date();
 		fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-		const { data: activities, error: activitiesError } = await supabase
-			.from('user_activities')
-			.select(
-				`
-				id,
-				user_id,
-				activity_type,
-				media_type,
-				media_title,
-				details,
-				created_at
-			`
-			)
-			.in('user_id', followedUserIds)
-			.gte('created_at', fourteenDaysAgo.toISOString())
-			.order('created_at', { ascending: false })
-			.limit(100);
+		const baseActivitySelect = `
+			id,
+			user_id,
+			activity_type,
+			media_type,
+			media_title,
+			details,
+			created_at
+		`;
 
-		if (activitiesError) throw activitiesError;
+		const followedActivitiesPromise =
+			followedUserIds.length > 0
+				? supabase
+						.from('user_activities')
+						.select(baseActivitySelect)
+						.in('user_id', followedUserIds)
+						.in('activity_type', ['add', 'update', 'delete'])
+						.gte('created_at', fourteenDaysAgo.toISOString())
+						.order('created_at', { ascending: false })
+						.limit(100)
+				: Promise.resolve({ data: [], error: null });
 
 		// Get follow notifications where the current user is the followee
-		const { data: followActivities, error: followError } = await supabase
-			.from('user_activities')
-			.select(
-				`
-				id,
-				user_id,
-				activity_type,
-				media_type,
-				media_title,
-				details,
-				created_at
-			`
-			)
-			.eq('activity_type', 'follow')
-			.gte('created_at', fourteenDaysAgo.toISOString())
-			.order('created_at', { ascending: false });
+		const [
+			followedActivitiesRes,
+			followActivitiesRes,
+			recommendationActivitiesRes,
+			recommendationResponsesRes
+		] = await Promise.all([
+			followedActivitiesPromise,
+			supabase
+				.from('user_activities')
+				.select(baseActivitySelect)
+				.eq('activity_type', 'follow')
+				.gte('created_at', fourteenDaysAgo.toISOString())
+				.order('created_at', { ascending: false }),
+			supabase
+				.from('user_activities')
+				.select(baseActivitySelect)
+				.eq('activity_type', 'recommendation')
+				.order('created_at', { ascending: false })
+				.limit(200),
+			supabase
+				.from('user_activities')
+				.select(baseActivitySelect)
+				.eq('activity_type', 'recommendation_response')
+				.gte('created_at', fourteenDaysAgo.toISOString())
+				.order('created_at', { ascending: false })
+				.limit(200)
+		]);
 
-		if (followError) throw followError;
+		if (followedActivitiesRes.error) throw followedActivitiesRes.error;
+		if (followActivitiesRes.error) throw followActivitiesRes.error;
+		if (recommendationActivitiesRes.error) throw recommendationActivitiesRes.error;
+		if (recommendationResponsesRes.error) throw recommendationResponsesRes.error;
+
+		const activities = followedActivitiesRes.data || [];
+		const followActivities = followActivitiesRes.data || [];
+		const recommendationActivities = recommendationActivitiesRes.data || [];
+		const recommendationResponses = recommendationResponsesRes.data || [];
 
 		// Filter follow activities to only those where current user is the followee
 		const relevantFollowActivities = (followActivities || []).filter((activity) => {
@@ -74,10 +96,27 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 			return String(followeeId) === String(session.user.id);
 		});
 
+		const incomingRecommendations = (recommendationActivities || []).filter((activity) => {
+			const recipientId = activity.details?.recipient_id;
+			return String(recipientId) === String(session.user.id);
+		});
+
+		const senderResponses = (recommendationResponses || []).filter((activity) => {
+			const senderId = activity.details?.sender_id;
+			return String(senderId) === String(session.user.id);
+		});
+
 		// Combine both activity types and deduplicate by ID
 		const activityIds = new Set((activities || []).map((a) => a.id));
 		const uniqueFollowActivities = relevantFollowActivities.filter((a) => !activityIds.has(a.id));
-		const allActivities = [...(activities || []), ...uniqueFollowActivities];
+		const uniqueIncomingRecommendations = incomingRecommendations.filter((a) => !activityIds.has(a.id));
+		const uniqueSenderResponses = senderResponses.filter((a) => !activityIds.has(a.id));
+		const allActivities = [
+			...(activities || []),
+			...uniqueFollowActivities,
+			...uniqueIncomingRecommendations,
+			...uniqueSenderResponses
+		];
 
 		// Get user's dismissed activities
 		const { data: dismissedActivities, error: dismissedError } = await supabase
@@ -152,6 +191,8 @@ function formatActivities(activities: any[]) {
 		// Prioritize follow activities
 		if (a.activity_type === 'follow' && b.activity_type !== 'follow') return -1;
 		if (a.activity_type !== 'follow' && b.activity_type === 'follow') return 1;
+		if (a.activity_type === 'recommendation' && b.activity_type !== 'recommendation') return -1;
+		if (a.activity_type !== 'recommendation' && b.activity_type === 'recommendation') return 1;
 		// Within same type, sort by date (newest first)
 		return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
 	});

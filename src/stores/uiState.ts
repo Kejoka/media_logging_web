@@ -50,3 +50,8 @@ export const is_profile_root_page = writable<boolean>(false);
  * Username extracted from current route's first segment
  */
 export const route_profile_username = writable<string | null>(null);
+
+/**
+ * Global loading state for profile-to-profile transitions.
+ */
+export const is_profile_transition_loading = writable<boolean>(false);

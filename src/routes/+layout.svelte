@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '../app.css';
-	import { goto, invalidate } from '$app/navigation';
+	import { afterNavigate, beforeNavigate, goto, invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { browser } from '$app/environment';
 	import { page } from '$app/state';
@@ -20,6 +20,7 @@
 		is_account_page,
 		is_auth_page,
 		is_own_profile,
+		is_profile_transition_loading,
 		is_profile_root_page,
 		route_profile_username
 	} from '../stores/uiState';
@@ -33,6 +34,31 @@
 	let notificationPanelOpen = $state(false);
 	let followerPanelOpen = $state(false);
 	let unreadCount = $state(0);
+
+	function isProfileRoute(pathname: string | null | undefined): boolean {
+		if (!pathname) {
+			return false;
+		}
+		if (pathname === '/' || pathname === '/account' || pathname.startsWith('/auth/')) {
+			return false;
+		}
+		return /^\/[^/]+$/.test(pathname);
+	}
+
+	beforeNavigate((navigation) => {
+		const fromPath = navigation.from?.url.pathname ?? page.url.pathname;
+		const toPath = navigation.to?.url.pathname;
+		if (isProfileRoute(fromPath) || isProfileRoute(toPath)) {
+			is_profile_transition_loading.set(true);
+		}
+	});
+
+	afterNavigate((navigation) => {
+		const toPath = navigation.to?.url.pathname ?? page.url.pathname;
+		if (!isProfileRoute(toPath)) {
+			is_profile_transition_loading.set(false);
+		}
+	});
 
 	$effect(() => {
 		const raw_media_types = ownProfileEnabledMediaTypes?.join(',') ?? MEDIA_TYPE_ORDER.join(',');
@@ -250,6 +276,16 @@
 			{@render children()}
 		{/key}
 	</main>
+
+	{#if $is_profile_transition_loading}
+		<div
+			class="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-base-300/85 backdrop-blur-sm"
+		>
+			<div class="flex flex-col items-center gap-3">
+				<span class="loading m-auto mt-3 loading-xl loading-dots"></span>
+			</div>
+		</div>
+	{/if}
 
 	<!-- Notification Panel -->
 	{#if !$is_auth_page && session && $is_own_profile}

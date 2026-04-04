@@ -5,7 +5,7 @@
 CREATE TABLE user_activities (
   id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
   user_id uuid NOT NULL REFERENCES auth.users ON DELETE CASCADE,
-  activity_type text NOT NULL CHECK (activity_type IN ('add', 'update', 'delete', 'follow')),
+  activity_type text NOT NULL CHECK (activity_type IN ('add', 'update', 'delete', 'follow', 'recommendation', 'recommendation_response')),
   media_type text CHECK (media_type IN ('games', 'movies', 'shows', 'books')),
   media_title text,
   details jsonb, -- Store additional details like rating, notes, etc.

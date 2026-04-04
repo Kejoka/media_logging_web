@@ -4,7 +4,13 @@
 	type NotificationItemType = {
 		id: string | number;
 		username: string;
-		activity_type: 'add' | 'update' | 'delete' | 'follow';
+		activity_type:
+			| 'add'
+			| 'update'
+			| 'delete'
+			| 'follow'
+			| 'recommendation'
+			| 'recommendation_response';
 		media_type: 'games' | 'movies' | 'shows' | 'books' | null;
 		media_title?: string;
 		media_image?: string;
@@ -19,12 +25,16 @@
 		};
 	};
 
-	let { 
+	let {
 		notification,
-		onDismiss
-	}: { 
+		onDismiss,
+		onOpenRecommendation,
+		onOpenRecommendationResponse
+	}: {
 		notification: NotificationItemType;
 		onDismiss?: (notificationId: string | number) => void;
+		onOpenRecommendation?: (notification: NotificationItemType) => void;
+		onOpenRecommendationResponse?: (notification: NotificationItemType) => void;
 	} = $props();
 
 	let isLoading = $state(false);
@@ -57,6 +67,20 @@
 	}
 
 	async function handleClick() {
+		if (
+			notification.activity_type === 'recommendation' &&
+			notification.details?.status === 'pending' &&
+			onOpenRecommendation
+		) {
+			onOpenRecommendation(notification);
+			return;
+		}
+
+		if (notification.activity_type === 'recommendation_response' && onOpenRecommendationResponse) {
+			onOpenRecommendationResponse(notification);
+			return;
+		}
+
 		// Mark as dismissed when clicked
 		try {
 			await fetch('/api/v1/dismissNotification', {
@@ -85,7 +109,7 @@
 						? Number(rawBacklogged)
 						: Number.NaN;
 		let url = `/${notification.username}`;
-		
+
 		const params = new URLSearchParams();
 		if (mediaId) params.append('mediaId', String(mediaId));
 		if (mediaType) params.append('mediaType', mediaType);
@@ -93,7 +117,7 @@
 		if (Number.isInteger(parsedMode) && parsedMode >= 0 && parsedMode <= 2) {
 			params.append('mode', String(parsedMode));
 		}
-		
+
 		if (params.size > 0) {
 			url += `?${params.toString()}`;
 		}
@@ -124,6 +148,14 @@
 	function getActivityText(notification: NotificationItemType) {
 		if (notification.activity_type === 'follow') {
 			return 'folgt dir jetzt';
+		}
+		if (notification.activity_type === 'recommendation') {
+			return 'hat dir eine Empfehlung geschickt';
+		}
+		if (notification.activity_type === 'recommendation_response') {
+			return notification.details?.response === 'accept'
+				? 'hat deine Empfehlung angenommen'
+				: 'hat deine Empfehlung abgelehnt';
 		}
 
 		const mediaName = getMediaTypeName(notification.media_type || 'games');
@@ -194,7 +226,7 @@
 		</div>
 
 		<!-- Unread indicator and Dismiss button -->
-		<div class="shrink-0 flex items-center gap-2">
+		<div class="flex shrink-0 items-center gap-2">
 			{#if notification.isUnread}
 				<div class="h-2 w-2 rounded-full bg-info"></div>
 			{/if}
@@ -202,12 +234,12 @@
 			<button
 				onclick={handleDismiss}
 				disabled={isLoading}
-				class="p-1 rounded-lg transition hover:bg-base-200 hover:opacity-70 disabled:opacity-50"
+				class="rounded-lg p-1 transition hover:bg-base-200 hover:opacity-70 disabled:opacity-50"
 				aria-label="Benachrichtigung löschen"
 				title="Benachrichtigung löschen"
 			>
 				{#if isLoading}
-					<span class="loading loading-spinner loading-xs"></span>
+					<span class="loading loading-xs loading-spinner"></span>
 				{:else}
 					<svg
 						xmlns="http://www.w3.org/2000/svg"

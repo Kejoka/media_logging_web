@@ -58,8 +58,6 @@
 		</div>
 	{/if}
 
-	<input type="date" name="huhu" id="test" />
-
 	{#if bubbles.length === 0}
 		<p class="rounded-md bg-base-200/50 px-3 py-2 text-sm text-base-content/65">
 			Noch keine Review-Notizen vorhanden.

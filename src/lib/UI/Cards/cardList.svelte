@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import JustWatch_Logo from '../../Icons/justwatch.svelte';
 	import TvCard from './tvCard.svelte';
 	import {
@@ -34,6 +35,7 @@
 	let delete_modal: HTMLInputElement;
 	let streaming_modal: HTMLInputElement;
 	let edit_modal: HTMLInputElement;
+	let social_modal: HTMLInputElement;
 	let to_delete: mediaObject = { title: '' };
 	let to_edit: mediaObject = { title: '' };
 	let original_to_edit_release: string | null = null;
@@ -60,6 +62,23 @@
 		flatrate?: StreamingProvider[];
 		rent?: StreamingProvider[];
 	} = {};
+	type SocialUserState = {
+		user_id: string;
+		username: string;
+		media_id?: number;
+		media_year?: number;
+		mode?: number;
+		hasPendingRecommendation?: boolean;
+	};
+	let social_medium: mediaObject | null = null;
+	let social_loading = false;
+	let social_sending = false;
+	let social_sending_username: string | null = null;
+	let social_error: string | null = null;
+	let social_message = '';
+	let social_consumed: SocialUserState[] = [];
+	let social_backlog: SocialUserState[] = [];
+	let social_eligible: SocialUserState[] = [];
 	const dispatch = createEventDispatcher();
 	const monthFormatter = new Intl.DateTimeFormat('de-DE', { month: 'long' });
 
@@ -497,6 +516,114 @@
 		}
 	}
 
+	async function openSocialModal(event: CustomEvent<mediaObject>) {
+		social_medium = event.detail;
+		social_message = '';
+		social_error = null;
+		social_consumed = [];
+		social_backlog = [];
+		social_eligible = [];
+		social_modal.checked = true;
+		await loadSocialState();
+	}
+
+	async function loadSocialState() {
+		if (!social_medium) {
+			return;
+		}
+		social_loading = true;
+		social_error = null;
+		try {
+			const res = await fetch('/api/v1/getMediumFollowersState', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					mediaType: current_medium,
+					medium: social_medium
+				})
+			});
+
+			if (!res.ok) {
+				throw new Error('Social-Daten konnten nicht geladen werden.');
+			}
+
+			const payload = (await res.json()) as {
+				consumed?: SocialUserState[];
+				backlog?: SocialUserState[];
+				eligible?: SocialUserState[];
+			};
+
+			social_consumed = payload.consumed || [];
+			social_backlog = payload.backlog || [];
+			social_eligible = payload.eligible || [];
+		} catch (error) {
+			console.error(error);
+			social_error = 'Social-Daten konnten nicht geladen werden.';
+		} finally {
+			social_loading = false;
+		}
+	}
+
+	async function navigateToUserEntry(user: SocialUserState) {
+		if (!user.username) {
+			return;
+		}
+		let url = `/${user.username}`;
+		const params = new URLSearchParams();
+		if (user.media_id != null) {
+			params.append('mediaId', String(user.media_id));
+		}
+		params.append('mediaType', current_medium);
+		if (user.media_year != null) {
+			params.append('mediaYear', String(user.media_year));
+		}
+		if (user.mode != null) {
+			params.append('mode', String(user.mode));
+		}
+		if (params.size > 0) {
+			url += `?${params.toString()}`;
+		}
+		social_modal.checked = false;
+		await goto(url);
+	}
+
+	async function sendRecommendation(recipient: SocialUserState) {
+		if (!social_medium || !recipient.username) {
+			return;
+		}
+		social_sending = true;
+		social_sending_username = recipient.username;
+		social_error = null;
+		try {
+			const res = await fetch('/api/v1/sendRecommendation', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					recipientUsername: recipient.username,
+					mediaType: current_medium,
+					medium: social_medium,
+					message: social_message
+				})
+			});
+			const json = (await res.json()) as { error?: string };
+			if (!res.ok) {
+				throw new Error(json.error || 'Empfehlung konnte nicht versendet werden.');
+			}
+			await loadSocialState();
+		} catch (error) {
+			console.error(error);
+			social_error =
+				error instanceof Error ? error.message : 'Empfehlung konnte nicht versendet werden.';
+		} finally {
+			social_sending = false;
+			social_sending_username = null;
+		}
+	}
+
 	async function updateMedium() {
 		const releaseFromPicker = toIsoOrFallback(to_editRelease, original_to_edit_release);
 		const addedFromPicker = toIsoOrFallback(to_editAdded, original_to_edit_added);
@@ -805,6 +932,7 @@
 				<GameCard
 					on:delete={askDelete}
 					on:edit={showEditForm}
+					on:social={openSocialModal}
 					on:update_score={updateScore}
 					on:update_notes={updateNotes}
 					{own_profile}
@@ -816,6 +944,7 @@
 				<MovieCard
 					on:delete={askDelete}
 					on:edit={showEditForm}
+					on:social={openSocialModal}
 					on:update_score={updateScore}
 					on:update_notes={updateNotes}
 					on:showStreams={showProviderList}
@@ -828,6 +957,7 @@
 				<TvCard
 					on:delete={askDelete}
 					on:edit={showEditForm}
+					on:social={openSocialModal}
 					on:update_score={updateScore}
 					on:update_notes={updateNotes}
 					on:showStreams={showProviderList}
@@ -840,6 +970,7 @@
 				<BookCard
 					on:delete={askDelete}
 					on:edit={showEditForm}
+					on:social={openSocialModal}
 					on:update_score={updateScore}
 					on:update_notes={updateNotes}
 					{own_profile}
@@ -1039,6 +1170,122 @@
 			{/if}
 		{/key}
 	{/if}
+</div>
+<!-- Social Modal -->
+<input type="checkbox" id="social_modal" class="modal-toggle" bind:this={social_modal} />
+<div class="modal" role="dialog">
+	<div class="modal-box max-h-[85dvh] max-w-3xl overflow-y-auto">
+		<p class="mb-1 text-xl font-bold">Social</p>
+		{#if social_medium?.title}
+			<p class="mb-4 text-lg text-base-content/70">{social_medium.title}</p>
+		{/if}
+
+		{#if social_error}
+			<div class="mb-3 alert alert-error">
+				<span>{social_error}</span>
+			</div>
+		{/if}
+
+		{#if social_loading}
+			<div class="flex items-center justify-center py-6">
+				<span class="loading loading-md loading-spinner"></span>
+			</div>
+		{:else}
+			<div class="grid gap-4 md:grid-cols-2">
+				<div class="rounded-lg border border-base-content/15 p-3">
+					<p class="mb-2 text-sm font-semibold">
+						{'Bereits ' +
+							(current_medium === 'games'
+								? 'gespielt'
+								: current_medium === 'books'
+									? 'gelesen'
+									: 'geschaut')}
+					</p>
+					{#if social_consumed.length === 0}
+						<p class="text-sm text-base-content/70">Niemand aus deinen Followings.</p>
+					{:else}
+						<div class="space-y-2">
+							{#each social_consumed as user (user.user_id)}
+								<button
+									type="button"
+									class="btn w-full justify-between btn-ghost"
+									on:click={() => navigateToUserEntry(user)}
+								>
+									<span>@{user.username}</span>
+									<span class="text-xs opacity-70">Eintrag anzeigen</span>
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+
+				<div class="rounded-lg border border-base-content/15 p-3">
+					<p class="mb-2 text-sm font-semibold">Bereits im Backlog</p>
+					{#if social_backlog.length === 0}
+						<p class="text-sm text-base-content/70">Niemand aus deinen Followings.</p>
+					{:else}
+						<div class="space-y-2">
+							{#each social_backlog as user (user.user_id)}
+								<button
+									type="button"
+									class="btn w-full justify-between btn-ghost"
+									on:click={() => navigateToUserEntry(user)}
+								>
+									<span>@{user.username}</span>
+									<span class="text-xs opacity-70">Eintrag anzeigen</span>
+								</button>
+							{/each}
+						</div>
+					{/if}
+				</div>
+			</div>
+
+			<div class="mt-4 rounded-lg border border-base-content/15 p-3">
+				<p class="mb-2 text-sm font-semibold">Empfehlung senden</p>
+				<textarea
+					class="textarea-bordered textarea mb-3 w-full"
+					placeholder="Optionale Nachricht"
+					bind:value={social_message}
+				></textarea>
+				{#if social_eligible.length === 0}
+					<p class="text-sm text-base-content/70">
+						Keine passenden Followings gefunden, die den Titel noch nicht kennen.
+					</p>
+				{:else}
+					<div class="space-y-2">
+						{#each social_eligible as user (user.user_id)}
+							<div class="flex items-center justify-between rounded bg-base-200 px-3 py-2">
+								<span>@{user.username}</span>
+								<button
+									type="button"
+									class="btn btn-sm btn-primary"
+									disabled={social_sending || !!user.hasPendingRecommendation}
+									on:click={() => sendRecommendation(user)}
+								>
+									{#if user.hasPendingRecommendation}
+										Bereits empfohlen
+									{:else if social_sending && social_sending_username === user.username}
+										Senden...
+									{:else}
+										Empfehlen
+									{/if}
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+		{/if}
+	</div>
+	<button
+		type="button"
+		on:click={() => {
+			social_modal.checked = false;
+		}}
+		class="modal-backdrop"
+	>
+		Close
+	</button>
 </div>
 <!-- DeleteModal -->
 <input type="checkbox" id="delete_modal" class="modal-toggle" bind:this={delete_modal} />

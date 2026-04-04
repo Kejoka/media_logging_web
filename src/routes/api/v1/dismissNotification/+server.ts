@@ -5,7 +5,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401 });
 	}
 
-	const { notificationId } = await request.json();
+	const { notificationId } = (await request.json()) as { notificationId?: string | number };
 
 	if (!notificationId) {
 		return new Response(JSON.stringify({ error: 'notificationId is required' }), { status: 400 });

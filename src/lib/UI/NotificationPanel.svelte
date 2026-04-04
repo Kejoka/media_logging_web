@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { goto, invalidateAll } from '$app/navigation';
+	import { dexieDB, type mediaObject } from '$lib/dbUtils';
 	import NotificationItem from './NotificationItem.svelte';
 
 	let {
@@ -10,19 +12,160 @@
 	type NotificationType = {
 		id: string | number;
 		username: string;
-		activity_type: 'add' | 'update' | 'delete' | 'follow';
+		activity_type:
+			| 'add'
+			| 'update'
+			| 'delete'
+			| 'follow'
+			| 'recommendation'
+			| 'recommendation_response';
 		media_type: 'games' | 'movies' | 'shows' | 'books' | null;
 		media_title?: string;
 		media_image?: string;
 		count?: number;
 		created_at: string;
 		isUnread: boolean;
+		details?: {
+			message?: string;
+			status?: string;
+			response?: 'accept' | 'decline';
+			media_id?: number | string;
+			media_year?: number;
+			mode?: number | string;
+			[key: string]: unknown;
+		};
 	};
 
 	let notifications: NotificationType[] = $state([]);
 	let unreadCount: number = $state(0);
 	let loading: boolean = $state(false);
 	let error: string | null = $state(null);
+	let recommendationModalOpen = $state(false);
+	let responseModalOpen = $state(false);
+	let recommendationResponseLoading = $state(false);
+	let recommendationResponseLoadingAction: 'accept' | 'decline' | null = $state(null);
+	let recommendationResponseError: string | null = $state(null);
+	let selectedRecommendation: NotificationType | null = $state(null);
+	let selectedResponseNotification: NotificationType | null = $state(null);
+	let recommendationReplyMessage = $state('');
+
+	async function upsertAcceptedRecommendationInDexie(
+		notification: NotificationType,
+		responsePayload: {
+			media_id?: number | string | null;
+			media_type?: 'games' | 'movies' | 'shows' | 'books' | null;
+			resolved_medium?: {
+				id: number;
+				added?: string;
+				notes?: string;
+				backlogged?: number;
+			} | null;
+		}
+	) {
+		const mediaType = responsePayload.media_type || notification.media_type;
+		if (!mediaType) {
+			return;
+		}
+
+		const mediumId = Number(responsePayload.media_id || responsePayload.resolved_medium?.id);
+		if (!Number.isFinite(mediumId)) {
+			return;
+		}
+
+		const snapshot = (notification.details?.medium_snapshot || {}) as Record<string, unknown>;
+		const mergedMedium: mediaObject = {
+			id: mediumId,
+			title: String(snapshot.title || notification.media_title || 'Kein Titel angegeben'),
+			image: (snapshot.image as string) || undefined,
+			release: (snapshot.release as string) || undefined,
+			genres: (snapshot.genres as string) || undefined,
+			added: responsePayload.resolved_medium?.added || new Date().toISOString(),
+			backlogged: 1,
+			notes: responsePayload.resolved_medium?.notes || undefined,
+			rating: 0
+		};
+
+		if (mediaType === 'games') {
+			mergedMedium.igdbid = Number(snapshot.igdbid || 0) || undefined;
+			mergedMedium.platforms = (snapshot.platforms as string) || undefined;
+			mergedMedium.trophy = Number(snapshot.trophy || 0) || 0;
+		}
+		if (mediaType === 'movies' || mediaType === 'shows') {
+			mergedMedium.tmdbid = Number(snapshot.tmdbid || 0) || undefined;
+		}
+		if (mediaType === 'shows') {
+			mergedMedium.seasons = (snapshot.seasons as string) || undefined;
+			mergedMedium.episode = Number(snapshot.episode || 0) || 0;
+		}
+		if (mediaType === 'books') {
+			mergedMedium.gbid = Number(snapshot.gbid || 0) || undefined;
+			mergedMedium.author = (snapshot.author as string) || undefined;
+			mergedMedium.subtitle = (snapshot.subtitle as string) || undefined;
+			mergedMedium.pagecount = Number(snapshot.pagecount || 0) || undefined;
+		}
+
+		switch (mediaType) {
+			case 'games': {
+				const existing = await dexieDB.games.get(mediumId);
+				if (existing) {
+					await dexieDB.games.update(mediumId, mergedMedium);
+				} else {
+					await dexieDB.games.add(mergedMedium);
+				}
+				break;
+			}
+			case 'movies': {
+				const existing = await dexieDB.movies.get(mediumId);
+				if (existing) {
+					await dexieDB.movies.update(mediumId, mergedMedium);
+				} else {
+					await dexieDB.movies.add(mergedMedium);
+				}
+				break;
+			}
+			case 'shows': {
+				const existing = await dexieDB.shows.get(mediumId);
+				if (existing) {
+					await dexieDB.shows.update(mediumId, mergedMedium);
+				} else {
+					await dexieDB.shows.add(mergedMedium);
+				}
+				break;
+			}
+			case 'books': {
+				const existing = await dexieDB.books.get(mediumId);
+				if (existing) {
+					await dexieDB.books.update(mediumId, mergedMedium);
+				} else {
+					await dexieDB.books.add(mergedMedium);
+				}
+				break;
+			}
+		}
+
+		await dexieDB.prefs.update(0, { updated_at: new Date().toISOString() });
+	}
+
+	async function dismissNotification(notificationId: string | number) {
+		try {
+			await fetch('/api/v1/dismissNotification', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ notificationId })
+			});
+		} catch (err) {
+			console.error('Error dismissing notification:', err);
+		}
+		notifications = notifications.filter((n) => n.id !== notificationId);
+		if (unreadCount > 0) {
+			unreadCount--;
+		}
+		if (onUnreadCountChange) {
+			onUnreadCountChange(unreadCount);
+		}
+	}
 
 	onMount(() => {
 		loadNotifications();
@@ -98,17 +241,115 @@
 	});
 
 	async function handleNotificationDismiss(notificationId: string | number) {
-		// Remove the notification from the list immediately
-		notifications = notifications.filter((n) => n.id !== notificationId);
+		await dismissNotification(notificationId);
+	}
 
-		// Update unread count if needed
-		if (unreadCount > 0) {
-			unreadCount--;
+	function openRecommendationModal(notification: NotificationType) {
+		selectedRecommendation = notification;
+		recommendationReplyMessage = '';
+		recommendationResponseError = null;
+		recommendationModalOpen = true;
+	}
+
+	function closeRecommendationModal() {
+		recommendationModalOpen = false;
+		selectedRecommendation = null;
+		recommendationReplyMessage = '';
+		recommendationResponseError = null;
+	}
+
+	async function openRecommendationResponseModal(notification: NotificationType) {
+		await dismissNotification(notification.id);
+		selectedResponseNotification = notification;
+		responseModalOpen = true;
+	}
+
+	function closeResponseModal() {
+		responseModalOpen = false;
+		selectedResponseNotification = null;
+	}
+
+	async function openResponseProfile(notification: NotificationType | null) {
+		if (!notification) {
+			return;
 		}
+		const mediaId = notification.details?.media_id;
+		const mediaType = notification.media_type;
+		const mediaYear = notification.details?.media_year;
+		const rawMode = notification.details?.mode;
+		const rawBacklogged = notification.details?.backlogged;
+		const parsedMode =
+			typeof rawMode === 'number'
+				? rawMode
+				: rawMode != null
+					? Number(rawMode)
+					: rawBacklogged != null
+						? Number(rawBacklogged)
+						: Number.NaN;
+		let url = `/${notification.username}`;
 
-		// Notify parent component of unread count change
-		if (onUnreadCountChange) {
-			onUnreadCountChange(unreadCount);
+		const params = new URLSearchParams();
+		if (mediaId) params.append('mediaId', String(mediaId));
+		if (mediaType) params.append('mediaType', mediaType);
+		if (mediaYear) params.append('mediaYear', String(mediaYear));
+		if (Number.isInteger(parsedMode) && parsedMode >= 0 && parsedMode <= 2) {
+			params.append('mode', String(parsedMode));
+		}
+		if (params.size > 0) {
+			url += `?${params.toString()}`;
+		}
+		closeResponseModal();
+		await goto(url);
+	}
+
+	async function respondToRecommendation(action: 'accept' | 'decline') {
+		if (!selectedRecommendation) {
+			return;
+		}
+		recommendationResponseLoading = true;
+		recommendationResponseLoadingAction = action;
+		recommendationResponseError = null;
+		try {
+			const res = await fetch('/api/v1/respondRecommendation', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					recommendationId: selectedRecommendation.id,
+					action,
+					message: recommendationReplyMessage
+				})
+			});
+			const json = (await res.json()) as {
+				error?: string;
+				action?: 'accept' | 'decline';
+				media_id?: number | string | null;
+				media_type?: 'games' | 'movies' | 'shows' | 'books' | null;
+				resolved_medium?: {
+					id: number;
+					added?: string;
+					notes?: string;
+					backlogged?: number;
+				} | null;
+			};
+			if (!res.ok) {
+				throw new Error(json.error || 'Antwort konnte nicht gesendet werden');
+			}
+			if (action === 'accept' && selectedRecommendation) {
+				await upsertAcceptedRecommendationInDexie(selectedRecommendation, json);
+			}
+			await dismissNotification(selectedRecommendation.id);
+			closeRecommendationModal();
+			await invalidateAll();
+			await loadNotifications();
+		} catch (err) {
+			console.error('Error responding to recommendation:', err);
+			recommendationResponseError =
+				err instanceof Error ? err.message : 'Antwort konnte nicht gesendet werden';
+		} finally {
+			recommendationResponseLoading = false;
+			recommendationResponseLoadingAction = null;
 		}
 	}
 
@@ -160,7 +401,7 @@
 		</div>
 
 		<!-- Content -->
-		<div class="flex-1 overflow-y-auto">
+		<div class="scrollbar-hide flex-1 overflow-y-auto">
 			{#if loading && notifications.length === 0}
 				<div class="flex items-center justify-center py-12">
 					<div class="text-center">
@@ -187,7 +428,12 @@
 			{:else}
 				<div class="divide-y divide-base-100">
 					{#each notifications as notification (notification.id)}
-						<NotificationItem {notification} onDismiss={handleNotificationDismiss} />
+						<NotificationItem
+							{notification}
+							onDismiss={handleNotificationDismiss}
+							onOpenRecommendation={openRecommendationModal}
+							onOpenRecommendationResponse={openRecommendationResponseModal}
+						/>
 					{/each}
 				</div>
 			{/if}
@@ -201,3 +447,87 @@
 		{/if}
 	</div>
 </div>
+
+{#if recommendationModalOpen && selectedRecommendation}
+	<div class="modal-open modal" role="dialog">
+		<div
+			class="modal-box flex max-h-[85dvh] w-[94vw] max-w-lg flex-col gap-3 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-300 p-4 shadow-2xl"
+		>
+			<p class="text-lg font-bold">Empfehlung von @{selectedRecommendation.username}</p>
+			{#if selectedRecommendation.media_title}
+				<p class="mt-1 text-lg opacity-80">{selectedRecommendation.media_title}</p>
+			{/if}
+			<p class="mt-3 text-sm">
+				{selectedRecommendation.details?.message &&
+				String(selectedRecommendation.details?.message).trim().length > 0
+					? String(selectedRecommendation.details?.message)
+					: 'Keine zusätzliche Nachricht'}
+			</p>
+
+			<label class="form-control mt-3 w-full">
+				<span class="mb-1 text-xs opacity-70">Antwort-Nachricht (optional)</span>
+				<textarea
+					class="textarea-bordered textarea w-full"
+					placeholder="Antwort..."
+					bind:value={recommendationReplyMessage}
+				></textarea>
+			</label>
+
+			{#if recommendationResponseError}
+				<p class="mt-2 text-sm text-error">{recommendationResponseError}</p>
+			{/if}
+
+			<div class="mt-4 flex flex-wrap justify-end gap-2">
+				<button
+					type="button"
+					class="btn flex-1 btn-error"
+					disabled={recommendationResponseLoading}
+					onclick={() => respondToRecommendation('decline')}
+				>
+					{recommendationResponseLoading && recommendationResponseLoadingAction === 'decline'
+						? 'Sende...'
+						: 'Ablehnen'}
+				</button>
+				<button
+					type="button"
+					class="btn flex-1 btn-success"
+					disabled={recommendationResponseLoading}
+					onclick={() => respondToRecommendation('accept')}
+				>
+					{recommendationResponseLoading && recommendationResponseLoadingAction === 'accept'
+						? 'Sende...'
+						: 'Annehmen'}
+				</button>
+			</div>
+		</div>
+		<button type="button" class="modal-backdrop" onclick={closeRecommendationModal}>Close</button>
+	</div>
+{/if}
+
+{#if responseModalOpen && selectedResponseNotification}
+	<div class="modal-open modal" role="dialog">
+		<div
+			class="modal-box flex max-h-[85dvh] w-[94vw] max-w-lg flex-col gap-3 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-300 p-4 shadow-2xl"
+		>
+			<div class="flex items-start justify-between gap-3">
+				<div>
+					<p class="text-lg font-bold">Antwort auf deine Empfehlung</p>
+					<p class="text-sm opacity-80">Von @{selectedResponseNotification.username}</p>
+				</div>
+			</div>
+			{#if selectedResponseNotification.media_title}
+				<p class="mt-2 text-base font-semibold">{selectedResponseNotification.media_title}</p>
+			{/if}
+			<div class="mt-3 space-y-3 text-sm">
+				{#if selectedResponseNotification.details?.response_message}
+					<p class="rounded-lg bg-base-200 p-3">
+						{selectedResponseNotification.details.response_message}
+					</p>
+				{:else}
+					<p class="text-base-content/70">Keine zusätzliche Nachricht vorhanden.</p>
+				{/if}
+			</div>
+		</div>
+		<button type="button" class="modal-backdrop" onclick={closeResponseModal}>Close</button>
+	</div>
+{/if}

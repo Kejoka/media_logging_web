@@ -6,6 +6,7 @@
 	import EditNoteIcon from '$lib/Icons/edit_note.svelte';
 	import DeleteIcon from '$lib/Icons/delete.svelte';
 	import InfoIcon from '$lib/Icons/info.svelte';
+	import GroupIcon from '$lib/Icons/group.svelte';
 	import RateReviewIcon from '$lib/Icons/rate_review.svelte';
 	import { decodeReviewNotes } from '$lib/reviewNotes';
 	const dispatch = createEventDispatcher();
@@ -207,7 +208,7 @@
 					<div class="mt-3 flex flex-wrap justify-evenly gap-2">
 						<button
 							type="button"
-							class="btn btn-circle w-1/5 text-warning"
+							class="btn btn-circle w-1/6 text-warning"
 							aria-label="Karte bearbeiten"
 							title="Karte bearbeiten"
 							on:click={() => dispatch('edit', medium)}
@@ -216,7 +217,7 @@
 						</button>
 						<button
 							type="button"
-							class="btn btn-circle w-1/5 text-accent"
+							class="btn btn-circle w-1/6 text-accent"
 							aria-label="Review-Notizen"
 							title="Review-Notizen"
 							on:click={openReviewNotesModal}
@@ -225,7 +226,7 @@
 						</button>
 						<button
 							type="button"
-							class="btn btn-circle w-1/5 text-info"
+							class="btn btn-circle w-1/6 text-info"
 							aria-label="Wo streamen?"
 							title="Wo streamen?"
 							on:click={() => dispatch('showStreams', medium)}
@@ -234,7 +235,16 @@
 						</button>
 						<button
 							type="button"
-							class="btn btn-circle w-1/5 text-error"
+							class="btn btn-circle w-1/6 text-primary"
+							aria-label="Social-Optionen"
+							title="Social-Optionen"
+							on:click={() => dispatch('social', medium)}
+						>
+							<GroupIcon />
+						</button>
+						<button
+							type="button"
+							class="btn btn-circle w-1/6 text-error"
 							aria-label="Karte löschen"
 							title="Karte löschen"
 							on:click={() => dispatch('delete', medium)}
