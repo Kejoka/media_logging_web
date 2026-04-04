@@ -11,7 +11,7 @@
 	import GameCard from './gameCard.svelte';
 	import MovieCard from './movieCard.svelte';
 	import BookCard from './bookCard.svelte';
-	import { DateInput } from 'date-picker-svelte';
+	import WheelDatePicker from '$lib/UI/WheelDatePicker.svelte';
 	import StatCard from './statCard.svelte';
 	import ChartCard from './chartCard.svelte';
 	import ChallengeCard from './challengeCard.svelte';
@@ -1073,16 +1073,13 @@
 		<div class="grid gap-4 sm:grid-cols-2">
 			<!-- Added-Date -->
 			<div class="w-full">
-				<div class="label pb-1">
-					<span class="label-text font-medium">Hinzugefügt</span>
-				</div>
 				<div class="w-full p-2">
-					<DateInput
+					<WheelDatePicker
 						bind:value={to_editAdded}
 						max={new Date()}
 						min={new Date(1888, 9, 14)}
-						dynamicPositioning={true}
-						class="ml-date-input w-full [--date-input-width:100%]"
+						label="Hinzugefügt am"
+						className="w-full"
 					/>
 				</div>
 			</div>
@@ -1201,16 +1198,13 @@
 					{/if}
 					<!-- Release -->
 					<div class="w-full">
-						<div class="label pb-1">
-							<span class="label-text font-medium">Release-Datum</span>
-						</div>
 						<div class="w-full p-2">
-							<DateInput
+							<WheelDatePicker
 								bind:value={to_editRelease}
 								max={new Date()}
 								min={new Date(1888, 9, 14)}
-								dynamicPositioning={true}
-								class="ml-date-input w-full [--date-input-width:100%]"
+								label="Release-Datum"
+								className="w-full"
 							/>
 						</div>
 					</div>
@@ -1337,16 +1331,3 @@
 		class="modal-backdrop -z-20">Close</button
 	>
 </div>
-
-<style>
-	:global(body) {
-		--date-picker-background: var(--color-base-200);
-		--date-picker-foreground: var(--color-base-content);
-		--date-picker-highlight: var(--color-primary);
-		--date-picker-highlight-foreground: var(--color-primary-content);
-	}
-
-	:global(.ml-date-input input) {
-		border-radius: 0.5rem;
-	}
-</style>

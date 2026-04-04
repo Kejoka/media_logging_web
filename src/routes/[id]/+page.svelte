@@ -9,7 +9,7 @@
 		type OfflineChangeObject,
 		type tvSeason
 	} from '$lib/dbUtils.js';
-	import { DatePicker } from 'date-picker-svelte';
+	import WheelDatePicker from '$lib/UI/WheelDatePicker.svelte';
 	import { onMount, tick } from 'svelte';
 	import { get } from 'svelte/store';
 	import { online_status } from '../../stores/onlineStatus';
@@ -106,7 +106,10 @@
 	$: if (!active_media_types.includes(current_medium)) {
 		current_medium = active_media_types[0] ?? 'movies';
 	}
-	$: current_tab_index = Math.max(active_media_types.findIndex((type) => type === current_medium), 0);
+	$: current_tab_index = Math.max(
+		active_media_types.findIndex((type) => type === current_medium),
+		0
+	);
 	$: current_medium_store.set(current_medium);
 	$: current_year_store.set(current_year);
 	$: sorting_method_store.set(sorting_method);
@@ -133,14 +136,14 @@
 		if (dynamic_index >= 0) {
 			return dynamic_index;
 		}
-		return Math.max(active_media_types.findIndex((media_type) => media_type === 'movies'), 0);
+		return Math.max(
+			active_media_types.findIndex((media_type) => media_type === 'movies'),
+			0
+		);
 	}
 
 	// Helper to scroll to and expand a media card
-	async function scrollToAndExpandCard(
-		mediaId: string | number,
-		mediaType: string | null
-	) {
+	async function scrollToAndExpandCard(mediaId: string | number, mediaType: string | null) {
 		// Wait for DOM to be ready
 		await tick();
 
@@ -248,7 +251,7 @@
 		}
 		form_text = get_media_type_display_label(current_medium);
 		const initial_backlogged_filter = current_mode === 1 ? 1 : 0;
-		
+
 		// Check if user has changed - if so, clear all Dexie tables
 		const existingPrefs = await dexieDB.prefs.toArray();
 		if (existingPrefs.length > 0 && existingPrefs[0].current_user_id !== user_id) {
@@ -264,7 +267,7 @@
 			await dexieDB.books_other.clear();
 			await dexieDB.prefs.clear();
 		}
-		
+
 		// If user is online
 		if (is_online) {
 			if (!own_profile) {
@@ -343,16 +346,28 @@
 		// Handle own data
 		else {
 			total_media_data.push(
-				await dexieDB.games.where({ backlogged: initial_backlogged_filter }).reverse().sortBy('added')
+				await dexieDB.games
+					.where({ backlogged: initial_backlogged_filter })
+					.reverse()
+					.sortBy('added')
 			);
 			total_media_data.push(
-				await dexieDB.movies.where({ backlogged: initial_backlogged_filter }).reverse().sortBy('added')
+				await dexieDB.movies
+					.where({ backlogged: initial_backlogged_filter })
+					.reverse()
+					.sortBy('added')
 			);
 			total_media_data.push(
-				await dexieDB.shows.where({ backlogged: initial_backlogged_filter }).reverse().sortBy('added')
+				await dexieDB.shows
+					.where({ backlogged: initial_backlogged_filter })
+					.reverse()
+					.sortBy('added')
 			);
 			total_media_data.push(
-				await dexieDB.books.where({ backlogged: initial_backlogged_filter }).reverse().sortBy('added')
+				await dexieDB.books
+					.where({ backlogged: initial_backlogged_filter })
+					.reverse()
+					.sortBy('added')
 			);
 		}
 		if (current_mode === 1) {
@@ -378,25 +393,25 @@
 		if (current_mode === 1) {
 			years_in_db = years_in_db.slice(-1);
 		}
-		
+
 		// Ensure current_user_id is stored in prefs for next login detection
 		const prefs = await dexieDB.prefs.toArray();
 		if (prefs.length > 0) {
 			await dexieDB.prefs.update(0, { current_user_id: user_id });
 		}
-		
+
 		await tick();
 		requestAnimationFrame(() => {
 			if (!carousel) {
 				return;
 			}
 			carousel.scrollLeft = carousel.clientWidth * current_tab_index;
-			
+
 			// If mediaId is provided, scroll to and expand the card
 			if (mediaId && mediaType) {
 				void scrollToAndExpandCard(mediaId, mediaType);
 			}
-			
+
 			setTimeout(() => {
 				is_initializing = false;
 			}, 100);
@@ -1088,13 +1103,17 @@
 		<div class="modal" role="dialog">
 			<div class="modal-box flex flex-col">
 				<p class="mb-1 text-center text-lg font-bold">{last_selection.title}</p>
-				<p class="mb-3 text-center text-base font-semibold">{current_medium === 'games' ? 'gespielt:' : current_medium === 'books' ? 'gelesen:' : 'gesehen:'}</p>
-				<DatePicker
+				<WheelDatePicker
 					bind:value={selected_date}
 					max={new Date()}
 					min={new Date(1888, 9, 14)}
-					browseWithoutSelecting={true}
-				></DatePicker>
+					label={current_medium === 'games'
+						? 'Gespielt am'
+						: current_medium === 'books'
+							? 'Gelesen am'
+							: 'Geschaut am'}
+					className="w-full"
+				/>
 				<button
 					bind:this={add_button}
 					class="btn mt-3 btn-success"
@@ -1210,12 +1229,3 @@
 	<!-- Year-Slider -->
 	<YearBar onSwitch={handleYearSwitch} years={years_in_db}></YearBar>
 </div>
-
-<style>
-	:global(body) {
-		--date-picker-foreground: var(--color-base-content);
-		--date-picker-background: var(--color-base-200);
-		--date-picker-highlight: var(--color-primary);
-		--date-picker-highlight-foreground: var(--color-primary-content);
-	}
-</style>
