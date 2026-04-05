@@ -12,13 +12,52 @@ const headers = {
 Deno.serve(async () => {
 	try {
 		const supabase = getSupabaseAdminClient(Deno.env.toObject());
-		const [movies, shows, games] = await Promise.all([
-			refreshMovieMetadata(supabase),
-			refreshShowMetadata(supabase),
-			refreshGameMetadata(supabase)
-		]);
+		const result: {
+			ok: boolean;
+			movies: unknown;
+			shows: unknown;
+			games: unknown;
+			errors: Array<{ medium: 'movies' | 'shows' | 'games'; message: string }>;
+		} = {
+			ok: true,
+			movies: null,
+			shows: null,
+			games: null,
+			errors: []
+		};
 
-		return new Response(JSON.stringify({ ok: true, movies, shows, games }), {
+		try {
+			result.movies = await refreshMovieMetadata(supabase);
+		} catch (error) {
+			result.ok = false;
+			result.errors.push({
+				medium: 'movies',
+				message: error instanceof Error ? error.message : String(error)
+			});
+		}
+
+		try {
+			result.shows = await refreshShowMetadata(supabase);
+		} catch (error) {
+			result.ok = false;
+			result.errors.push({
+				medium: 'shows',
+				message: error instanceof Error ? error.message : String(error)
+			});
+		}
+
+		try {
+			result.games = await refreshGameMetadata(supabase);
+		} catch (error) {
+			result.ok = false;
+			result.errors.push({
+				medium: 'games',
+				message: error instanceof Error ? error.message : String(error)
+			});
+		}
+
+		return new Response(JSON.stringify(result), {
+			status: result.ok ? 200 : 207,
 			headers
 		});
 	} catch (error) {

@@ -159,7 +159,9 @@
 						{/if}
 						{#if medium.averagerating && !isNaN(medium.averagerating)}
 							<p class="line-clamp-1 text-sm font-light">
-								Nutzerbewertung: {medium.averagerating.toFixed(1)}
+								Nutzerbewertung: {medium.averagerating >= 10
+									? (medium.averagerating / 10).toFixed(1)
+									: medium.averagerating.toFixed(1)}
 							</p>
 						{/if}
 					</div>

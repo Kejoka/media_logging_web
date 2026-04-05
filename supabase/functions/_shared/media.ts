@@ -25,6 +25,12 @@ type TmdbShowDetails = {
 	vote_average?: number | null;
 };
 
+type TmdbSeasonDetails = {
+	poster_path?: string | null;
+	air_date?: string | null;
+	vote_average?: number | null;
+};
+
 type IgdbGameDetails = {
 	id?: number;
 	cover?: {
@@ -33,6 +39,29 @@ type IgdbGameDetails = {
 	first_release_date?: number | null;
 	total_rating?: number | null;
 };
+
+type MovieRow = {
+	tmdbid?: number | null;
+};
+
+type ShowRow = {
+	id?: number | null;
+	tmdbid?: number | null;
+	seasons?: string | null;
+};
+
+type GameRow = {
+	igdbid?: number | null;
+};
+
+class TmdbHttpError extends Error {
+	status: number;
+
+	constructor(status: number, message: string) {
+		super(message);
+		this.status = status;
+	}
+}
 
 function toIsoDate(value: string | null | undefined) {
 	if (!value) {
@@ -52,10 +81,34 @@ function toGameRelease(value: number | null | undefined) {
 	return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
-async function fetchTmdbJson<T>(url: string) {
+function parseSingleSeasonNumber(rawSeasons: string | null | undefined): number | null {
+	if (!rawSeasons) {
+		return null;
+	}
+
+	const normalized = rawSeasons.trim();
+	if (!normalized || normalized.includes('-')) {
+		return null;
+	}
+
+	const seasonNumber = Number.parseInt(normalized, 10);
+	if (Number.isNaN(seasonNumber) || seasonNumber <= 0) {
+		return null;
+	}
+
+	return seasonNumber;
+}
+
+async function fetchTmdbJson<T>(url: string): Promise<T>;
+async function fetchTmdbJson<T>(url: string, options: { allow404: true }): Promise<T | null>;
+async function fetchTmdbJson<T>(url: string, options?: { allow404?: boolean }): Promise<T | null> {
 	const response = await fetch(url);
+	if (response.status === 404 && options?.allow404) {
+		return null;
+	}
+
 	if (!response.ok) {
-		throw new Error(`TMDB request failed with status ${response.status}`);
+		throw new TmdbHttpError(response.status, `TMDB request failed with status ${response.status}`);
 	}
 
 	return (await response.json()) as T;
@@ -247,22 +300,40 @@ export async function refreshMovieMetadata(supabase: SupabaseClient) {
 		throw new Error('Missing PRIVATE_TMDB_V3_KEY');
 	}
 
-	const { data, error } = await supabase.from('movies').select('tmdbid');
-	if (error) {
-		throw error;
-	}
-
-	return refreshAllRows(supabase, 'movies', 'tmdbid', data?.map((row) => row.tmdbid) ?? [], async (tmdbId) => {
-		const details = await fetchTmdbJson<TmdbMovieDetails>(
-			`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${tmdbKey}&language=de-DE`
+	let data;
+	let error;
+	try {
+		({ data, error } = await supabase.from('movies').select('tmdbid'));
+	} catch (queryError) {
+		throw new Error(
+			`refreshMovieMetadata select failed: ${queryError instanceof Error ? queryError.message : String(queryError)}`
 		);
+	}
+	if (error) {
+		throw new Error(`refreshMovieMetadata select error: ${error.message || String(error)}`);
+	}
+	const rows = (data ?? []) as MovieRow[];
 
-		return {
-			image: details.poster_path ? `https://image.tmdb.org/t/p/w154/${details.poster_path}` : null,
-			release: toIsoDate(details.release_date),
-			averagerating: details.vote_average ?? null
-		};
-	});
+	return refreshAllRows(
+		supabase,
+		'movies',
+		'tmdbid',
+		rows.map((row) => row.tmdbid),
+		async (tmdbId) => {
+			const details = await fetchTmdbJson<TmdbMovieDetails>(
+				`https://api.themoviedb.org/3/movie/${tmdbId}?api_key=${tmdbKey}&language=de-DE`
+			);
+
+			return {
+				image: details.poster_path ? `https://image.tmdb.org/t/p/w154/${details.poster_path}` : null,
+				release: toIsoDate(details.release_date),
+				averagerating:
+					typeof details.vote_average === 'number'
+						? Number(details.vote_average.toFixed(1))
+						: null
+			};
+		}
+	);
 }
 
 export async function refreshShowMetadata(supabase: SupabaseClient) {
@@ -271,32 +342,169 @@ export async function refreshShowMetadata(supabase: SupabaseClient) {
 		throw new Error('Missing PRIVATE_TMDB_V3_KEY');
 	}
 
-	const { data, error } = await supabase.from('shows').select('tmdbid');
+	let data;
+	let error;
+	try {
+		({ data, error } = await supabase.from('shows').select('id, tmdbid, seasons'));
+	} catch (queryError) {
+		throw new Error(
+			`refreshShowMetadata select failed: ${queryError instanceof Error ? queryError.message : String(queryError)}`
+		);
+	}
 	if (error) {
-		throw error;
+		throw new Error(`refreshShowMetadata select error: ${error.message || String(error)}`);
 	}
 
-	return refreshAllRows(supabase, 'shows', 'tmdbid', data?.map((row) => row.tmdbid) ?? [], async (tmdbId) => {
-		const details = await fetchTmdbJson<TmdbShowDetails>(
-			`https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${tmdbKey}&language=de-DE`
-		);
+	const rows = (data ?? []) as ShowRow[];
+	const seriesCache = new Map<number, TmdbShowDetails | null>();
+	const seasonCache = new Map<string, TmdbSeasonDetails>();
+	const missingSeriesIds = new Set<number>();
+	const summary = {
+		table: 'shows',
+		uniqueIds: new Set(
+			rows
+				.map((row) => row.tmdbid)
+				.filter((id): id is number => typeof id === 'number' && !Number.isNaN(id))
+		).size,
+		updatedGroups: 0,
+		updatedRows: 0,
+		skippedGroups: 0,
+		failedGroups: 0,
+		failedIds: [] as number[]
+	};
 
-		return {
-			image: details.poster_path ? `https://image.tmdb.org/t/p/w154/${details.poster_path}` : null,
-			release: toIsoDate(details.first_air_date),
-			averagerating: details.vote_average ?? null
-		};
-	});
+	for (const row of rows) {
+		if (typeof row.id !== 'number' || Number.isNaN(row.id)) {
+			summary.skippedGroups += 1;
+			continue;
+		}
+
+		const tmdbId = row.tmdbid;
+		if (typeof tmdbId !== 'number' || Number.isNaN(tmdbId)) {
+			summary.skippedGroups += 1;
+			continue;
+		}
+
+		if (missingSeriesIds.has(tmdbId)) {
+			summary.skippedGroups += 1;
+			continue;
+		}
+
+		try {
+			let updateSource: TmdbShowDetails | TmdbSeasonDetails;
+			const singleSeason = parseSingleSeasonNumber(row.seasons as string | null | undefined);
+
+			if (singleSeason !== null) {
+				const seasonKey = `${tmdbId}:${singleSeason}`;
+				if (!seasonCache.has(seasonKey)) {
+					const seasonDetails = await fetchTmdbJson<TmdbSeasonDetails>(
+						`https://api.themoviedb.org/3/tv/${tmdbId}/season/${singleSeason}?api_key=${tmdbKey}&language=de-DE`
+						,
+						{ allow404: true }
+					);
+					if (seasonDetails) {
+						seasonCache.set(seasonKey, seasonDetails);
+					}
+				}
+
+				const seasonDetails = seasonCache.get(seasonKey);
+				if (seasonDetails) {
+					updateSource = seasonDetails;
+				} else {
+					if (!seriesCache.has(tmdbId)) {
+						const seriesDetails = await fetchTmdbJson<TmdbShowDetails>(
+							`https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${tmdbKey}&language=de-DE`,
+							{ allow404: true }
+						);
+						seriesCache.set(tmdbId, seriesDetails);
+					}
+
+					const seriesDetails = seriesCache.get(tmdbId) ?? null;
+					if (!seriesDetails) {
+						missingSeriesIds.add(tmdbId);
+						summary.skippedGroups += 1;
+						continue;
+					}
+
+					updateSource = seriesDetails;
+				}
+			} else {
+				if (!seriesCache.has(tmdbId)) {
+					const seriesDetails = await fetchTmdbJson<TmdbShowDetails>(
+						`https://api.themoviedb.org/3/tv/${tmdbId}?api_key=${tmdbKey}&language=de-DE`,
+						{ allow404: true }
+					);
+					seriesCache.set(tmdbId, seriesDetails);
+				}
+				const seriesDetails = seriesCache.get(tmdbId) ?? null;
+				if (!seriesDetails) {
+					missingSeriesIds.add(tmdbId);
+					summary.skippedGroups += 1;
+					continue;
+				}
+				updateSource = seriesDetails;
+			}
+
+			const releaseValue =
+				'air_date' in updateSource
+					? toIsoDate(updateSource.air_date)
+					: toIsoDate((updateSource as TmdbShowDetails).first_air_date);
+
+			const { data: updatedRows, error: updateError } = await supabase
+				.from('shows')
+				.update({
+					image: updateSource.poster_path
+						? `https://image.tmdb.org/t/p/w154/${updateSource.poster_path}`
+						: null,
+					release: releaseValue,
+					averagerating:
+						typeof updateSource.vote_average === 'number'
+							? Number(updateSource.vote_average.toFixed(1))
+							: null
+				})
+				.eq('id', row.id)
+				.select('id');
+
+			if (updateError) {
+				console.error(`Failed to update shows row ${row.id}`, updateError);
+				summary.failedGroups += 1;
+				summary.failedIds.push(tmdbId);
+				continue;
+			}
+
+			summary.updatedGroups += 1;
+			summary.updatedRows += updatedRows?.length ?? 0;
+		} catch (fetchError) {
+			if (fetchError instanceof TmdbHttpError && fetchError.status === 404) {
+				summary.skippedGroups += 1;
+				continue;
+			}
+			console.error(`Failed to load show metadata for row ${row.id}`, fetchError);
+			summary.failedGroups += 1;
+			summary.failedIds.push(tmdbId);
+		}
+	}
+
+	return summary;
 }
 
 export async function refreshGameMetadata(supabase: SupabaseClient) {
-	const { data, error } = await supabase.from('games').select('igdbid');
-	if (error) {
-		throw error;
+	let data;
+	let error;
+	try {
+		({ data, error } = await supabase.from('games').select('igdbid'));
+	} catch (queryError) {
+		throw new Error(
+			`refreshGameMetadata select failed: ${queryError instanceof Error ? queryError.message : String(queryError)}`
+		);
 	}
+	if (error) {
+		throw new Error(`refreshGameMetadata select error: ${error.message || String(error)}`);
+	}
+	const rows = (data ?? []) as GameRow[];
 
 	const token = await resolveIgdbToken(supabase);
-	return refreshAllRows(supabase, 'games', 'igdbid', data?.map((row) => row.igdbid) ?? [], async (igdbId) => {
+	return refreshAllRows(supabase, 'games', 'igdbid', rows.map((row) => row.igdbid), async (igdbId) => {
 		const details = await fetchIgdbJson(
 			token,
 			`fields cover.image_id, first_release_date, total_rating; where id = ${igdbId}; limit 1;`
@@ -307,9 +515,14 @@ export async function refreshGameMetadata(supabase: SupabaseClient) {
 		}
 
 		return {
-			image: game.cover?.image_id ? `https://images.igdb.com/igdb/image/upload/t_cover_big/${game.cover.image_id}.jpg` : null,
+			image: game.cover?.image_id
+				? `https://images.igdb.com/igdb/image/upload/t_cover_big/${game.cover.image_id}.jpg`
+				: null,
 			release: toGameRelease(game.first_release_date),
-			averagerating: game.total_rating ?? null
+			averagerating:
+				typeof game.total_rating === 'number'
+					? Number((game.total_rating / 10).toFixed(1))
+					: null
 		};
 	});
 }

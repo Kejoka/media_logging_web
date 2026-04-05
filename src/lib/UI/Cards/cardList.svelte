@@ -1174,7 +1174,7 @@
 <!-- Social Modal -->
 <input type="checkbox" id="social_modal" class="modal-toggle" bind:this={social_modal} />
 <div class="modal" role="dialog">
-	<div class="modal-box max-h-[85dvh] max-w-3xl overflow-y-auto">
+	<div class="scrollbar-hide modal-box max-h-[85dvh] max-w-3xl overflow-y-auto">
 		<p class="mb-1 text-xl font-bold">Social</p>
 		{#if social_medium?.title}
 			<p class="mb-4 text-lg text-base-content/70">{social_medium.title}</p>
@@ -1509,7 +1509,7 @@
 <!-- Streaming Provider Modal -->
 <input type="checkbox" id="streaming_modal" class="modal-toggle" bind:this={streaming_modal} />
 <div class="modal" role="dialog">
-	<div class="modal-box flex max-h-[80dvh] flex-col">
+	<div class="scrollbar-hide modal-box flex max-h-[80dvh] flex-col overflow-y-auto">
 		<div class="mb-4 flex flex-row">
 			<p class=" justify-center text-2xl font-bold">Wo streamen?</p>
 			<div class="flex h-6 w-1/2 justify-end">

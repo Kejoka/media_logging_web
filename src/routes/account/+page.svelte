@@ -55,7 +55,7 @@
 	<title>Mein Account</title>
 </svelte:head>
 
-<div class="flex w-full flex-1 items-start justify-center overflow-y-auto px-4 py-8">
+<div class="scrollbar-hide flex w-full flex-1 items-start justify-center overflow-y-auto px-4 py-8">
 	<div class="w-full max-w-lg">
 		<div class="mb-8 text-center">
 			<h1 class="text-3xl font-bold tracking-tight text-white">

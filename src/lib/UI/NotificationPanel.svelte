@@ -451,7 +451,7 @@
 {#if recommendationModalOpen && selectedRecommendation}
 	<div class="modal-open modal" role="dialog">
 		<div
-			class="modal-box flex max-h-[85dvh] w-[94vw] max-w-lg flex-col gap-3 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-300 p-4 shadow-2xl"
+			class="scrollbar-hide modal-box flex max-h-[85dvh] w-[94vw] max-w-lg flex-col gap-3 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-300 p-4 shadow-2xl"
 		>
 			<p class="text-lg font-bold">Empfehlung von @{selectedRecommendation.username}</p>
 			{#if selectedRecommendation.media_title}
@@ -507,7 +507,7 @@
 {#if responseModalOpen && selectedResponseNotification}
 	<div class="modal-open modal" role="dialog">
 		<div
-			class="modal-box flex max-h-[85dvh] w-[94vw] max-w-lg flex-col gap-3 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-300 p-4 shadow-2xl"
+			class="scrollbar-hide modal-box flex max-h-[85dvh] w-[94vw] max-w-lg flex-col gap-3 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-300 p-4 shadow-2xl"
 		>
 			<div class="flex items-start justify-between gap-3">
 				<div>

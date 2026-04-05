@@ -977,7 +977,7 @@
 		<div
 			bind:this={carousel}
 			onscroll={handleMediaSwitch}
-			class="carousel h-full w-full overflow-y-auto"
+			class="scrollbar-hide carousel h-full w-full overflow-y-auto"
 		>
 			{#each active_media_types as media_type}
 				<div class="carousel-item w-full">
