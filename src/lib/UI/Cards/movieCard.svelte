@@ -192,10 +192,12 @@
 									class="chat-bubble w-fit max-w-full cursor-pointer text-left wrap-break-word transition"
 									on:click={() => revealSpoiler(index)}
 								>
-									<span class="blur-xs">{bubble.text}</span>
+									<span class="whitespace-pre-line blur-xs">{bubble.text}</span>
 								</button>
 							{:else}
-								<div class="chat-bubble w-fit max-w-full wrap-break-word transition">
+								<div
+									class="chat-bubble w-fit max-w-full wrap-break-word whitespace-pre-line transition"
+								>
 									{bubble.text}
 								</div>
 							{/if}

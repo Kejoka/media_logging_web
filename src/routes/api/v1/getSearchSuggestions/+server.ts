@@ -279,7 +279,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 							iso_release = null;
 						}
 						search_results.push({
-							gbid: Number(book.id) || 0,
+							gbid: book.id || 0,
 							title: book.volumeInfo?.title,
 							subtitle: book.volumeInfo?.subtitle,
 							author: book.volumeInfo?.authors?.join(', '),
