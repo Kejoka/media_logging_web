@@ -1002,6 +1002,13 @@
 					></StatCard>
 					<StatCard
 						{media_data}
+						stat_type={'replayed_media'}
+						stat_lookup_field={'igdbid'}
+						stat_title={'Mehrfach gespielte Games'}
+						stat_desc={'Games, die mehr als einmal gespielt wurden'}
+					></StatCard>
+					<StatCard
+						{media_data}
 						stat_type={'added_in_release_year'}
 						stat_title={'Aktuelle Games'}
 						stat_desc={'Games, die im Release-Jahr gespielt wurden'}
@@ -1032,6 +1039,18 @@
 					></StatCard>
 					<StatCard
 						{media_data}
+						stat_type={'rating_below_average_percentage'}
+						stat_title={'Unter dem Web-Score'}
+						stat_desc={'Anteil deiner Ratings unter dem Durchschnitt'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'rating_above_average_percentage'}
+						stat_title={'Mindestens Web-Score'}
+						stat_desc={'Anteil deiner Ratings auf/über dem Durchschnitt'}
+					></StatCard>
+					<StatCard
+						{media_data}
 						stat_type={'average_rating_user'}
 						stat_title={'Dein Bewertungsdurchschnitt'}
 						stat_desc={'Durchschnitt deiner bewerteten Games'}
@@ -1048,6 +1067,13 @@
 						stat_type={'total_amount'}
 						stat_title={'Anzahl der Filme'}
 						stat_desc={'Anzahl der geschauten Filme im Zeitraum'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'replayed_media'}
+						stat_lookup_field={'tmdbid'}
+						stat_title={'Mehrfach geschaut'}
+						stat_desc={'Filme, die mehr als einmal geschaut wurden'}
 					></StatCard>
 					<StatCard
 						{media_data}
@@ -1075,6 +1101,18 @@
 					></StatCard>
 					<StatCard
 						{media_data}
+						stat_type={'rating_below_average_percentage'}
+						stat_title={'Unter dem Web-Score'}
+						stat_desc={'Anteil deiner Ratings unter dem Durchschnitt'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'rating_above_average_percentage'}
+						stat_title={'Mindestens Web-Score'}
+						stat_desc={'Anteil deiner Ratings auf/über dem Durchschnitt'}
+					></StatCard>
+					<StatCard
+						{media_data}
 						stat_type={'average_rating_user'}
 						stat_title={'Dein Bewertungsdurchschnitt'}
 						stat_desc={'Durchschnitt deiner bewerteten Filme'}
@@ -1091,6 +1129,13 @@
 						stat_type={'total_amount'}
 						stat_title={'Anzahl der Staffeln'}
 						stat_desc={'Anzahl der geschauten Staffeln im Zeitraum'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'replayed_media'}
+						stat_lookup_field={'tmdbid'}
+						stat_title={'Mehrfach geschaut'}
+						stat_desc={'Serien, die mehr als einmal geschaut wurden'}
 					></StatCard>
 					<StatCard
 						{media_data}
@@ -1118,6 +1163,18 @@
 					></StatCard>
 					<StatCard
 						{media_data}
+						stat_type={'rating_below_average_percentage'}
+						stat_title={'Unter dem Web-Score'}
+						stat_desc={'Anteil deiner Ratings unter dem Durchschnitt'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'rating_above_average_percentage'}
+						stat_title={'Mindestens Web-Score'}
+						stat_desc={'Anteil deiner Ratings auf/über dem Durchschnitt'}
+					></StatCard>
+					<StatCard
+						{media_data}
 						stat_type={'average_rating_user'}
 						stat_title={'Dein Bewertungsdurchschnitt'}
 						stat_desc={'Durchschnitt deiner bewerteten Serien'}
@@ -1134,6 +1191,13 @@
 						stat_type={'total_amount'}
 						stat_title={'Anzahl der Bücher'}
 						stat_desc={'Anzahl der gelesenen Bücher im Zeitraum'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'replayed_media'}
+						stat_lookup_field={'gbid'}
+						stat_title={'Mehrfach gelesen'}
+						stat_desc={'Bücher, die mehr als einmal gelesen wurden'}
 					></StatCard>
 					<StatCard
 						{media_data}
@@ -1157,6 +1221,18 @@
 						stat_type={'average_rating_user'}
 						stat_title={'Dein Bewertungsdurchschnitt'}
 						stat_desc={'Durchschnitt deiner bewerteten Bücher'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'rating_below_average_percentage'}
+						stat_title={'Unter dem Web-Score'}
+						stat_desc={'Anteil deiner Ratings unter dem Durchschnitt'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'rating_above_average_percentage'}
+						stat_title={'Mindestens Web-Score'}
+						stat_desc={'Anteil deiner Ratings auf/über dem Durchschnitt'}
 					></StatCard>
 					<StatCard
 						{media_data}

@@ -25,6 +25,7 @@
 	let modalScore = 0;
 	let modalAllowRating = true;
 	let modalOpenVersion = 0;
+	let modalFocusBubbleIndex: number | null = null;
 	let pointerStart: { x: number; y: number } | null = null;
 	let pointerStartScore = 0;
 	let suppressInlineScoreUpdateUntil = 0;
@@ -64,15 +65,20 @@
 		return Number.isFinite(fallback) ? Math.max(0, Math.min(5, Math.round(fallback * 2) / 2)) : 0;
 	}
 
-	function openRatingModal(scoreToOpenWith: unknown, allowRating = true) {
+	function openRatingModal(
+		scoreToOpenWith: unknown,
+		allowRating = true,
+		focusBubbleIndex: number | null = null
+	) {
 		modalScore = resolveScore(scoreToOpenWith);
 		modalAllowRating = allowRating;
+		modalFocusBubbleIndex = focusBubbleIndex;
 		modalOpenVersion += 1;
 		ratingModalOpen = true;
 	}
 
-	function openReviewNotesModal() {
-		openRatingModal(medium.rating || 0, current_mode === 0);
+	function openReviewNotesModal(focusBubbleIndex: number | null = null) {
+		openRatingModal(medium.rating || 0, current_mode === 0, focusBubbleIndex);
 	}
 
 	function handleRatingPointerUp(event: PointerEvent) {
@@ -263,7 +269,25 @@
 					<div class="chat-header mt-3">Review-Notizen:</div>
 					{#each visibleNotes as bubble, index (index)}
 						<div class="chat-start chat">
-							{#if bubble.spoiler && !revealedSpoilers.includes(index)}
+							{#if own_profile}
+								{#if bubble.spoiler && !revealedSpoilers.includes(index)}
+									<button
+										type="button"
+										class="chat-bubble w-fit max-w-full cursor-pointer text-left wrap-break-word transition"
+										on:click={() => revealSpoiler(index)}
+									>
+										<span class="whitespace-pre-line blur-sm">{bubble.text}</span>
+									</button>
+								{:else}
+									<button
+										type="button"
+										class="chat-bubble w-fit max-w-full cursor-pointer text-left wrap-break-word whitespace-pre-line transition hover:bg-base-300"
+										on:click={() => openReviewNotesModal(index)}
+									>
+										{bubble.text}
+									</button>
+								{/if}
+							{:else if bubble.spoiler && !revealedSpoilers.includes(index)}
 								<button
 									type="button"
 									class="chat-bubble w-fit max-w-full cursor-pointer text-left wrap-break-word transition"
@@ -301,7 +325,7 @@
 							class="btn btn-circle w-1/5 text-accent"
 							aria-label="Review-Notizen"
 							title="Review-Notizen"
-							on:click={openReviewNotesModal}
+							on:click={() => openReviewNotesModal()}
 						>
 							<RateReviewIcon />
 						</button>
@@ -336,6 +360,7 @@
 			score={modalScore}
 			notes={medium.notes || ''}
 			allowRating={modalAllowRating}
+			focusBubbleIndex={modalFocusBubbleIndex}
 			on:close={() => {
 				ratingModalOpen = false;
 			}}

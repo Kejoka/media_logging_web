@@ -8,6 +8,7 @@
 	export let title = '';
 	export let notes: string | null | undefined = '';
 	export let allowRating = true;
+	export let focusBubbleIndex: number | null = null;
 
 	const dispatch = createEventDispatcher<{
 		close: void;
@@ -97,7 +98,7 @@
 		<div class="mt-5">
 			<p class="mb-2 text-sm font-semibold">Review-Notizen</p>
 			<div class="rounded-lg border border-base-content/10 bg-base-200/40 p-3">
-				<NoteBubbleEditor bind:value={localNotes} />
+				<NoteBubbleEditor bind:value={localNotes} {focusBubbleIndex} />
 			</div>
 		</div>
 	</div>

@@ -1,11 +1,15 @@
 <script lang="ts">
+	import { tick } from 'svelte';
 	import { decodeReviewNotes, encodeReviewNotes, type ReviewNoteBubble } from '$lib/reviewNotes';
 
 	export let value: string | null | undefined = '';
+	export let focusBubbleIndex: number | null = null;
 
 	let bubbles: ReviewNoteBubble[] = [];
+	let bubbleTextareas: Array<HTMLTextAreaElement | undefined> = [];
 	let lastSerialized = '';
 	let loadedFromLegacy = false;
+	let lastFocusedBubbleIndex: number | null = null;
 
 	$: incomingValue = value || '';
 	$: if (incomingValue !== lastSerialized) {
@@ -13,6 +17,22 @@
 		bubbles = decoded.bubbles.map((bubble) => ({ ...bubble }));
 		loadedFromLegacy = decoded.isLegacy;
 		lastSerialized = incomingValue;
+	}
+
+	$: if (
+		focusBubbleIndex !== null &&
+		focusBubbleIndex !== lastFocusedBubbleIndex &&
+		focusBubbleIndex >= 0 &&
+		focusBubbleIndex < bubbles.length
+	) {
+		void tick().then(() => {
+			const target = bubbleTextareas[focusBubbleIndex];
+			if (target) {
+				target.focus();
+				target.select();
+				lastFocusedBubbleIndex = focusBubbleIndex;
+			}
+		});
 	}
 
 	function persistBubbles() {
@@ -80,6 +100,7 @@
 
 			<textarea
 				class="textarea-bordered textarea h-20 w-full"
+				bind:this={bubbleTextareas[index]}
 				value={bubble.text}
 				on:input={(event) =>
 					updateBubbleText(index, (event.currentTarget as HTMLTextAreaElement).value)}

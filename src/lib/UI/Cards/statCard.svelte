@@ -7,6 +7,9 @@
 	import DoubleStar from '$lib/Icons/double_star.svelte';
 	import Pages from '$lib/Icons/pages.svelte';
 	import Person from '$lib/Icons/person.svelte';
+	import Repeat from '$lib/Icons/repeat.svelte';
+	import ThumbDown from '$lib/Icons/thumb_down.svelte';
+	import ThumbUp from '$lib/Icons/thumb_up.svelte';
 	import Star from '$lib/Icons/star.svelte';
 	import Sum from '$lib/Icons/sum.svelte';
 	import Trophy from '$lib/Icons/trophy.svelte';
@@ -14,15 +17,53 @@
 	export let stat_type: string;
 	export let stat_title: string;
 	export let stat_desc: string;
+	export let stat_lookup_field: 'igdbid' | 'tmdbid' | 'gbid' | 'title' = 'title';
 	let stat_value: string;
 	let stat_exists: boolean = false;
 	let unique = {};
+
+	function getReplayKey(medium: mediaObject): string | null {
+		if (stat_lookup_field === 'title') {
+			return medium.title?.trim().length ? medium.title.trim().toLowerCase() : null;
+		}
+
+		const lookupValue = medium[stat_lookup_field];
+		if (lookupValue === null || lookupValue === undefined || String(lookupValue).length === 0) {
+			return medium.title?.trim().length ? medium.title.trim().toLowerCase() : null;
+		}
+
+		return String(lookupValue);
+	}
 	if (stat_type === 'added_in_release_year') {
 		const filtered_media_data_length = media_data.filter(
 			(medium) => medium.added?.substring(0, 4) === medium.release?.substring(0, 4)
 		).length;
 		stat_value = ((filtered_media_data_length / media_data.length) * 100).toFixed(1) + '%';
 		stat_exists = true;
+	} else if (stat_type === 'rating_below_average_percentage') {
+		const comparable_media = media_data.filter(
+			(medium) =>
+				medium.rating && medium.rating != 0 && medium.averagerating && !isNaN(medium.averagerating)
+		);
+		if (comparable_media.length != 0) {
+			const lower_count = comparable_media.filter(
+				(medium) => medium.rating! * 2 < medium.averagerating!
+			).length;
+			stat_value = `${((lower_count / comparable_media.length) * 100).toFixed(1)}%`;
+			stat_exists = true;
+		}
+	} else if (stat_type === 'rating_above_average_percentage') {
+		const comparable_media = media_data.filter(
+			(medium) =>
+				medium.rating && medium.rating != 0 && medium.averagerating && !isNaN(medium.averagerating)
+		);
+		if (comparable_media.length != 0) {
+			const higher_or_equal_count = comparable_media.filter(
+				(medium) => medium.rating! * 2 >= medium.averagerating!
+			).length;
+			stat_value = `${((higher_or_equal_count / comparable_media.length) * 100).toFixed(1)}%`;
+			stat_exists = true;
+		}
 	} else if (stat_type === 'average_rating_user') {
 		stat_value =
 			(
@@ -108,6 +149,17 @@
 			}
 			stat_exists = true;
 		}
+	} else if (stat_type === 'replayed_media') {
+		const replay_counts = new Map<string, number>();
+		for (const medium of media_data) {
+			const replay_key = getReplayKey(medium);
+			if (!replay_key) {
+				continue;
+			}
+			replay_counts.set(replay_key, (replay_counts.get(replay_key) || 0) + 1);
+		}
+		stat_value = String([...replay_counts.values()].filter((count) => count > 1).length);
+		stat_exists = true;
 	} else if (stat_type === 'total_amount') {
 		stat_value = String(media_data.length);
 		stat_exists = true;
@@ -116,8 +168,8 @@
 
 {#if stat_exists}
 	{#key unique}
-		<div class="mx-2 mb-2 rounded-lg bg-base-100 px-4 pb-2">
-			<div class="stats mx-2 w-full shadow">
+		<div class="mx-2 mb-2 rounded-lg bg-base-100">
+			<div class="stats w-full">
 				<div class="stat">
 					<div class="stat-figure text-base">
 						{#if stat_type === 'page_count'}
@@ -136,6 +188,12 @@
 							<Trophy styling={'inline-block h-8 w-8 stroke-current'}></Trophy>
 						{:else if stat_type === 'rating_difference'}
 							<Difference></Difference>
+						{:else if stat_type === 'rating_below_average_percentage'}
+							<ThumbDown></ThumbDown>
+						{:else if stat_type === 'rating_above_average_percentage'}
+							<ThumbUp></ThumbUp>
+						{:else if stat_type === 'replayed_media'}
+							<Repeat></Repeat>
 						{:else if stat_type === 'total_amount'}
 							<Sum></Sum>
 						{:else}
