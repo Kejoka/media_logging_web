@@ -6,6 +6,34 @@ type MediaUpdate = {
 	averagerating?: number | null;
 };
 
+// Helper to limit concurrent async operations
+async function runWithConcencyLimit<T, U>(
+	items: T[],
+	concurrency: number,
+	fn: (item: T) => Promise<U>
+): Promise<U[]> {
+	const results: U[] = [];
+	const executing: Promise<U>[] = [];
+
+	for (const item of items) {
+		const promise = fn(item).then((result) => {
+			executing.splice(executing.indexOf(promise), 1);
+			return result;
+		});
+
+		executing.push(promise);
+
+		if (executing.length >= concurrency) {
+			await Promise.race(executing);
+		}
+	}
+
+	return Promise.all(executing).then((resolved) => {
+		results.push(...resolved);
+		return results;
+	});
+}
+
 type IgdbTokenRecord = {
 	id: number;
 	token: string;
@@ -228,37 +256,52 @@ async function refreshAllRows(
 		failedIds: [] as number[]
 	};
 
-	for (const externalId of uniqueIds) {
-		let update: MediaUpdate | null;
+	// Fetch all metadata concurrently (max 10 at a time)
+	const metadataResults = await runWithConcencyLimit(uniqueIds, 10, async (externalId) => {
 		try {
-			update = await loadUpdate(externalId);
+			const update = await loadUpdate(externalId);
+			return { externalId, update, error: null };
 		} catch (error) {
 			console.error(`Failed to load ${table} metadata for ${externalId}`, error);
-			summary.failedGroups += 1;
-			summary.failedIds.push(externalId);
-			continue;
+			return { externalId, update: null, error };
 		}
+	});
 
-		if (!update) {
+	// Update database with fetched metadata, also in parallel
+	const updateResults = await runWithConcencyLimit(
+		metadataResults.filter((r) => r.update !== null && r.error === null),
+		10,
+		async (result) => {
+			const { data, error } = await supabase
+				.from(table)
+				.update(result.update!)
+				.eq(externalIdColumn, result.externalId)
+				.select('id');
+
+			if (error) {
+				console.error(`Failed to update ${table} rows for ${result.externalId}`, error);
+				return { success: false, externalId: result.externalId, rowCount: 0 };
+			}
+
+			return { success: true, externalId: result.externalId, rowCount: data?.length ?? 0 };
+		}
+	);
+
+	// Aggregate results
+	for (const result of metadataResults) {
+		if (result.error) {
+			summary.failedGroups += 1;
+			summary.failedIds.push(result.externalId);
+		} else if (!result.update) {
 			summary.skippedGroups += 1;
-			continue;
 		}
+	}
 
-		const { data, error } = await supabase
-			.from(table)
-			.update(update)
-			.eq(externalIdColumn, externalId)
-			.select('id');
-
-		if (error) {
-			console.error(`Failed to update ${table} rows for ${externalId}`, error);
-			summary.failedGroups += 1;
-			summary.failedIds.push(externalId);
-			continue;
+	for (const result of updateResults) {
+		if (result.success) {
+			summary.updatedGroups += 1;
+			summary.updatedRows += result.rowCount;
 		}
-
-		summary.updatedGroups += 1;
-		summary.updatedRows += data?.length ?? 0;
 	}
 
 	return summary;
@@ -373,21 +416,19 @@ export async function refreshShowMetadata(supabase: SupabaseClient) {
 		failedIds: [] as number[]
 	};
 
-	for (const row of rows) {
+	// Process metadata fetches concurrently with caching
+	const metadataFetches = await runWithConcencyLimit(rows, 10, async (row) => {
 		if (typeof row.id !== 'number' || Number.isNaN(row.id)) {
-			summary.skippedGroups += 1;
-			continue;
+			return { row, updateSource: null, error: null, skipped: true };
 		}
 
 		const tmdbId = row.tmdbid;
 		if (typeof tmdbId !== 'number' || Number.isNaN(tmdbId)) {
-			summary.skippedGroups += 1;
-			continue;
+			return { row, updateSource: null, error: null, skipped: true };
 		}
 
 		if (missingSeriesIds.has(tmdbId)) {
-			summary.skippedGroups += 1;
-			continue;
+			return { row, updateSource: null, error: null, skipped: true };
 		}
 
 		try {
@@ -398,8 +439,7 @@ export async function refreshShowMetadata(supabase: SupabaseClient) {
 				const seasonKey = `${tmdbId}:${singleSeason}`;
 				if (!seasonCache.has(seasonKey)) {
 					const seasonDetails = await fetchTmdbJson<TmdbSeasonDetails>(
-						`https://api.themoviedb.org/3/tv/${tmdbId}/season/${singleSeason}?api_key=${tmdbKey}&language=de-DE`
-						,
+						`https://api.themoviedb.org/3/tv/${tmdbId}/season/${singleSeason}?api_key=${tmdbKey}&language=de-DE`,
 						{ allow404: true }
 					);
 					if (seasonDetails) {
@@ -422,8 +462,7 @@ export async function refreshShowMetadata(supabase: SupabaseClient) {
 					const seriesDetails = seriesCache.get(tmdbId) ?? null;
 					if (!seriesDetails) {
 						missingSeriesIds.add(tmdbId);
-						summary.skippedGroups += 1;
-						continue;
+						return { row, updateSource: null, error: null, skipped: true };
 					}
 
 					updateSource = seriesDetails;
@@ -439,12 +478,32 @@ export async function refreshShowMetadata(supabase: SupabaseClient) {
 				const seriesDetails = seriesCache.get(tmdbId) ?? null;
 				if (!seriesDetails) {
 					missingSeriesIds.add(tmdbId);
-					summary.skippedGroups += 1;
-					continue;
+					return { row, updateSource: null, error: null, skipped: true };
 				}
 				updateSource = seriesDetails;
 			}
 
+			return { row, updateSource, error: null, skipped: false };
+		} catch (fetchError) {
+			if (fetchError instanceof TmdbHttpError && fetchError.status === 404) {
+				return { row, updateSource: null, error: null, skipped: true };
+			}
+			console.error(`Failed to load show metadata for row ${row.id}`, fetchError);
+			return {
+				row,
+				updateSource: null,
+				error: fetchError,
+				skipped: false
+			};
+		}
+	});
+
+	// Update database with all fetched metadata concurrently
+	const updateResults = await runWithConcencyLimit(
+		metadataFetches.filter((r) => r.updateSource !== null && !r.skipped),
+		10,
+		async (result) => {
+			const updateSource = result.updateSource!;
 			const releaseValue =
 				'air_date' in updateSource
 					? toIsoDate(updateSource.air_date)
@@ -462,26 +521,34 @@ export async function refreshShowMetadata(supabase: SupabaseClient) {
 							? Number(updateSource.vote_average.toFixed(1))
 							: null
 				})
-				.eq('id', row.id)
+				.eq('id', result.row.id)
 				.select('id');
 
 			if (updateError) {
-				console.error(`Failed to update shows row ${row.id}`, updateError);
-				summary.failedGroups += 1;
-				summary.failedIds.push(tmdbId);
-				continue;
+				console.error(`Failed to update shows row ${result.row.id}`, updateError);
+				return { success: false, rowCount: 0, tmdbId: result.row.tmdbid };
 			}
 
-			summary.updatedGroups += 1;
-			summary.updatedRows += updatedRows?.length ?? 0;
-		} catch (fetchError) {
-			if (fetchError instanceof TmdbHttpError && fetchError.status === 404) {
-				summary.skippedGroups += 1;
-				continue;
-			}
-			console.error(`Failed to load show metadata for row ${row.id}`, fetchError);
+			return { success: true, rowCount: updatedRows?.length ?? 0, tmdbId: result.row.tmdbid };
+		}
+	);
+
+	// Aggregate results
+	for (const result of metadataFetches) {
+		if (result.skipped) {
+			summary.skippedGroups += 1;
+		} else if (result.error) {
 			summary.failedGroups += 1;
-			summary.failedIds.push(tmdbId);
+			if (typeof result.row.tmdbid === 'number') {
+				summary.failedIds.push(result.row.tmdbid);
+			}
+		}
+	}
+
+	for (const result of updateResults) {
+		if (result.success) {
+			summary.updatedGroups += 1;
+			summary.updatedRows += result.rowCount;
 		}
 	}
 

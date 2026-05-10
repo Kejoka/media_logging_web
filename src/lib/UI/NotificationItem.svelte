@@ -162,7 +162,9 @@
 
 		switch (notification.activity_type) {
 			case 'add':
-				return `hat ${mediaName} hinzugefügt`;
+				return notification.details?.backlogged === 0
+					? `hat ${mediaName} hinzugefügt`
+					: `will ${mediaName} ${getConsumeVerb(notification.media_type || '')}`;
 			case 'update':
 				return `hat ${mediaName} aktualisiert`;
 			case 'delete':
@@ -170,6 +172,16 @@
 			default:
 				return 'hat eine Änderung vorgenommen';
 		}
+	}
+
+	function getConsumeVerb(mediaType: string) {
+		const verbs: Record<string, string> = {
+			games: 'spielen',
+			movies: 'schauen',
+			shows: 'schauen',
+			books: 'lesen'
+		};
+		return verbs[mediaType] || 'konsumiert';
 	}
 
 	function getTimeAgo(dateString: string) {

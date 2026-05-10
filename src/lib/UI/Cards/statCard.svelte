@@ -7,7 +7,7 @@
 	import DoubleStar from '$lib/Icons/double_star.svelte';
 	import Pages from '$lib/Icons/pages.svelte';
 	import Person from '$lib/Icons/person.svelte';
-	import Repeat from '$lib/Icons/repeat.svelte';
+	import Repeat from '$lib/Icons/repeat_stats.svelte';
 	import ThumbDown from '$lib/Icons/thumb_down.svelte';
 	import ThumbUp from '$lib/Icons/thumb_up.svelte';
 	import Star from '$lib/Icons/star.svelte';

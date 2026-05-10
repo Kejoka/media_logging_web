@@ -279,10 +279,6 @@
 		const currentKey = getSeparatorKey(media_data[index]);
 		const previousKey = getSeparatorKey(media_data[index - 1]);
 		const shouldRender = currentKey !== previousKey;
-		console.log(media_data[index], media_data[index - 1]);
-		console.log(
-			`[${index}] Current: ${currentKey} | Previous: ${previousKey} | Render: ${shouldRender}`
-		);
 		return shouldRender;
 	}
 
@@ -939,6 +935,7 @@
 					{medium}
 					{config}
 					{current_mode}
+					allMedia={media_data}
 				></GameCard>
 			{:else if current_medium === 'movies'}
 				<MovieCard
@@ -952,6 +949,7 @@
 					{medium}
 					{config}
 					{current_mode}
+					allMedia={media_data}
 				></MovieCard>
 			{:else if current_medium === 'shows'}
 				<TvCard
@@ -965,6 +963,7 @@
 					{medium}
 					{config}
 					{current_mode}
+					allMedia={media_data}
 				></TvCard>
 			{:else if current_medium === 'books'}
 				<BookCard
@@ -977,6 +976,7 @@
 					{medium}
 					{config}
 					{current_mode}
+					allMedia={media_data}
 				></BookCard>
 			{/if}
 		{/each}

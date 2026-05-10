@@ -26,33 +26,43 @@ Deno.serve(async () => {
 			errors: []
 		};
 
-		try {
-			result.movies = await refreshMovieMetadata(supabase);
-		} catch (error) {
+		// Run all three refresh functions concurrently instead of sequentially
+		const [moviesResult, showsResult, gamesResult] = await Promise.allSettled([
+			refreshMovieMetadata(supabase),
+			refreshShowMetadata(supabase),
+			refreshGameMetadata(supabase)
+		]);
+
+		// Handle movie metadata result
+		if (moviesResult.status === 'fulfilled') {
+			result.movies = moviesResult.value;
+		} else {
 			result.ok = false;
 			result.errors.push({
 				medium: 'movies',
-				message: error instanceof Error ? error.message : String(error)
+				message: moviesResult.reason instanceof Error ? moviesResult.reason.message : String(moviesResult.reason)
 			});
 		}
 
-		try {
-			result.shows = await refreshShowMetadata(supabase);
-		} catch (error) {
+		// Handle show metadata result
+		if (showsResult.status === 'fulfilled') {
+			result.shows = showsResult.value;
+		} else {
 			result.ok = false;
 			result.errors.push({
 				medium: 'shows',
-				message: error instanceof Error ? error.message : String(error)
+				message: showsResult.reason instanceof Error ? showsResult.reason.message : String(showsResult.reason)
 			});
 		}
 
-		try {
-			result.games = await refreshGameMetadata(supabase);
-		} catch (error) {
+		// Handle game metadata result
+		if (gamesResult.status === 'fulfilled') {
+			result.games = gamesResult.value;
+		} else {
 			result.ok = false;
 			result.errors.push({
 				medium: 'games',
-				message: error instanceof Error ? error.message : String(error)
+				message: gamesResult.reason instanceof Error ? gamesResult.reason.message : String(gamesResult.reason)
 			});
 		}
 

@@ -29,7 +29,6 @@
 			const target = bubbleTextareas[focusBubbleIndex];
 			if (target) {
 				target.focus();
-				target.select();
 				lastFocusedBubbleIndex = focusBubbleIndex;
 			}
 		});

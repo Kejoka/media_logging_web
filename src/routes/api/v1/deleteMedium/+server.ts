@@ -22,7 +22,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 				.from('user_activities')
 				.delete()
 				.eq('user_id', session?.user.id)
-				.eq('media_id', medium_id);
+				.eq('details->>media_id', medium_id);
 		}
 
 		return new Response(JSON.stringify(error));

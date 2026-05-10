@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { mediaObject } from '$lib/dbUtils';
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
+	import { shouldShowRepeatIcon, getReplayInfo } from '$lib/utils';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
 	import RatingPickerModal from '$lib/UI/Stars_modified/RatingPickerModal.svelte';
 	import EditNoteIcon from '$lib/Icons/edit_note.svelte';
@@ -8,12 +9,14 @@
 	import InfoIcon from '$lib/Icons/info.svelte';
 	import GroupIcon from '$lib/Icons/group.svelte';
 	import RateReviewIcon from '$lib/Icons/rate_review.svelte';
+	import RepeatIcon from '$lib/Icons/repeat.svelte';
 	import { decodeReviewNotes } from '$lib/reviewNotes';
 	const dispatch = createEventDispatcher();
 	export let medium: mediaObject;
 	export let config: any;
 	export let current_mode: number;
 	export let own_profile: boolean;
+	export let allMedia: mediaObject[] = [];
 
 	let unique = {};
 	let ratingModalOpen = false;
@@ -26,7 +29,19 @@
 	let suppressInlineScoreUpdateUntil = 0;
 	let revealedSpoilers: number[] = [];
 	let lastNotesValue = '';
+	let showReplayInfo = false;
 	const TAP_THRESHOLD = 8;
+
+	onMount(() => {
+		const handleDocumentClick = (e: MouseEvent) => {
+			if (showReplayInfo) {
+				showReplayInfo = false;
+			}
+		};
+
+		document.addEventListener('click', handleDocumentClick);
+		return () => document.removeEventListener('click', handleDocumentClick);
+	});
 
 	$: decodedNotes = decodeReviewNotes(medium.notes);
 	$: visibleNotes = own_profile
@@ -34,6 +49,8 @@
 		: decodedNotes.bubbles.filter((bubble) => !bubble.private);
 	$: hasOnlyPrivateNotes =
 		!own_profile && decodedNotes.bubbles.length > 0 && visibleNotes.length === 0;
+	$: showRepeat = shouldShowRepeatIcon(medium, allMedia, 'movies');
+	$: replayInfo = getReplayInfo(medium, allMedia, 'movies');
 
 	$: {
 		const currentNotesValue = medium.notes || '';
@@ -126,14 +143,59 @@
 	<div class="px-2 pb-2">
 		<div class="collapse bg-base-100">
 			<input id={String(medium.id) + '_m'} type="radio" name="movie-accordion" class="hidden" />
-			<div class="card card-side h-[15vh] max-h-[15vh] min-h-[15vh] bg-base-100 select-none">
-				<figure class="w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh]">
+			<div
+				class="card relative card-side h-[15vh] max-h-[15vh] min-h-[15vh] bg-base-100 select-none"
+			>
+				<figure class="relative w-[11.25vh] max-w-[11.25vh] min-w-[11.25vh]">
 					{#if medium.image != null}
 						<img src={medium.image} alt={medium.title} />
 					{:else}
 						<img src={'/placeholder.png'} alt={'Kein Bild'} />
 					{/if}
+					{#if showRepeat}
+						<div
+							class="absolute top-0 left-0 flex h-7 w-7 cursor-pointer items-center justify-center rounded-tl-lg rounded-br-md border border-neutral-400 bg-neutral/80 transition hover:bg-neutral/95"
+							role="button"
+							tabindex="0"
+							on:click={(e) => {
+								e.stopPropagation();
+								showReplayInfo = !showReplayInfo;
+							}}
+							on:keydown={(e) => {
+								if (e.key === 'Enter' || e.key === ' ') {
+									e.stopPropagation();
+									showReplayInfo = !showReplayInfo;
+								}
+							}}
+							title="Rewatch-Informationen"
+						>
+							<div class="flex h-full w-full items-center justify-center opacity-80">
+								<RepeatIcon />
+							</div>
+						</div>
+					{/if}
 				</figure>
+				{#if showRepeat && showReplayInfo}
+					<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+					<div
+						class="absolute top-8 left-0 z-50"
+						role="dialog"
+						tabindex="-1"
+						on:click|stopPropagation
+						on:keydown={() => {}}
+					>
+						<!-- Bubble content -->
+						<div class="rounded-lg border border-neutral-400 bg-base-100 p-3 shadow-lg">
+							<p class="font-semibold">Anzahl der Rewatches: {replayInfo.count}</p>
+							<!-- {#if replayInfo.dates.length > 0}
+								<p class="mt-1 font-semibold">Daten:</p>
+								{#each replayInfo.dates as date}
+									<p>{date}</p>
+								{/each}
+							{/if} -->
+						</div>
+					</div>
+				{/if}
 				<div
 					class="card-body justify-center pl-2"
 					role="button"
