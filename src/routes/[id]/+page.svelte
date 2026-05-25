@@ -5,6 +5,7 @@
 		dexieDB,
 		getYears,
 		sync_offline_changes_to_server,
+		updateRewatchStatus,
 		type mediaObject,
 		type OfflineChangeObject,
 		type tvSeason
@@ -864,6 +865,14 @@
 				console.log('DexieDB Error');
 				break;
 		}
+		// Update rewatch status
+		if (current_medium === 'games') {
+			await updateRewatchStatus(current_medium, last_selection.igdbid);
+		} else if (current_medium === 'movies' || current_medium === 'shows') {
+			await updateRewatchStatus(current_medium, last_selection.tmdbid);
+		} else if (current_medium === 'books') {
+			await updateRewatchStatus(current_medium, last_selection.gbid);
+		}
 		let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
 		if (dexie_prefs) {
 			if (!is_online) {
@@ -897,23 +906,40 @@
 		if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
 			collapse_input.checked = !collapse_input.checked;
 		}
-		//DexieDB
+		//DexieDB - Get the medium before deleting to extract unique ID for rewatch update
+		let unique_id: number | undefined;
 		switch (current_medium) {
-			case 'games':
-				dexieDB.games.delete(medium_id);
+			case 'games': {
+				const medium = await dexieDB.games.get(medium_id);
+				unique_id = medium?.igdbid;
+				await dexieDB.games.delete(medium_id);
 				break;
-			case 'movies':
-				dexieDB.movies.delete(medium_id);
+			}
+			case 'movies': {
+				const medium = await dexieDB.movies.get(medium_id);
+				unique_id = medium?.tmdbid;
+				await dexieDB.movies.delete(medium_id);
 				break;
-			case 'shows':
-				dexieDB.shows.delete(medium_id);
+			}
+			case 'shows': {
+				const medium = await dexieDB.shows.get(medium_id);
+				unique_id = medium?.tmdbid;
+				await dexieDB.shows.delete(medium_id);
 				break;
-			case 'books':
-				dexieDB.books.delete(medium_id);
+			}
+			case 'books': {
+				const medium = await dexieDB.books.get(medium_id);
+				unique_id = medium?.gbid;
+				await dexieDB.books.delete(medium_id);
 				break;
+			}
 			default:
 				console.log('Error deleting DexieDB Entry');
 				break;
+		}
+		// Update rewatch status after deletion
+		if (unique_id) {
+			await updateRewatchStatus(current_medium, unique_id);
 		}
 		await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
 		//Supabase

@@ -92,6 +92,8 @@ create table
     added timestamp,
     rating real default 2.5,
     backlogged int default 0,
+    is_rewatch boolean default false,
+    rewatch_count int default 0,
     notes text
   );
 
@@ -109,6 +111,8 @@ create table
     added timestamp,
     rating real default 2.5,
     backlogged int default 0,
+    is_rewatch boolean default false,
+    rewatch_count int default 0,
     notes text
   );
 
@@ -128,6 +132,8 @@ create table
     added timestamp,
     rating real default 2.5,
     backlogged int default 0,
+    is_rewatch boolean default false,
+    rewatch_count int default 0,
     notes text
   );
 
@@ -147,6 +153,8 @@ create table
     added timestamp,
     rating real default 2.5,
     backlogged int default 0,
+    is_rewatch boolean default false,
+    rewatch_count int default 0,
     notes text,
     genres text
   );

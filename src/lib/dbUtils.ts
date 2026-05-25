@@ -25,6 +25,73 @@ export function getYears(media_entries: mediaObject[] | undefined, active_year: 
 }
 
 /**
+ * Updates rewatch status for a medium in Dexie.
+ * Queries all non-backlogged entries matching the unique ID and updates their rewatch status.
+ * The first entry (by added date) gets is_rewatch=false, others get is_rewatch=true.
+ * All get rewatch_count set to the total count.
+ */
+export async function updateRewatchStatus(medium_type: string, unique_id: number | undefined) {
+	if (!unique_id) return;
+
+	const store =
+		medium_type === 'games'
+			? dexieDB.games
+			: medium_type === 'movies'
+				? dexieDB.movies
+				: medium_type === 'shows'
+					? dexieDB.shows
+					: medium_type === 'books'
+						? dexieDB.books
+						: null;
+
+	if (!store) return;
+
+	// Get all non-backlogged entries with the same unique ID
+	const field = medium_type === 'games' ? 'igdbid' : medium_type === 'books' ? 'gbid' : 'tmdbid';
+	const allEntries = await store
+		.where(field as any)
+		.equals(unique_id)
+		.toArray();
+
+	// Filter to only non-backlogged entries and sort by added date
+	const nonBackloggedEntries = allEntries
+		.filter((entry) => entry.backlogged === 0)
+		.sort((a, b) => {
+			const dateA = new Date(a.added || 0).getTime();
+			const dateB = new Date(b.added || 0).getTime();
+			return dateA - dateB;
+		});
+
+	if (nonBackloggedEntries.length <= 1) {
+		// If only one or zero entries, mark as not rewatch
+		if (nonBackloggedEntries.length === 1) {
+			await store.update(nonBackloggedEntries[0].id!, {
+				is_rewatch: false,
+				rewatch_count: 1
+			});
+		}
+	} else {
+		// Multiple entries: first is not rewatch, rest are rewatches
+		const firstId = nonBackloggedEntries[0].id!;
+		const rewatchCount = nonBackloggedEntries.length;
+
+		// Update first entry
+		await store.update(firstId, {
+			is_rewatch: false,
+			rewatch_count: rewatchCount
+		});
+
+		// Update all other entries
+		for (let i = 1; i < nonBackloggedEntries.length; i++) {
+			await store.update(nonBackloggedEntries[i].id!, {
+				is_rewatch: true,
+				rewatch_count: rewatchCount
+			});
+		}
+	}
+}
+
+/**
  * Maps carousel tab indices to the corresponding media table key.
  */
 export function get_media_type_from_index(index: number) {
@@ -96,6 +163,7 @@ export async function sync_offline_changes_to_server() {
 				break;
 			case 'delete':
 				try {
+					console.log(change);
 					request_response = await fetch('/api/v1/deleteMedium', {
 						method: 'POST',
 						body: JSON.stringify({
@@ -107,6 +175,32 @@ export async function sync_offline_changes_to_server() {
 							'Content-Type': 'application/json'
 						}
 					});
+
+					// Handle the response and sync updated entries to Dexie
+					if (request_response.ok) {
+						const response = (await request_response.json()) as any;
+						if (response.updatedEntries && response.updatedEntries.length > 0) {
+							const dexieStore =
+								change.medium === 'games'
+									? dexieDB.games
+									: change.medium === 'movies'
+										? dexieDB.movies
+										: change.medium === 'shows'
+											? dexieDB.shows
+											: change.medium === 'books'
+												? dexieDB.books
+												: null;
+
+							if (dexieStore) {
+								for (const entry of response.updatedEntries) {
+									await dexieStore.update(entry.id, {
+										is_rewatch: entry.is_rewatch,
+										rewatch_count: entry.rewatch_count
+									});
+								}
+							}
+						}
+					}
 				} catch (error) {
 					console.log(error);
 					failed_changes.push(change);
@@ -125,6 +219,32 @@ export async function sync_offline_changes_to_server() {
 							'Content-Type': 'application/json'
 						}
 					});
+
+					// Handle the response and sync updated entries to Dexie
+					if (request_response.ok) {
+						const response = (await request_response.json()) as any;
+						if (response.updatedEntries && response.updatedEntries.length > 0) {
+							const dexieStore =
+								change.medium === 'games'
+									? dexieDB.games
+									: change.medium === 'movies'
+										? dexieDB.movies
+										: change.medium === 'shows'
+											? dexieDB.shows
+											: change.medium === 'books'
+												? dexieDB.books
+												: null;
+
+							if (dexieStore) {
+								for (const entry of response.updatedEntries) {
+									await dexieStore.update(entry.id, {
+										is_rewatch: entry.is_rewatch,
+										rewatch_count: entry.rewatch_count
+									});
+								}
+							}
+						}
+					}
 				} catch (error) {
 					console.log(error);
 					failed_changes.push(change);
@@ -201,7 +321,7 @@ export const dexieDB = new Dexie('MediaDatabase') as Dexie & {
 	prefs: EntityTable<UserInfo, 'id'>;
 };
 
-dexieDB.version(1).stores({
+dexieDB.version(2).stores({
 	games: `
     ++id,
     user_id,
@@ -216,6 +336,8 @@ dexieDB.version(1).stores({
     added,
     rating,
     backlogged,
+    is_rewatch,
+    rewatch_count,
     notes
   `,
 	movies: `
@@ -230,6 +352,8 @@ dexieDB.version(1).stores({
     added,
     rating,
     backlogged,
+    is_rewatch,
+    rewatch_count,
     notes
   `,
 	shows: `
@@ -246,6 +370,8 @@ dexieDB.version(1).stores({
     added,
     rating,
     backlogged,
+    is_rewatch,
+    rewatch_count,
     notes
   `,
 	books: `
@@ -262,6 +388,8 @@ dexieDB.version(1).stores({
     added,
     rating,
     backlogged,
+    is_rewatch,
+    rewatch_count,
     notes,
     genres
   `,
@@ -279,6 +407,8 @@ dexieDB.version(1).stores({
     added,
     rating,
     backlogged,
+    is_rewatch,
+    rewatch_count,
     notes
   `,
 	movies_other: `
@@ -293,6 +423,8 @@ dexieDB.version(1).stores({
     added,
     rating,
     backlogged,
+    is_rewatch,
+    rewatch_count,
     notes
   `,
 	shows_other: `
@@ -309,6 +441,8 @@ dexieDB.version(1).stores({
     added,
     rating,
     backlogged,
+    is_rewatch,
+    rewatch_count,
     notes
   `,
 	books_other: `
@@ -325,6 +459,8 @@ dexieDB.version(1).stores({
     added,
     rating,
     backlogged,
+    is_rewatch,
+    rewatch_count,
     notes,
     genres
   `,
@@ -359,6 +495,8 @@ export type mediaObject = {
 	platforms?: string;
 	trophy?: number;
 	notes?: string;
+	is_rewatch?: boolean;
+	rewatch_count?: number;
 	// Duplicate types used to allow porting from the Flutter .db files to the new structure used in supabase and indexedDB
 	averageRating?: number;
 	addedIn?: number;

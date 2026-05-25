@@ -48,7 +48,8 @@
 				{/if}
 			{/each}
 		</div>
-		<input
+		<!-- Shortcut Rating auskommentiert, da es eventuell zu Misinputs führt -->
+		<!-- <input
 			name={config.name}
 			class="slider"
 			type="range"
@@ -58,7 +59,7 @@
 			bind:value={config.score}
 			on:change
 			on:click
-		/>
+		/> -->
 	</div>
 	{#if config.showScore}
 		<span class="show-score" style="font-size: {config.starConfig.size / 2}px;">

@@ -6,7 +6,6 @@
 		type OfflineChangeObject
 	} from '$lib/dbUtils';
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { shouldShowRepeatIcon, getReplayInfo } from '$lib/utils';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
 	import Trophy from '$lib/Icons/trophy.svelte';
 	import RatingPickerModal from '$lib/UI/Stars_modified/RatingPickerModal.svelte';
@@ -22,7 +21,6 @@
 	export let config: any;
 	export let current_mode: number;
 	export let own_profile: boolean;
-	export let allMedia: mediaObject[] = [];
 	let unique = {};
 	let ratingModalOpen = false;
 	let modalScore = 0;
@@ -54,8 +52,7 @@
 		: decodedNotes.bubbles.filter((bubble) => !bubble.private);
 	$: hasOnlyPrivateNotes =
 		!own_profile && decodedNotes.bubbles.length > 0 && visibleNotes.length === 0;
-	$: showRepeat = shouldShowRepeatIcon(medium, allMedia, 'games');
-	$: replayInfo = getReplayInfo(medium, allMedia, 'games');
+	$: showRepeat = medium.is_rewatch || false;
 
 	$: {
 		const currentNotesValue = medium.notes || '';
@@ -260,13 +257,7 @@
 					>
 						<!-- Bubble content -->
 						<div class="rounded-lg border border-neutral-400 bg-base-100 p-3 shadow-lg">
-							<p class="font-semibold">Anzahl der Replays: {replayInfo.count}</p>
-							<!-- {#if replayInfo.dates.length > 0}
-								<p class="mt-1 font-semibold">Daten:</p>
-								{#each replayInfo.dates as date}
-									<p>{date}</p>
-								{/each}
-							{/if} -->
+							<p class="font-semibold">{medium.rewatch_count || 1} Mal gespielt</p>
 						</div>
 					</div>
 				{/if}

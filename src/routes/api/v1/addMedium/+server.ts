@@ -28,10 +28,40 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						backlogged: medium.backlogged || 0,
 						added: medium.added,
 						trophy: 0,
-						notes: medium.notes || ''
+						notes: medium.notes || '',
+						is_rewatch: false,
+						rewatch_count: 1
 					})
-					.select('id')
+					.select()
 					.single();
+				// Calculate rewatch status based on duplicates (exclude backlog)
+				if (error.data && medium.igdbid) {
+					const duplicates = await supabase
+						.from(current_medium)
+						.select('id, added')
+						.eq('user_id', session?.user.id)
+						.eq('igdbid', medium.igdbid)
+						.eq('backlogged', 0)
+						.order('added', { ascending: true });
+
+					if (duplicates.data && duplicates.data.length > 1) {
+						const count = duplicates.data.length;
+						const firstEntryId = duplicates.data[0].id;
+
+						// Update entries
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: true, rewatch_count: count })
+							.eq('igdbid', medium.igdbid)
+							.eq('user_id', session?.user.id)
+							.eq('backlogged', 0);
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: false, rewatch_count: count })
+							.eq('id', firstEntryId);
+					}
+				}
+
 				// Log activity for notifications
 				if (error.data) {
 					await supabase.from('user_activities').insert({
@@ -39,10 +69,10 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						activity_type: 'add',
 						media_type: current_medium,
 						media_title: medium.title,
-						details: { 
+						details: {
 							media_id: error.data.id,
 							media_year: new Date(medium.added).getFullYear(),
-							backlogged: medium.backlogged || 0 
+							backlogged: medium.backlogged || 0
 						}
 					});
 				}
@@ -61,10 +91,41 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						rating: 0,
 						backlogged: medium.backlogged || 0,
 						added: medium.added,
-						notes: medium.notes || ''
+						notes: medium.notes || '',
+						is_rewatch: false,
+						rewatch_count: 1
 					})
-					.select('id')
+					.select()
 					.single();
+
+				// Calculate rewatch status based on duplicates (exclude backlog)
+				if (error.data && medium.tmdbid) {
+					const duplicates = await supabase
+						.from(current_medium)
+						.select('id, added')
+						.eq('user_id', session?.user.id)
+						.eq('tmdbid', medium.tmdbid)
+						.eq('backlogged', 0)
+						.order('added', { ascending: true });
+
+					if (duplicates.data && duplicates.data.length > 1) {
+						const count = duplicates.data.length;
+						const firstEntryId = duplicates.data[0].id;
+
+						// Update entries
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: true, rewatch_count: count })
+							.eq('tmdbid', medium.tmdbid)
+							.eq('backlogged', 0)
+							.eq('user_id', session?.user.id);
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: false, rewatch_count: count })
+							.eq('id', firstEntryId);
+					}
+				}
+
 				// Log activity for notifications
 				if (error.data) {
 					await supabase.from('user_activities').insert({
@@ -72,10 +133,10 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						activity_type: 'add',
 						media_type: current_medium,
 						media_title: medium.title,
-						details: { 
+						details: {
 							media_id: error.data.id,
 							media_year: new Date(medium.added).getFullYear(),
-							backlogged: medium.backlogged || 0 
+							backlogged: medium.backlogged || 0
 						}
 					});
 				}
@@ -95,10 +156,41 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						backlogged: medium.backlogged || 0,
 						added: medium.added,
 						episode: 0,
-						notes: medium.notes || ''
+						notes: medium.notes || '',
+						is_rewatch: false,
+						rewatch_count: 1
 					})
-					.select('id')
+					.select()
 					.single();
+
+				// Calculate rewatch status based on duplicates (exclude backlog)
+				if (error.data && medium.tmdbid) {
+					const duplicates = await supabase
+						.from(current_medium)
+						.select('id, added')
+						.eq('user_id', session?.user.id)
+						.eq('tmdbid', medium.tmdbid)
+						.eq('backlogged', 0)
+						.order('added', { ascending: true });
+
+					if (duplicates.data && duplicates.data.length > 1) {
+						const count = duplicates.data.length;
+						const firstEntryId = duplicates.data[0].id;
+
+						// Update entries
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: true, rewatch_count: count })
+							.eq('tmdbid', medium.tmdbid)
+							.eq('backlogged', 0)
+							.eq('user_id', session?.user.id);
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: false, rewatch_count: count })
+							.eq('id', firstEntryId);
+					}
+				}
+
 				// Log activity for notifications
 				if (error.data) {
 					await supabase.from('user_activities').insert({
@@ -106,10 +198,10 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						activity_type: 'add',
 						media_type: current_medium,
 						media_title: medium.title,
-						details: { 
+						details: {
 							media_id: error.data.id,
 							media_year: new Date(medium.added).getFullYear(),
-							backlogged: medium.backlogged || 0 
+							backlogged: medium.backlogged || 0
 						}
 					});
 				}
@@ -130,10 +222,41 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						rating: 0,
 						backlogged: medium.backlogged || 0,
 						added: medium.added,
-						notes: medium.notes || ''
+						notes: medium.notes || '',
+						is_rewatch: false,
+						rewatch_count: 1
 					})
-					.select('id')
+					.select()
 					.single();
+
+				// Calculate rewatch status based on duplicates (exclude backlog)
+				if (error.data && medium.gbid) {
+					const duplicates = await supabase
+						.from(current_medium)
+						.select('id, added')
+						.eq('user_id', session?.user.id)
+						.eq('gbid', medium.gbid)
+						.eq('backlogged', 0)
+						.order('added', { ascending: true });
+
+					if (duplicates.data && duplicates.data.length > 1) {
+						const count = duplicates.data.length;
+						const firstEntryId = duplicates.data[0].id;
+
+						// Update entries
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: true, rewatch_count: count })
+							.eq('gbid', medium.gbid)
+							.eq('backlogged', 0)
+							.eq('user_id', session?.user.id);
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: false, rewatch_count: count })
+							.eq('id', firstEntryId);
+					}
+				}
+
 				// Log activity for notifications
 				if (error.data) {
 					await supabase.from('user_activities').insert({
@@ -141,10 +264,10 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						activity_type: 'add',
 						media_type: current_medium,
 						media_title: medium.title,
-						details: { 
+						details: {
 							media_id: error.data.id,
 							media_year: new Date(medium.added).getFullYear(),
-							backlogged: medium.backlogged || 0 
+							backlogged: medium.backlogged || 0
 						}
 					});
 				}

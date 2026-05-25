@@ -5,6 +5,7 @@
 	import {
 		dexieDB,
 		sync_offline_changes_to_server,
+		updateRewatchStatus,
 		type mediaObject,
 		type OfflineChangeObject
 	} from '$lib/dbUtils';
@@ -735,6 +736,14 @@
 			default:
 				break;
 		}
+		// Update rewatch status after updating the medium
+		if (current_medium === 'games') {
+			await updateRewatchStatus(current_medium, to_edit.igdbid);
+		} else if (current_medium === 'movies' || current_medium === 'shows') {
+			await updateRewatchStatus(current_medium, to_edit.tmdbid);
+		} else if (current_medium === 'books') {
+			await updateRewatchStatus(current_medium, to_edit.gbid);
+		}
 		await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
 		// Supabase
 		try {
@@ -935,7 +944,6 @@
 					{medium}
 					{config}
 					{current_mode}
-					allMedia={media_data}
 				></GameCard>
 			{:else if current_medium === 'movies'}
 				<MovieCard
@@ -949,7 +957,6 @@
 					{medium}
 					{config}
 					{current_mode}
-					allMedia={media_data}
 				></MovieCard>
 			{:else if current_medium === 'shows'}
 				<TvCard
@@ -963,7 +970,6 @@
 					{medium}
 					{config}
 					{current_mode}
-					allMedia={media_data}
 				></TvCard>
 			{:else if current_medium === 'books'}
 				<BookCard
@@ -976,7 +982,6 @@
 					{medium}
 					{config}
 					{current_mode}
-					allMedia={media_data}
 				></BookCard>
 			{/if}
 		{/each}

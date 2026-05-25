@@ -22,16 +22,14 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 			id: session?.user.id,
 			updated_at: sync_timestamp
 		});
+
 		// Normalize all optional text fields before persisting to keep server-side data consistent.
 		switch (current_medium) {
 			case 'games':
 				error = await supabase
 					.from(current_medium)
 					.update({
-						title: validate_and_trim_field(
-							medium_fields_to_update.title,
-							'Kein Titel angegeben'
-						),
+						title: validate_and_trim_field(medium_fields_to_update.title, 'Kein Titel angegeben'),
 						image: validate_and_trim_field(medium_fields_to_update.image, null),
 						release: validate_and_trim_field(medium_fields_to_update.release, null),
 						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
@@ -39,48 +37,87 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						...(medium_fields_to_update.trophy !== undefined
 							? { trophy: medium_fields_to_update.trophy }
 							: {}),
-						added: validate_and_trim_field(
-							medium_fields_to_update.added,
-							new Date().toISOString()
-						),
+						added: validate_and_trim_field(medium_fields_to_update.added, new Date().toISOString()),
 						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
 					})
 					.eq('id', medium_fields_to_update.id);
+				// Calculate rewatch status based on duplicates (exclude backlog)
+				if (medium_fields_to_update.igdbid) {
+					const duplicates = await supabase
+						.from(current_medium)
+						.select('id, added')
+						.eq('user_id', session?.user.id)
+						.eq('igdbid', medium_fields_to_update.igdbid)
+						.eq('backlogged', 0)
+						.order('added', { ascending: true });
+
+					if (duplicates.data && duplicates.data.length > 1) {
+						const count = duplicates.data.length;
+						const firstEntryId = duplicates.data[0].id;
+
+						// Update entries
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: true, rewatch_count: count })
+							.eq('igdbid', medium_fields_to_update.igdbid)
+							.eq('backlogged', 0)
+							.eq('user_id', session?.user.id);
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: false, rewatch_count: count })
+							.eq('id', firstEntryId);
+					}
+				}
 				return new Response(JSON.stringify(error));
 			case 'movies':
 				error = await supabase
 					.from(current_medium)
 					.update({
-						title: validate_and_trim_field(
-							medium_fields_to_update.title,
-							'Kein Titel angegeben'
-						),
+						title: validate_and_trim_field(medium_fields_to_update.title, 'Kein Titel angegeben'),
 						image: validate_and_trim_field(medium_fields_to_update.image, null),
 						release: validate_and_trim_field(medium_fields_to_update.release, null),
 						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
-						added: validate_and_trim_field(
-							medium_fields_to_update.added,
-							new Date().toISOString()
-						),
+						added: validate_and_trim_field(medium_fields_to_update.added, new Date().toISOString()),
 						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
 					})
 					.eq('id', medium_fields_to_update.id);
+				// Calculate rewatch status based on duplicates (exclude backlog)
+				if (medium_fields_to_update.tmdbid) {
+					const duplicates = await supabase
+						.from(current_medium)
+						.select('id, added')
+						.eq('user_id', session?.user.id)
+						.eq('tmdbid', medium_fields_to_update.tmdbid)
+						.eq('backlogged', 0)
+						.order('added', { ascending: true });
+
+					if (duplicates.data && duplicates.data.length > 1) {
+						const count = duplicates.data.length;
+						const firstEntryId = duplicates.data[0].id;
+
+						// Update entries
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: true, rewatch_count: count })
+							.eq('tmdbid', medium_fields_to_update.tmdbid)
+							.eq('backlogged', 0)
+							.eq('user_id', session?.user.id);
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: false, rewatch_count: count })
+							.eq('id', firstEntryId);
+					}
+				}
 				return new Response(JSON.stringify(error));
 			case 'shows':
 				error = await supabase
 					.from(current_medium)
 					.update({
-						title: validate_and_trim_field(
-							medium_fields_to_update.title,
-							'Kein Titel angegeben'
-						),
+						title: validate_and_trim_field(medium_fields_to_update.title, 'Kein Titel angegeben'),
 						image: validate_and_trim_field(medium_fields_to_update.image, null),
 						release: validate_and_trim_field(medium_fields_to_update.release, null),
 						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
-						added: validate_and_trim_field(
-							medium_fields_to_update.added,
-							new Date().toISOString()
-						),
+						added: validate_and_trim_field(medium_fields_to_update.added, new Date().toISOString()),
 						notes: validate_and_trim_field(medium_fields_to_update.notes, null),
 						seasons: validate_and_trim_field(medium_fields_to_update.seasons, null),
 						episode:
@@ -90,15 +127,39 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 								: 0
 					})
 					.eq('id', medium_fields_to_update.id);
+				// Calculate rewatch status based on duplicates (exclude backlog)
+				if (medium_fields_to_update.tmdbid) {
+					const duplicates = await supabase
+						.from(current_medium)
+						.select('id, added')
+						.eq('user_id', session?.user.id)
+						.eq('tmdbid', medium_fields_to_update.tmdbid)
+						.eq('backlogged', 0)
+						.order('added', { ascending: true });
+
+					if (duplicates.data && duplicates.data.length > 1) {
+						const count = duplicates.data.length;
+						const firstEntryId = duplicates.data[0].id;
+
+						// Update entries
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: true, rewatch_count: count })
+							.eq('tmdbid', medium_fields_to_update.tmdbid)
+							.eq('backlogged', 0)
+							.eq('user_id', session?.user.id);
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: false, rewatch_count: count })
+							.eq('id', firstEntryId);
+					}
+				}
 				return new Response(JSON.stringify(error));
 			case 'books':
 				error = await supabase
 					.from(current_medium)
 					.update({
-						title: validate_and_trim_field(
-							medium_fields_to_update.title,
-							'Kein Titel angegeben'
-						),
+						title: validate_and_trim_field(medium_fields_to_update.title, 'Kein Titel angegeben'),
 						author: validate_and_trim_field(medium_fields_to_update.author, null),
 						image: validate_and_trim_field(medium_fields_to_update.image, null),
 						release: validate_and_trim_field(medium_fields_to_update.release, null),
@@ -108,13 +169,37 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 							medium_fields_to_update.pagecount.toString().trim().length > 0
 								? medium_fields_to_update.pagecount
 								: null,
-						added: validate_and_trim_field(
-							medium_fields_to_update.added,
-							new Date().toISOString()
-						),
+						added: validate_and_trim_field(medium_fields_to_update.added, new Date().toISOString()),
 						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
 					})
 					.eq('id', medium_fields_to_update.id);
+				// Calculate rewatch status based on duplicates (exclude backlog)
+				if (medium_fields_to_update.gbid) {
+					const duplicates = await supabase
+						.from(current_medium)
+						.select('id, added')
+						.eq('user_id', session?.user.id)
+						.eq('gbid', medium_fields_to_update.gbid)
+						.eq('backlogged', 0)
+						.order('added', { ascending: true });
+
+					if (duplicates.data && duplicates.data.length > 1) {
+						const count = duplicates.data.length;
+						const firstEntryId = duplicates.data[0].id;
+
+						// Update entries
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: true, rewatch_count: count })
+							.eq('gbid', medium_fields_to_update.gbid)
+							.eq('backlogged', 0)
+							.eq('user_id', session?.user.id);
+						await supabase
+							.from(current_medium)
+							.update({ is_rewatch: false, rewatch_count: count })
+							.eq('id', firstEntryId);
+					}
+				}
 				return new Response(JSON.stringify(error));
 			default:
 				throw 'Switch Statement failed';

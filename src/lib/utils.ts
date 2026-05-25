@@ -100,8 +100,10 @@ export function getMediaCodeIndex(current_medium: string): number {
 	}
 }
 
+
 /**
  * Determines if a medium should show a repeat icon.
+ * DEPRECATED: Use medium.is_rewatch field directly instead.
  * Returns true if this is not the first entry (by date) for the same external media ID.
  */
 export function shouldShowRepeatIcon(
@@ -109,54 +111,12 @@ export function shouldShowRepeatIcon(
 	allMedia: mediaObject[],
 	mediaType: string
 ): boolean {
-	// Determine which external ID field to use based on media type
-	const getExternalId = (m: mediaObject): string | number | undefined => {
-		switch (mediaType) {
-			case 'games':
-				return m.igdbid;
-			case 'movies':
-			case 'shows':
-				return String(m.tmdbid) + (m.seasons || 0); // Combine TMDB ID with season/episode for shows to differentiate entries
-			case 'books':
-				return m.gbid;
-			default:
-				return m.title?.toLowerCase().trim();
-		}
-	};
-
-	const currentId = getExternalId(medium);
-	// If no external ID, use title as fallback
-	if (currentId === undefined || currentId === null) {
-		return false;
-	}
-
-	// Find all entries with the same external ID
-	const duplicates = allMedia.filter((m) => {
-		const otherId = getExternalId(m);
-		return otherId === currentId;
-	});
-
-	// If only one entry with this ID, don't show repeat icon
-	if (duplicates.length <= 1) {
-		return false;
-	}
-
-	// Sort by added date to find the earliest
-	const sortedByDate = [...duplicates].sort((a, b) => {
-		const dateA = new Date(a.added || 0).getTime();
-		const dateB = new Date(b.added || 0).getTime();
-		return dateA - dateB;
-	});
-
-	// Get the first entry by date
-	const firstEntry = sortedByDate[0];
-
-	// Show repeat icon if this is not the first entry
-	return medium.id !== firstEntry.id;
+	return medium.is_rewatch || false;
 }
 
 /**
  * Gets information about all rewatches of a medium.
+ * DEPRECATED: Use medium.rewatch_count field directly instead.
  * Returns an object with the count and list of rewatch dates (formatted as "YYYY-MM")
  */
 export function getReplayInfo(
@@ -164,48 +124,5 @@ export function getReplayInfo(
 	allMedia: mediaObject[],
 	mediaType: string
 ): { count: number; dates: string[] } {
-	// Determine which external ID field to use based on media type
-	const getExternalId = (m: mediaObject): string | number | undefined => {
-		switch (mediaType) {
-			case 'games':
-				return m.igdbid;
-			case 'movies':
-			case 'shows':
-				return String(m.tmdbid) + (m.seasons || 0); // Combine TMDB ID with season/episode for shows to differentiate entries
-			case 'books':
-				return m.gbid;
-			default:
-				return m.title?.toLowerCase().trim();
-		}
-	};
-
-	const currentId = getExternalId(medium);
-
-	// If no external ID, use title as fallback
-	if (currentId === undefined || currentId === null) {
-		return { count: 1, dates: [] };
-	}
-
-	// Find all entries with the same external ID
-	const duplicates = allMedia.filter((m) => {
-		const otherId = getExternalId(m);
-		return otherId === currentId;
-	});
-
-	// Sort by added date
-	const sortedByDate = [...duplicates].sort((a, b) => {
-		const dateA = new Date(a.added || 0).getTime();
-		const dateB = new Date(b.added || 0).getTime();
-		return dateA - dateB;
-	});
-
-	// Format dates as YYYY-MM (skip the first one, as that's the initial watch)
-	const dates = sortedByDate.slice(1).map((m) => {
-		const date = new Date(m.added || 0);
-		const year = date.getFullYear();
-		const month = String(date.getMonth() + 1).padStart(2, '0');
-		return `${year}-${month}`;
-	});
-
-	return { count: duplicates.length, dates };
+	return { count: medium.rewatch_count || 1, dates: [] };
 }
