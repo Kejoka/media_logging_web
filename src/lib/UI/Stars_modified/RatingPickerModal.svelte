@@ -29,7 +29,13 @@
 		localNotes = notes || '';
 	}
 
+	function updateScore(value: number) {
+		localScore = clampScore(value);
+		dispatch('scoreChange', { score: localScore });
+	}
+
 	function closeModal() {
+		updateScore(localScore);
 		dispatch('notesChange', { notes: localNotes.trim() });
 		dispatch('close');
 	}
@@ -40,11 +46,6 @@
 		}
 		event.preventDefault();
 		closeModal();
-	}
-
-	function updateScore(value: number) {
-		localScore = clampScore(value);
-		dispatch('scoreChange', { score: localScore });
 	}
 </script>
 
@@ -83,7 +84,6 @@
 					max="5"
 					step="0.5"
 					bind:value={localScore}
-					on:input={(event) => updateScore(Number((event.currentTarget as HTMLInputElement).value))}
 				/>
 			</div>
 			<p class="mt-3 text-center text-sm font-semibold">
