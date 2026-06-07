@@ -31,26 +31,35 @@ export const load: PageServerLoad = async ({
 	} else {
 		user_id = session.user.id;
 	}
+
 	const games = await supabase
 		.from('games')
 		.select()
 		.eq('user_id', user_id)
-		.order('added', { ascending: false });
+		.eq('backlogged', 0)
+		.order('added', { ascending: false })
+		.range(0, 7);
 	const movies = await supabase
 		.from('movies')
 		.select()
 		.eq('user_id', user_id)
-		.order('added', { ascending: false });
+		.eq('backlogged', 0)
+		.order('added', { ascending: false })
+		.range(0, 7);
 	const shows = await supabase
 		.from('shows')
 		.select()
 		.eq('user_id', user_id)
-		.order('added', { ascending: false });
+		.eq('backlogged', 0)
+		.order('added', { ascending: false })
+		.range(0, 7);
 	const books = await supabase
 		.from('books')
 		.select()
 		.eq('user_id', user_id)
-		.order('added', { ascending: false });
+		.eq('backlogged', 0)
+		.order('added', { ascending: false })
+		.range(0, 7);
 	const challenges = await supabase
 		.from('user_challenges')
 		.select()

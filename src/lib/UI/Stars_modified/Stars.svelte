@@ -90,6 +90,7 @@
 		justify-content: center;
 		gap: 0.5rem;
 	}
+	/*
 	.slider {
 		opacity: 0;
 		cursor: pointer;
@@ -98,6 +99,7 @@
 		transform-origin: top left;
 		transform: translate(14%, -650%) rotate(90deg);
 	}
+	*/
 	.show-score {
 		user-select: none;
 		color: #888;
