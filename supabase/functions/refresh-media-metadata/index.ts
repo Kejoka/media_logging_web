@@ -1,4 +1,5 @@
 import {
+	refreshBookMetadata,
 	refreshGameMetadata,
 	refreshMovieMetadata,
 	refreshShowMetadata
@@ -17,20 +18,23 @@ Deno.serve(async () => {
 			movies: unknown;
 			shows: unknown;
 			games: unknown;
-			errors: Array<{ medium: 'movies' | 'shows' | 'games'; message: string }>;
+			books: unknown;
+			errors: Array<{ medium: 'movies' | 'shows' | 'games' | 'books'; message: string }>;
 		} = {
 			ok: true,
 			movies: null,
 			shows: null,
 			games: null,
+			books: null,
 			errors: []
 		};
 
-		// Run all three refresh functions concurrently instead of sequentially
-		const [moviesResult, showsResult, gamesResult] = await Promise.allSettled([
+		// Run refresh functions concurrently instead of sequentially
+		const [moviesResult, showsResult, gamesResult, booksResult] = await Promise.allSettled([
 			refreshMovieMetadata(supabase),
 			refreshShowMetadata(supabase),
-			refreshGameMetadata(supabase)
+			refreshGameMetadata(supabase),
+			refreshBookMetadata(supabase)
 		]);
 
 		// Handle movie metadata result
@@ -63,6 +67,17 @@ Deno.serve(async () => {
 			result.errors.push({
 				medium: 'games',
 				message: gamesResult.reason instanceof Error ? gamesResult.reason.message : String(gamesResult.reason)
+			});
+		}
+
+		// Handle book metadata result
+		if (booksResult.status === 'fulfilled') {
+			result.books = booksResult.value;
+		} else {
+			result.ok = false;
+			result.errors.push({
+				medium: 'books',
+				message: booksResult.reason instanceof Error ? booksResult.reason.message : String(booksResult.reason)
 			});
 		}
 

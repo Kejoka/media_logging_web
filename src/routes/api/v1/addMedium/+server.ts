@@ -219,6 +219,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						release: medium.release,
 						genres: medium.genres,
 						pagecount: medium.pagecount,
+						averagerating: medium.averagerating,
 						rating: 0,
 						backlogged: medium.backlogged || 0,
 						added: medium.added,

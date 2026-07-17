@@ -14,7 +14,7 @@ type MediumPayload = {
 	seasons?: string;
 	igdbid?: number;
 	tmdbid?: number;
-	gbid?: number;
+	gbid?: string;
 	averagerating?: number;
 };
 

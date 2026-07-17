@@ -1,10 +1,5 @@
 <script lang="ts">
-	import {
-		dexieDB,
-		sync_offline_changes_to_server,
-		type mediaObject,
-		type OfflineChangeObject
-	} from '$lib/dbUtils';
+	import { type mediaObject, type OfflineChangeObject } from '$lib/dbUtils';
 	import { createEventDispatcher, onMount } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
 	import Trophy from '$lib/Icons/trophy.svelte';
@@ -144,44 +139,13 @@
 		unique = {};
 	}
 
-	async function handleImageTap(medium: mediaObject) {
-		medium.trophy = 1 - (medium.trophy || 0);
-		const sync_timestamp = new Date();
-		// DexieDB
-		await dexieDB.games.update(medium.id, { trophy: medium.trophy });
-		await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
-		restart();
-		// Supabase
-		try {
-			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-				sync_offline_changes_to_server();
-			}
-			const res = await fetch('/api/v1/updateTrophy', {
-				method: 'POST',
-				body: JSON.stringify({
-					new_value: medium.trophy,
-					id: medium.id,
-					sync_timestamp
-				})
-			});
-		} catch (error) {
-			console.log(error);
-			let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-			if (dexie_prefs) {
-				if (!navigator.onLine) {
-					const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
-					tmp.push({
-						event: 'trophy',
-						medium: 'games',
-						card: { id: medium.id, trophy: medium.trophy } as mediaObject
-					});
-					dexie_prefs.changed_offline = JSON.stringify(tmp);
-				}
-				dexie_prefs.updated_at = sync_timestamp.toISOString();
-				await dexieDB.prefs.update(0, dexie_prefs);
-			}
-		}
+	function handleImageTap(item: mediaObject) {
+		const newValue = 1 - (item.trophy || 0);
+		dispatch('update_trophy', {
+			medium: item,
+			new_value: newValue
+		});
+		medium = { ...item, trophy: newValue };
 	}
 </script>
 

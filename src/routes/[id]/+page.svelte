@@ -1,15 +1,7 @@
 <script lang="ts">
 	import CardList from '$lib/UI/Cards/cardList.svelte';
 	import YearBar from '$lib/UI/yearBar.svelte';
-	import {
-		dexieDB,
-		getYears,
-		sync_offline_changes_to_server,
-		updateRewatchStatus,
-		type mediaObject,
-		type OfflineChangeObject,
-		type tvSeason
-	} from '$lib/dbUtils.js';
+	import { getYears, type mediaObject, type tvSeason } from '$lib/dbUtils.js';
 	import WheelDatePicker from '$lib/UI/WheelDatePicker.svelte';
 	import { onDestroy, onMount, tick } from 'svelte';
 	import { get } from 'svelte/store';
@@ -26,9 +18,11 @@
 		MEDIA_TYPE_ORDER,
 		type MediaType,
 		getMediaCodeIndex,
+		PAGE_SIZE,
 		get_media_type_display_label,
 		get_ui_mode_label_from_code
 	} from '$lib/utils';
+	import { pushToast } from '$lib/stores/toast';
 	import type { SortingMethod, UserChallenge } from '$lib/types';
 	import MediaSelectionBar from '$lib/UI/mediaSelectionBar.svelte';
 	import ModeSelectionBar from '$lib/UI/modeSelectionBar.svelte';
@@ -44,8 +38,12 @@
 		challenges = [],
 		mediaId,
 		mediaType,
-		mediaYear
+		mediaYear,
+		initialYear
 	} = data;
+	let availableYears: Partial<Record<MediaType, string[]>> = (data.availableYears ?? {}) as Partial<
+		Record<MediaType, string[]>
+	>;
 	let mode: string | null = (data as { mode?: string | null }).mode ?? null;
 	$: is_online = $online_status;
 	$: ({
@@ -59,8 +57,10 @@
 		challenges = [],
 		mediaId,
 		mediaType,
-		mediaYear
+		mediaYear,
+		initialYear
 	} = data);
+	$: availableYears = (data.availableYears ?? {}) as Partial<Record<MediaType, string[]>>;
 	$: mode = (data as { mode?: string | null }).mode ?? null;
 	// HTML bind variables
 	let date_modal: HTMLInputElement;
@@ -95,7 +95,11 @@
 	let years_in_db: { year: string; active: boolean }[] = [];
 	let media_data: mediaObject[][] = [[], [], [], []];
 	let media_data_unfiltered: mediaObject[][] = [];
-	let backlog_matches: mediaObject[];
+	let media_loading_more: boolean[] = [false, false, false, false];
+	let media_has_more: boolean[] = [true, true, true, true];
+	let media_reloading = false;
+	let stats_hydrating = false;
+	let backlog_matches: mediaObject[] = [];
 	// Misc variables
 	let header_text = get_ui_mode_label_from_code(current_mode);
 	let input_timeout = setTimeout(function () {}, 0);
@@ -154,6 +158,14 @@
 		let card: mediaObject | undefined = media_data[data_index]?.find(
 			(m) => String(m.id) === String(mediaId)
 		);
+
+		while (!card && data_index >= 0 && media_has_more[data_index]) {
+			await fetchMoreData({
+				detail: { current_medium: (mediaType || 'movies') as MediaType }
+			} as CustomEvent<{ current_medium: MediaType }>);
+			await tick();
+			card = media_data[data_index]?.find((m) => String(m.id) === String(mediaId));
+		}
 
 		if (!card) return;
 
@@ -226,6 +238,117 @@
 		}
 	}
 
+	function showSupabaseError(error: unknown, fallbackMessage: string) {
+		pushToast(error instanceof Error && error.message ? error.message : fallbackMessage, 'error');
+	}
+
+	function getMediaArrayForType(medium: MediaType): mediaObject[] {
+		return total_media_data[getMediaCodeIndex(medium)] ?? [];
+	}
+
+	function uniqueMediaById(list: mediaObject[]) {
+		const seen = new Set<number | string>();
+		return list.filter((medium) => {
+			const key = medium.id ?? `${medium.title || ''}-${medium.added || ''}`;
+			if (seen.has(key)) {
+				return false;
+			}
+			seen.add(key);
+			return true;
+		});
+	}
+
+	function getYearsForCurrentMedium(activeYear: string) {
+		return getYears(
+			getMediaArrayForType(current_medium),
+			activeYear,
+			availableYears[current_medium]
+		);
+	}
+
+	function normalizeYearForMode(year: string) {
+		return current_mode === 1 ? 'Gesamt' : year;
+	}
+
+	async function fetchMediaPage(
+		medium: MediaType,
+		offset = 0,
+		year = normalizeYearForMode(current_year)
+	) {
+		const res = await fetch('/api/v1/getMediaPage', {
+			method: 'POST',
+			body: JSON.stringify({
+				current_medium: medium,
+				user_id,
+				offset,
+				backlogged: current_mode === 1 ? 1 : 0,
+				year
+			}),
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+
+		if (!res.ok) {
+			throw new Error('Medien konnten nicht geladen werden.');
+		}
+
+		return (await res.json()) as { data?: mediaObject[]; hasMore?: boolean };
+	}
+
+	async function reloadVisibleMedia(year = normalizeYearForMode(current_year)) {
+		media_reloading = true;
+		try {
+			const pages = await Promise.all(
+				MEDIA_TYPE_ORDER.map((medium) => fetchMediaPage(medium, 0, year))
+			);
+			total_media_data = pages.map((page) => uniqueMediaById(page.data || []));
+			media_has_more = pages.map(
+				(page) => page.hasMore ?? (page.data?.length || 0) >= PAGE_SIZE
+			);
+			await refreshCardList(year);
+		} catch (error) {
+			showSupabaseError(error, 'Medien konnten nicht geladen werden.');
+		} finally {
+			media_reloading = false;
+		}
+	}
+
+	async function hydrateStatsData() {
+		if (stats_hydrating) {
+			return;
+		}
+		stats_hydrating = true;
+		try {
+			for (const medium of MEDIA_TYPE_ORDER) {
+				const medium_index = getMediaCodeIndex(medium);
+				while (media_has_more[medium_index]) {
+					const page = await fetchMediaPage(
+						medium,
+						total_media_data[medium_index]?.length || 0,
+						current_year
+					);
+					const next_rows = page.data || [];
+					if (next_rows.length === 0) {
+						media_has_more[medium_index] = false;
+						break;
+					}
+					total_media_data[medium_index] = uniqueMediaById([
+						...total_media_data[medium_index],
+						...next_rows
+					]);
+					media_has_more[medium_index] = page.hasMore ?? next_rows.length >= PAGE_SIZE;
+					await refreshCardList(current_year);
+				}
+			}
+			media_has_more = [...media_has_more];
+		} catch (error) {
+			showSupabaseError(error, 'Statistiken konnten nicht vollständig geladen werden.');
+		} finally {
+			stats_hydrating = false;
+		}
+	}
+
 	// Load data and set up inital states depending on online status and sync status
 	onMount(async () => {
 		is_profile_transition_loading.set(true);
@@ -251,156 +374,26 @@
 		// If year is provided from notification, use it
 		if (mediaYear && current_mode !== 1) {
 			current_year = String(mediaYear);
+		} else if (current_mode !== 1) {
+			current_year = String(initialYear || new Date().getFullYear());
 		}
 		form_text = get_media_type_display_label(current_medium);
-		const initial_backlogged_filter = current_mode === 1 ? 1 : 0;
+		total_media_data = [
+			uniqueMediaById(games.data || []),
+			uniqueMediaById(movies.data || []),
+			uniqueMediaById(shows.data || []),
+			uniqueMediaById(books.data || [])
+		];
+		media_data = total_media_data.map((list) => [...list]);
+		media_data_unfiltered = total_media_data.map((list) => [...list]);
+		media_has_more = total_media_data.map((list) => list.length >= PAGE_SIZE);
 
-		// Check if user has changed - if so, clear all Dexie tables
-		const existingPrefs = await dexieDB.prefs.toArray();
-		if (existingPrefs.length > 0 && existingPrefs[0].current_user_id !== user_id) {
-			console.log('USER CHANGED - CLEARING DEXIE DB');
-			// Clear all tables
-			await dexieDB.games.clear();
-			await dexieDB.movies.clear();
-			await dexieDB.shows.clear();
-			await dexieDB.books.clear();
-			await dexieDB.games_other.clear();
-			await dexieDB.movies_other.clear();
-			await dexieDB.shows_other.clear();
-			await dexieDB.books_other.clear();
-			await dexieDB.prefs.clear();
-		}
-
-		// If user is online
-		if (is_online) {
-			if (!own_profile) {
-				await cloneSupabase(true);
-			} else {
-				// Online and no DexieDB yet
-				if ((await dexieDB.prefs.toArray()).length == 0) {
-					await dexieDB.prefs.add({
-						id: 0,
-						updated_at: new Date(profile.updated_at).toISOString(),
-						changed_offline: '[]',
-						current_user_id: user_id
-					});
-					await cloneSupabase(false);
-				} else {
-					// Online, not in sync, dexie most recent
-					if (
-						new Date((await dexieDB.prefs.toArray())[0].updated_at) > new Date(profile.updated_at)
-					) {
-						console.log('NOT IN SYNC, NEW CHANGES IN DEXIE');
-						await sync_offline_changes_to_server();
-					}
-					// Online, not in sync, supabase most recent
-					else if (
-						new Date((await dexieDB.prefs.toArray())[0].updated_at) < new Date(profile.updated_at)
-					) {
-						console.log('NOT IN SYNC, NEW CHANGES IN SUPABASE');
-						await cloneSupabase(false);
-						await dexieDB.prefs.update(0, {
-							updated_at: new Date(profile.updated_at).toISOString(),
-							current_user_id: user_id
-						});
-					}
-				}
-			}
-		}
-		// If user is offline
-		else {
-			// Unlikely state that ensures supabase will be clones next time the user is online
-			if ((await dexieDB.prefs.toArray()).length == 0) {
-				await dexieDB.prefs.add({
-					id: 0,
-					updated_at: new Date('01.01.2000').toISOString(),
-					changed_offline: '[]',
-					current_user_id: user_id
-				});
-			}
-		}
-		// Handle data from visited user profile
-		if (!own_profile) {
-			total_media_data.push(
-				await dexieDB.games_other
-					.where({ backlogged: initial_backlogged_filter })
-					.reverse()
-					.sortBy('added')
-			);
-			total_media_data.push(
-				await dexieDB.movies_other
-					.where({ backlogged: initial_backlogged_filter })
-					.reverse()
-					.sortBy('added')
-			);
-			total_media_data.push(
-				await dexieDB.shows_other
-					.where({ backlogged: initial_backlogged_filter })
-					.reverse()
-					.sortBy('added')
-			);
-			total_media_data.push(
-				await dexieDB.books_other
-					.where({ backlogged: initial_backlogged_filter })
-					.reverse()
-					.sortBy('added')
-			);
-		}
-		// Handle own data
-		else {
-			total_media_data.push(
-				await dexieDB.games
-					.where({ backlogged: initial_backlogged_filter })
-					.reverse()
-					.sortBy('added')
-			);
-			total_media_data.push(
-				await dexieDB.movies
-					.where({ backlogged: initial_backlogged_filter })
-					.reverse()
-					.sortBy('added')
-			);
-			total_media_data.push(
-				await dexieDB.shows
-					.where({ backlogged: initial_backlogged_filter })
-					.reverse()
-					.sortBy('added')
-			);
-			total_media_data.push(
-				await dexieDB.books
-					.where({ backlogged: initial_backlogged_filter })
-					.reverse()
-					.sortBy('added')
-			);
-		}
-		if (current_mode === 1) {
-			current_year = 'Gesamt';
-			for (let [index, media] of total_media_data.entries()) {
-				media_data[index] = media;
-			}
-		} else if (isNaN(Number(current_year))) {
-			for (let [index, media] of total_media_data.entries()) {
-				media_data[index] = media;
-			}
-		} else {
-			for (let [index, media] of total_media_data.entries()) {
-				media_data[index] = media.filter((obj) => obj.added?.substring(0, 4) == current_year);
-			}
-		}
-		for (let media of media_data) {
-			media_data_unfiltered.push(media);
-		}
+		await refreshCardList(current_year);
 		applySortingToVisibleData();
 		challenge_data = challenges;
-		years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
+		years_in_db = getYearsForCurrentMedium(current_year);
 		if (current_mode === 1) {
 			years_in_db = years_in_db.slice(-1);
-		}
-
-		// Ensure current_user_id is stored in prefs for next login detection
-		const prefs = await dexieDB.prefs.toArray();
-		if (prefs.length > 0) {
-			await dexieDB.prefs.update(0, { current_user_id: user_id });
 		}
 
 		await tick();
@@ -414,6 +407,9 @@
 			if (mediaId && mediaType) {
 				void scrollToAndExpandCard(mediaId, mediaType);
 			}
+			if (current_mode === 2) {
+				void hydrateStatsData();
+			}
 
 			setTimeout(() => {
 				is_initializing = false;
@@ -426,44 +422,6 @@
 		is_profile_transition_loading.set(true);
 	});
 
-	// Clones supabase contents depending on whether or not the user is on their own profile
-	async function cloneSupabase(other: boolean) {
-		if (!other) {
-			if ((await dexieDB.games.toArray()).length != games.data?.length) {
-				await dexieDB.games.clear();
-				await dexieDB.games.bulkAdd(games.data || []);
-			}
-			if ((await dexieDB.movies.toArray()).length != movies.data?.length) {
-				await dexieDB.movies.clear();
-				await dexieDB.movies.bulkAdd(movies.data || []);
-			}
-			if ((await dexieDB.shows.toArray()).length != shows.data?.length) {
-				await dexieDB.shows.clear();
-				await dexieDB.shows.bulkAdd(shows.data || []);
-			}
-			if ((await dexieDB.books.toArray()).length != books.data?.length) {
-				await dexieDB.books.clear();
-				await dexieDB.books.bulkAdd(books.data || []);
-			}
-		} else {
-			if ((await dexieDB.games_other.toArray()).length != games.data?.length) {
-				await dexieDB.games_other.clear();
-				await dexieDB.games_other.bulkAdd(games.data || []);
-			}
-			if ((await dexieDB.movies_other.toArray()).length != movies.data?.length) {
-				await dexieDB.movies_other.clear();
-				await dexieDB.movies_other.bulkAdd(movies.data || []);
-			}
-			if ((await dexieDB.shows_other.toArray()).length != shows.data?.length) {
-				await dexieDB.shows_other.clear();
-				await dexieDB.shows_other.bulkAdd(shows.data || []);
-			}
-			if ((await dexieDB.books_other.toArray()).length != books.data?.length) {
-				await dexieDB.books_other.clear();
-				await dexieDB.books_other.bulkAdd(books.data || []);
-			}
-		}
-	}
 	// Handles the switches between games, movies, shows and books
 	async function handleMediaSwitch(event: any) {
 		clearTimeout(input_timeout);
@@ -499,7 +457,7 @@
 			}
 			// YearBar Data
 			if (current_mode != 1) {
-				years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], current_year);
+				years_in_db = getYearsForCurrentMedium(current_year);
 				current_year =
 					years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
 			} else {
@@ -527,87 +485,39 @@
 		current_mode = event.mode;
 		header_text = get_ui_mode_label_from_code(current_mode);
 		if (current_mode != 1) {
-			await refreshCardList(new Date().getFullYear().toString());
+			current_year = new Date().getFullYear().toString();
+			await reloadVisibleMedia(current_year);
 		} else {
-			await refreshCardList('Gesamt');
+			current_year = 'Gesamt';
+			await reloadVisibleMedia('Gesamt');
 			years_in_db = years_in_db.slice(-1);
+		}
+		if (current_mode === 2) {
+			void hydrateStatsData();
 		}
 	}
 	// HAndle the switch between individual years
 	async function handleYearSwitch(event: any) {
 		const year = event.year.year;
-		let new_data;
-
-		if (isNaN(year)) {
-			for (let [index, media] of total_media_data.entries()) {
-				media_data[index] = media;
-			}
-		} else {
-			for (let [index, media] of total_media_data.entries()) {
-				media_data[index] = media.filter((obj) => obj.added?.substring(0, 4) == year);
-			}
-		}
-		for (let [index, media] of media_data.entries()) {
-			media_data_unfiltered[index] = media;
-		}
 		current_year = year;
-		applySortingToVisibleData();
+		await reloadVisibleMedia(year);
+		if (current_mode === 2) {
+			void hydrateStatsData();
+		}
 	}
 	// Refreshes the current card list to visualize recent changes
 	async function refreshCardList(set_year: string) {
-		if (!own_profile) {
-			total_media_data[0] = await dexieDB.games_other
-				.where({ backlogged: current_mode == 1 ? 1 : 0 })
-				.reverse()
-				.sortBy('added');
-			total_media_data[1] = await dexieDB.movies_other
-				.where({ backlogged: current_mode == 1 ? 1 : 0 })
-				.reverse()
-				.sortBy('added');
-			total_media_data[2] = await dexieDB.shows_other
-				.where({ backlogged: current_mode == 1 ? 1 : 0 })
-				.reverse()
-				.sortBy('added');
-			total_media_data[3] = await dexieDB.books_other
-				.where({ backlogged: current_mode == 1 ? 1 : 0 })
-				.reverse()
-				.sortBy('added');
-		} else {
-			total_media_data[0] = await dexieDB.games
-				.where({ backlogged: current_mode == 1 ? 1 : 0 })
-				.reverse()
-				.sortBy('added');
-			total_media_data[1] = await dexieDB.movies
-				.where({ backlogged: current_mode == 1 ? 1 : 0 })
-				.reverse()
-				.sortBy('added');
-			total_media_data[2] = await dexieDB.shows
-				.where({ backlogged: current_mode == 1 ? 1 : 0 })
-				.reverse()
-				.sortBy('added');
-			total_media_data[3] = await dexieDB.books
-				.where({ backlogged: current_mode == 1 ? 1 : 0 })
-				.reverse()
-				.sortBy('added');
-		}
-		years_in_db = getYears(total_media_data[getMediaCodeIndex(current_medium)], set_year);
-		current_year =
-			years_in_db.find((obj) => obj.active == true)?.year || String(new Date().getFullYear());
-
-		if (isNaN(Number(current_year))) {
-			for (let [index, media] of total_media_data.entries()) {
-				media_data[index] = media;
-			}
-		} else {
-			for (let [index, media] of total_media_data.entries()) {
-				media_data[index] = media.filter((obj) => obj.added?.substring(0, 4) == current_year);
-			}
-		}
-		for (let [index, media] of media_data.entries()) {
-			media_data_unfiltered[index] = media;
-		}
+		const normalized_year = current_mode === 1 ? 'Gesamt' : set_year;
+		current_year = normalized_year;
+		media_data = total_media_data.map((list) => [...list]);
+		media_data_unfiltered = media_data.map((list) => [...list]);
 		applySortingToVisibleData();
+		years_in_db = getYearsForCurrentMedium(normalized_year);
+		if (current_mode === 1) {
+			years_in_db = years_in_db.slice(-1);
+		}
 	}
+
 	// Handles input changes in the add medium form
 	function handleInput() {
 		if (!is_online) {
@@ -619,15 +529,23 @@
 		last_search_page = 1;
 		clearTimeout(input_timeout);
 		input_timeout = setTimeout(async () => {
-			const res = await fetch('/api/v1/getSearchSuggestions', {
-				method: 'POST',
-				body: JSON.stringify({ search_val, search_author, last_search_page, current_medium }),
-				headers: {
-					'Content-Type': 'application/json'
+			try {
+				const res = await fetch('/api/v1/getSearchSuggestions', {
+					method: 'POST',
+					body: JSON.stringify({ search_val, search_author, last_search_page, current_medium }),
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
+				if (!res.ok) {
+					throw new Error('Suchvorschläge konnten nicht geladen werden.');
 				}
-			});
-			loading = false;
-			current_suggestions = await res.json();
+				current_suggestions = await res.json();
+			} catch (error) {
+				showSupabaseError(error, 'Suchvorschläge konnten nicht geladen werden.');
+			} finally {
+				loading = false;
+			}
 		}, 1000);
 	}
 	// Handles input changes in the search bar filter
@@ -694,49 +612,36 @@
 		if (scroll_progress == 1 && !loading && last_search_page != -1) {
 			loading = true;
 			last_search_page += 1;
-			const res = await fetch('/api/v1/getSearchSuggestions', {
-				method: 'POST',
-				body: JSON.stringify({ search_val, search_author, last_search_page, current_medium }),
-				headers: {
-					'Content-Type': 'application/json'
+			try {
+				const res = await fetch('/api/v1/getSearchSuggestions', {
+					method: 'POST',
+					body: JSON.stringify({ search_val, search_author, last_search_page, current_medium }),
+					headers: {
+						'Content-Type': 'application/json'
+					}
+				});
+				if (!res.ok) {
+					throw new Error('Suchvorschläge konnten nicht geladen werden.');
 				}
-			});
-			const json_res = (await res.json()) as mediaObject[];
-			if (json_res.length != 0) {
-				current_suggestions = [...current_suggestions, ...json_res];
-			} else {
-				last_search_page = -1;
+				const json_res = (await res.json()) as mediaObject[];
+				if (json_res.length != 0) {
+					current_suggestions = [...current_suggestions, ...json_res];
+				} else {
+					last_search_page = -1;
+				}
+			} catch (error) {
+				showSupabaseError(error, 'Suchvorschläge konnten nicht geladen werden.');
+			} finally {
+				loading = false;
 			}
-			loading = false;
 		}
 	}
+
 	// Checks if an item that is about to be added already exists in the backlog
 	async function checkBacklog() {
-		// Check for item in Backlog
-		switch (current_medium) {
-			case 'games':
-				backlog_matches = await dexieDB.games
-					.filter((medium) => medium.title === last_selection.title && medium.backlogged == 1)
-					.toArray();
-				break;
-			case 'movies':
-				backlog_matches = await dexieDB.movies
-					.filter((medium) => medium.title === last_selection.title && medium.backlogged == 1)
-					.toArray();
-				break;
-			case 'shows':
-				backlog_matches = await dexieDB.shows
-					.filter((medium) => medium.title === last_selection.title && medium.backlogged == 1)
-					.toArray();
-				break;
-			case 'books':
-				backlog_matches = await dexieDB.books
-					.filter((medium) => medium.title === last_selection.title && medium.backlogged == 1)
-					.toArray();
-				break;
-			default:
-				break;
-		}
+		backlog_matches = getMediaArrayForType(current_medium).filter(
+			(medium) => medium.title === last_selection.title && medium.backlogged == 1
+		);
 		if (backlog_matches.length != 0) {
 			backlog_modal.checked = true;
 		} else {
@@ -764,25 +669,6 @@
 				if (backlog_match.notes) {
 					backlog_reviews += backlog_match.notes + '\n';
 				}
-				//DexieDB
-				switch (current_medium) {
-					case 'games':
-						dexieDB.games.delete(backlog_match.id);
-						break;
-					case 'movies':
-						dexieDB.movies.delete(backlog_match.id);
-						break;
-					case 'shows':
-						dexieDB.shows.delete(backlog_match.id);
-						break;
-					case 'books':
-						dexieDB.books.delete(backlog_match.id);
-						break;
-					default:
-						console.log('Error deleting DexieDB Entry');
-						break;
-				}
-				//Supabase
 				try {
 					const res = await fetch('/api/v1/deleteMedium', {
 						method: 'POST',
@@ -795,22 +681,11 @@
 							'Content-Type': 'application/json'
 						}
 					});
-				} catch (error) {
-					console.log(error);
-					let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-					if (dexie_prefs) {
-						if (!is_online) {
-							const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
-							tmp.push({
-								event: 'delete',
-								medium: current_medium,
-								card: { id: backlog_match.id } as mediaObject
-							});
-							dexie_prefs.changed_offline = JSON.stringify(tmp);
-						}
-						dexie_prefs.updated_at = sync_timestamp.toISOString();
-						await dexieDB.prefs.update(0, dexie_prefs);
+					if (!res.ok) {
+						throw new Error('Backlog-Eintrag konnte nicht entfernt werden.');
 					}
+				} catch (error) {
+					showSupabaseError(error, 'Backlog-Eintrag konnte nicht entfernt werden.');
 				}
 			}
 		}
@@ -819,10 +694,6 @@
 		}
 		// Supabase
 		try {
-			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-				sync_offline_changes_to_server();
-			}
 			const res = await fetch('/api/v1/addMedium', {
 				method: 'POST',
 				body: JSON.stringify({
@@ -834,59 +705,21 @@
 					'Content-Type': 'application/json'
 				}
 			});
+			if (!res.ok) {
+				throw new Error('Titel konnte nicht hinzugefügt werden.');
+			}
 			const json = (await res.json()) as { data?: { id?: number } };
 			last_selection.id = json.data?.id;
 		} catch (error) {
-			console.log(error);
+			showSupabaseError(error, 'Titel konnte nicht hinzugefügt werden.');
+			return;
 		}
-		// DexieDB
-		last_selection.rating = 0;
-		switch (current_medium) {
-			case 'games':
-				last_selection.averagerating = Number(
-					((last_selection.averagerating || 0) / 10).toFixed(1)
-				);
-				last_selection.trophy = 0;
-				await dexieDB.games.add(last_selection);
-				break;
-			case 'movies':
-				last_selection.averagerating = Number((last_selection.averagerating || 0).toFixed(1));
-				await dexieDB.movies.add(last_selection);
-				break;
-			case 'shows':
-				last_selection.averagerating = Number((last_selection.averagerating || 0).toFixed(1));
-				last_selection.episode = 0;
-				await dexieDB.shows.add(last_selection);
-				break;
-			case 'books':
-				await dexieDB.books.add(last_selection);
-				break;
-			default:
-				console.log('DexieDB Error');
-				break;
-		}
-		// Update rewatch status
-		if (current_medium === 'games') {
-			await updateRewatchStatus(current_medium, last_selection.igdbid);
-		} else if (current_medium === 'movies' || current_medium === 'shows') {
-			await updateRewatchStatus(current_medium, last_selection.tmdbid);
-		} else if (current_medium === 'books') {
-			await updateRewatchStatus(current_medium, last_selection.gbid);
-		}
-		let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-		if (dexie_prefs) {
-			if (!is_online) {
-				const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
-				tmp.push({ event: 'add', medium: current_medium, card: last_selection });
-				dexie_prefs.changed_offline = JSON.stringify(tmp);
-			}
-			dexie_prefs.updated_at = sync_timestamp.toISOString();
-			await dexieDB.prefs.update(0, dexie_prefs);
-		}
+
 		if (current_mode == 0) {
-			await refreshCardList(selected_date.getFullYear().toString());
+			current_year = selected_date.getFullYear().toString();
+			await reloadVisibleMedia(current_year);
 		} else {
-			await refreshCardList('Gesamt');
+			await reloadVisibleMedia('Gesamt');
 			years_in_db = years_in_db.slice(-1);
 		}
 		date_modal.checked = false;
@@ -906,48 +739,8 @@
 		if (collapse_input != null && collapse_input instanceof HTMLInputElement) {
 			collapse_input.checked = !collapse_input.checked;
 		}
-		//DexieDB - Get the medium before deleting to extract unique ID for rewatch update
 		let unique_id: number | undefined;
-		switch (current_medium) {
-			case 'games': {
-				const medium = await dexieDB.games.get(medium_id);
-				unique_id = medium?.igdbid;
-				await dexieDB.games.delete(medium_id);
-				break;
-			}
-			case 'movies': {
-				const medium = await dexieDB.movies.get(medium_id);
-				unique_id = medium?.tmdbid;
-				await dexieDB.movies.delete(medium_id);
-				break;
-			}
-			case 'shows': {
-				const medium = await dexieDB.shows.get(medium_id);
-				unique_id = medium?.tmdbid;
-				await dexieDB.shows.delete(medium_id);
-				break;
-			}
-			case 'books': {
-				const medium = await dexieDB.books.get(medium_id);
-				unique_id = medium?.gbid;
-				await dexieDB.books.delete(medium_id);
-				break;
-			}
-			default:
-				console.log('Error deleting DexieDB Entry');
-				break;
-		}
-		// Update rewatch status after deletion
-		if (unique_id) {
-			await updateRewatchStatus(current_medium, unique_id);
-		}
-		await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
-		//Supabase
 		try {
-			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-				sync_offline_changes_to_server();
-			}
 			const res = await fetch('/api/v1/deleteMedium', {
 				method: 'POST',
 				body: JSON.stringify({ medium_id, current_medium, sync_timestamp }),
@@ -955,28 +748,70 @@
 					'Content-Type': 'application/json'
 				}
 			});
-		} catch (error) {
-			console.log(error);
-			let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-			if (dexie_prefs) {
-				if (!is_online) {
-					const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
-					tmp.push({
-						event: 'delete',
-						medium: current_medium,
-						card: { id: medium_id } as mediaObject
-					});
-					dexie_prefs.changed_offline = JSON.stringify(tmp);
-				}
-				dexie_prefs.updated_at = sync_timestamp.toISOString();
-				await dexieDB.prefs.update(0, dexie_prefs);
+			if (!res.ok) {
+				throw new Error('Titel konnte nicht gelöscht werden.');
 			}
+		} catch (error) {
+			showSupabaseError(error, 'Titel konnte nicht gelöscht werden.');
+			return;
 		}
 		if (current_mode == 0) {
-			await refreshCardList(current_year);
+			await reloadVisibleMedia(current_year);
 		} else {
-			await refreshCardList('Gesamt');
+			await reloadVisibleMedia('Gesamt');
 			years_in_db = years_in_db.slice(-1);
+		}
+	}
+
+	async function fetchMoreData(event: CustomEvent<{ current_medium: MediaType }>) {
+		const medium_to_load = event.detail.current_medium;
+		const medium_index = getMediaCodeIndex(medium_to_load);
+		if (medium_index < 0 || media_loading_more[medium_index] || !media_has_more[medium_index]) {
+			return;
+		}
+
+		media_loading_more[medium_index] = true;
+		media_loading_more = [...media_loading_more];
+		try {
+			const offset = total_media_data[medium_index]?.length || 0;
+			const res = await fetch('/api/v1/getMediaPage', {
+				method: 'POST',
+				body: JSON.stringify({
+					current_medium: medium_to_load,
+					user_id,
+					offset,
+					backlogged: current_mode === 1 ? 1 : 0,
+					year: normalizeYearForMode(current_year)
+				}),
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (!res.ok) {
+				throw new Error('Weitere Medien konnten nicht geladen werden.');
+			}
+
+			const json = (await res.json()) as { data?: mediaObject[]; hasMore?: boolean };
+			const new_media = json.data || [];
+			if (new_media.length === 0) {
+				media_has_more[medium_index] = false;
+				media_has_more = [...media_has_more];
+				return;
+			}
+
+			total_media_data[medium_index] = uniqueMediaById([
+				...total_media_data[medium_index],
+				...new_media
+			]);
+			await refreshCardList(current_mode === 1 ? 'Gesamt' : current_year);
+			media_has_more[medium_index] = json.hasMore ?? new_media.length >= PAGE_SIZE;
+			media_has_more = [...media_has_more];
+		} catch (error) {
+			showSupabaseError(error, 'Weitere Medien konnten nicht geladen werden.');
+		} finally {
+			media_loading_more[medium_index] = false;
+			media_loading_more = [...media_loading_more];
 		}
 	}
 </script>
@@ -985,7 +820,7 @@
 	<title>Media-Logging</title>
 </svelte:head>
 <div class="flex h-full flex-col">
-	<nav class="sticky top-0 right-0 left-0 z-10">
+	<nav class="sticky top-0 right-0 left-0 z-30 shrink-0">
 		<ModeSelectionBar {current_mode} onSwitchMode={handleModeSwitch} />
 		<MediaSelectionBar
 			onSwitchMedium={handleMediaSwitch}
@@ -997,7 +832,7 @@
 			{current_mode}
 		></MediaSelectionBar>
 	</nav>
-	<div class="relative min-h-0 flex-1 overflow-y-hidden">
+	<div class="relative z-0 min-h-0 flex-1 overflow-y-hidden">
 		<!-- Mode and Media Mode Tabs -->
 		<!-- Entries -->
 		<div
@@ -1015,11 +850,14 @@
 						{sorting_method}
 						challenges={challenge_data}
 						{current_mode}
+						isLoadingMore={media_loading_more[getMediaCodeIndex(media_type)]}
+						isReloading={media_reloading}
 						on:delete={deleteMedium}
 						on:refresh={() => refreshCardList(current_year)}
 						on:challenge_updated={handleChallengeUpdated}
 						on:challenge_deleted={handleChallengeDeleted}
 						on:swipe={handleMediaSwitch}
+						on:fetchmore={fetchMoreData}
 					></CardList>
 				</div>
 			{/each}

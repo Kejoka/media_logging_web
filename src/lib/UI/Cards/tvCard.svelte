@@ -1,10 +1,5 @@
 <script lang="ts">
-	import {
-		dexieDB,
-		sync_offline_changes_to_server,
-		type mediaObject,
-		type OfflineChangeObject
-	} from '$lib/dbUtils';
+	import { type mediaObject, type OfflineChangeObject } from '$lib/dbUtils';
 	import { createEventDispatcher, onMount } from 'svelte';
 	import StarRating from '$lib/UI/Stars_modified/Stars.svelte';
 	import RatingPickerModal from '$lib/UI/Stars_modified/RatingPickerModal.svelte';
@@ -143,55 +138,22 @@
 		unique = {};
 	}
 
-	async function handleImageInteraction(medium: mediaObject, delta: number) {
-		if (medium.episode != undefined) {
-			medium.episode = Math.max(Number(medium.episode) + delta, 0);
-		}
-		const sync_timestamp = new Date();
-		// DexieDB
-		await dexieDB.shows.update(medium.id, { episode: medium.episode });
-		await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
-		restart();
-		// Supabase
-		try {
-			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-				sync_offline_changes_to_server();
-			}
-			const res = await fetch('/api/v1/updateEpisode', {
-				method: 'POST',
-				body: JSON.stringify({
-					new_value: medium.episode,
-					id: medium.id,
-					sync_timestamp
-				})
-			});
-		} catch (error) {
-			console.log(error);
-			let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-			if (dexie_prefs) {
-				if (!navigator.onLine) {
-					const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
-					tmp.push({
-						event: 'episode',
-						medium: 'shows',
-						card: { id: medium.id, episode: medium.episode }
-					});
-					dexie_prefs.changed_offline = JSON.stringify(tmp);
-				}
-				dexie_prefs.updated_at = sync_timestamp.toISOString();
-				await dexieDB.prefs.update(0, dexie_prefs);
-			}
-		}
+	function handleImageInteraction(item: mediaObject, delta: number) {
+		const newValue = Math.max(Number(item.episode || 0) + delta, 0);
+		dispatch('update_episode', {
+			medium: item,
+			new_value: newValue
+		});
+		medium = { ...item, episode: newValue };
 	}
 
-	async function handleImageIncrement(medium: mediaObject) {
-		await handleImageInteraction(medium, 1);
+	function handleImageIncrement(medium: mediaObject) {
+		handleImageInteraction(medium, 1);
 	}
 
-	async function handleImageDecrement(event: Event, medium: mediaObject) {
+	function handleImageDecrement(event: Event, medium: mediaObject) {
 		event.stopPropagation();
-		await handleImageInteraction(medium, -1);
+		handleImageInteraction(medium, -1);
 	}
 </script>
 

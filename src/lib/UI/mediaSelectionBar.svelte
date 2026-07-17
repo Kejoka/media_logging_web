@@ -99,7 +99,7 @@
 	{/each}
 </div>
 {#if current_mode != 2}
-	<div class="sticky w-full rounded-b-lg">
+	<div class="sticky z-20 w-full rounded-b-lg">
 		<input
 			bind:this={searchbar_collapse}
 			id="collapse-checkbox"
@@ -231,6 +231,8 @@
 			</div>
 		{/if}
 		<button
+			aria-label="Suche und Sortierung"
+			title="Suche und Sortierung"
 			onclick={() => {
 				searchbar_expanded = !searchbar_expanded;
 				searchbar_collapse.checked = !searchbar_collapse.checked;
