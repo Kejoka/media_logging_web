@@ -113,6 +113,17 @@ function normalizeText(value) {
 		.toLowerCase()
 		.normalize('NFKD')
 		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/\bvol(?:ume)?\b/g, 'volume')
+		.replace(/\bone\b/g, '1')
+		.replace(/\btwo\b/g, '2')
+		.replace(/\bthree\b/g, '3')
+		.replace(/\bfour\b/g, '4')
+		.replace(/\bfive\b/g, '5')
+		.replace(/\bsix\b/g, '6')
+		.replace(/\bseven\b/g, '7')
+		.replace(/\beight\b/g, '8')
+		.replace(/\bnine\b/g, '9')
+		.replace(/\bten\b/g, '10')
 		.replace(/&/g, ' and ')
 		.replace(/[^a-z0-9]+/g, ' ')
 		.trim()
@@ -138,6 +149,23 @@ function tokenOverlap(a, b) {
 	}
 
 	return matches / Math.max(left.size, right.size);
+}
+
+function directionalTokenOverlap(needle, haystack) {
+	const left = tokens(needle);
+	const right = tokens(haystack);
+	if (!left.size || !right.size) {
+		return 0;
+	}
+
+	let matches = 0;
+	for (const token of left) {
+		if (right.has(token)) {
+			matches += 1;
+		}
+	}
+
+	return matches / left.size;
 }
 
 function getYear(value) {
@@ -205,7 +233,7 @@ function mapOpenLibrarySubjectsToGenres(subjects) {
 
 function scoreCandidate(row, doc) {
 	const titleScore = tokenOverlap(row.title, doc.title);
-	const authorScore = tokenOverlap(row.author, doc.author_name?.join(' ') ?? '');
+	const authorScore = directionalTokenOverlap(row.author, doc.author_name?.join(' ') ?? '');
 	const existingYear = getYear(row.release);
 	const candidateYear = doc.first_publish_year ?? getYear(doc.first_publish_date);
 	let yearScore = 0.5;
@@ -292,10 +320,14 @@ function chooseBestCandidate(row, docs) {
 
 	const best = candidates[0] ?? null;
 	const runnerUp = candidates[1] ?? null;
+	const veryHighConfidence = best !== null && best.score > 0.9;
 	const accepted =
 		best !== null &&
-		best.score >= 0.82 &&
-		(!runnerUp || best.score - runnerUp.score >= 0.08 || best.workId === runnerUp.workId);
+		best.score >= 0.8 &&
+		(veryHighConfidence ||
+			!runnerUp ||
+			best.score - runnerUp.score >= 0.08 ||
+			best.workId === runnerUp.workId);
 
 	return { accepted, best, candidates };
 }
