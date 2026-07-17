@@ -168,6 +168,63 @@ function directionalTokenOverlap(needle, haystack) {
 	return matches / left.size;
 }
 
+function getEditionTitle(edition) {
+	return [edition?.title, edition?.subtitle].filter(Boolean).join(' ');
+}
+
+function getEditionTitleVariants(edition) {
+	return [...new Set([edition?.title, getEditionTitle(edition)].filter(Boolean))];
+}
+
+function getBestEditionMatch(row, doc) {
+	let bestEdition = null;
+	let bestScore = 0;
+	const editions = doc.editions?.docs;
+
+	if (!Array.isArray(editions)) {
+		return { edition: null, score: 0 };
+	}
+
+	for (const edition of editions) {
+		for (const editionTitle of getEditionTitleVariants(edition)) {
+			const score = tokenOverlap(row.title, editionTitle);
+			if (score > bestScore) {
+				bestScore = score;
+				bestEdition = edition;
+			}
+		}
+	}
+
+	return { edition: bestEdition, score: bestScore };
+}
+
+function getCandidateTitles(doc) {
+	const titles = [doc.title];
+	const editions = doc.editions?.docs;
+	if (Array.isArray(editions)) {
+		for (const edition of editions) {
+			titles.push(...getEditionTitleVariants(edition));
+		}
+	}
+
+	return [...new Set(titles.filter(Boolean))];
+}
+
+function getBestTitleMatch(row, doc) {
+	let bestTitle = doc.title ?? null;
+	let bestScore = 0;
+
+	for (const title of getCandidateTitles(doc)) {
+		const score = tokenOverlap(row.title, title);
+		if (score > bestScore) {
+			bestScore = score;
+			bestTitle = title;
+		}
+	}
+
+	return { title: bestTitle, score: bestScore };
+}
+
 function getYear(value) {
 	if (!value) {
 		return null;
@@ -232,7 +289,7 @@ function mapOpenLibrarySubjectsToGenres(subjects) {
 }
 
 function scoreCandidate(row, doc) {
-	const titleScore = tokenOverlap(row.title, doc.title);
+	const titleScore = getBestTitleMatch(row, doc).score;
 	const authorScore = directionalTokenOverlap(row.author, doc.author_name?.join(' ') ?? '');
 	const existingYear = getYear(row.release);
 	const candidateYear = doc.first_publish_year ?? getYear(doc.first_publish_date);
@@ -247,10 +304,14 @@ function scoreCandidate(row, doc) {
 	return Number(score.toFixed(3));
 }
 
-function candidateToUpdate(doc) {
+function candidateToUpdate(doc, row) {
+	const bestEditionMatch = getBestEditionMatch(row, doc);
+	const matchedEdition = bestEditionMatch.edition;
+
 	return {
 		gbid: normalizeOpenLibraryWorkId(doc.key),
-		title: doc.title ?? null,
+		title: matchedEdition?.title ?? doc.title ?? null,
+		subtitle: matchedEdition?.subtitle ?? null,
 		author: doc.author_name?.join(', ') ?? null,
 		release: toOpenLibraryRelease(doc),
 		image: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
@@ -271,7 +332,11 @@ async function searchOpenLibrary(row) {
 	}
 
 	const url = new URL('https://openlibrary.org/search.json');
-	url.searchParams.set('q', row.title ?? '');
+	if (normalizeText(row.title).length < 3) {
+		url.searchParams.set('title', row.title ?? '');
+	} else {
+		url.searchParams.set('q', row.title ?? '');
+	}
 	if (row.author) {
 		url.searchParams.set('author', row.author);
 	}
@@ -287,7 +352,12 @@ async function searchOpenLibrary(row) {
 			'cover_i',
 			'number_of_pages_median',
 			'ratings_average',
-			'subject'
+			'subject',
+			'editions',
+			'editions.title',
+			'editions.subtitle',
+			'editions.language',
+			'editions.publish_date'
 		].join(',')
 	);
 
@@ -308,13 +378,17 @@ async function searchOpenLibrary(row) {
 
 function chooseBestCandidate(row, docs) {
 	const candidates = docs
-		.map((doc) => ({
-			workId: normalizeOpenLibraryWorkId(doc.key),
-			title: doc.title,
-			author: doc.author_name?.join(', ') ?? null,
-			score: scoreCandidate(row, doc),
-			doc
-		}))
+		.map((doc) => {
+			const bestTitleMatch = getBestTitleMatch(row, doc);
+			return {
+				workId: normalizeOpenLibraryWorkId(doc.key),
+				title: doc.title,
+				matchedTitle: bestTitleMatch.title,
+				author: doc.author_name?.join(', ') ?? null,
+				score: scoreCandidate(row, doc),
+				doc
+			};
+		})
 		.filter((candidate) => candidate.workId)
 		.sort((a, b) => b.score - a.score);
 
@@ -407,9 +481,10 @@ async function main() {
 					title: row.title,
 					author: row.author,
 					status: candidates.length ? 'skipped_ambiguous' : 'skipped_no_results',
-					candidates: candidates.map(({ workId, title, author, score }) => ({
+					candidates: candidates.map(({ workId, title, matchedTitle, author, score }) => ({
 						workId,
 						title,
+						matchedTitle,
 						author,
 						score
 					}))
@@ -418,7 +493,7 @@ async function main() {
 			}
 
 			report.matched += 1;
-			const update = candidateToUpdate(best.doc);
+			const update = candidateToUpdate(best.doc, row);
 			report.results.push({
 				id: row.id,
 				oldGbid: row.gbid,
