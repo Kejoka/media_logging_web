@@ -319,15 +319,7 @@ function chooseBestCandidate(row, docs) {
 		.sort((a, b) => b.score - a.score);
 
 	const best = candidates[0] ?? null;
-	const runnerUp = candidates[1] ?? null;
-	const veryHighConfidence = best !== null && best.score > 0.9;
-	const accepted =
-		best !== null &&
-		best.score >= 0.8 &&
-		(veryHighConfidence ||
-			!runnerUp ||
-			best.score - runnerUp.score >= 0.08 ||
-			best.workId === runnerUp.workId);
+	const accepted = best !== null && best.score >= 0.5;
 
 	return { accepted, best, candidates };
 }

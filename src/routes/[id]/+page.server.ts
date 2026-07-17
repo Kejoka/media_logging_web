@@ -107,11 +107,41 @@ export const load: PageServerLoad = async ({
 			p_backlogged: backlogged_filter
 		});
 
-		if (error) {
-			return [];
+		if (!error) {
+			return ((data as AvailableYearRow[] | null) ?? []).map((row) => String(row.year));
 		}
 
-		return ((data as AvailableYearRow[] | null) ?? []).map((row) => String(row.year));
+		const years = new Set<string>();
+		let offset = 0;
+		const pageSize = 1000;
+
+		while (true) {
+			const { data: rows, error: yearsError } = await supabase
+				.from(table)
+				.select('added')
+				.eq('user_id', user_id)
+				.eq('backlogged', backlogged_filter)
+				.not('added', 'is', null)
+				.range(offset, offset + pageSize - 1);
+
+			if (yearsError || !rows?.length) {
+				break;
+			}
+
+			for (const row of rows as { added?: string | null }[]) {
+				const year = row.added ? new Date(row.added).getUTCFullYear() : NaN;
+				if (Number.isFinite(year)) {
+					years.add(String(year));
+				}
+			}
+
+			if (rows.length < pageSize) {
+				break;
+			}
+			offset += pageSize;
+		}
+
+		return [...years].sort((a, b) => Number(b) - Number(a));
 	}
 
 	const [available_game_years, available_movie_years, available_show_years, available_book_years] =
