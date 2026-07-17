@@ -70,7 +70,7 @@ Relevant files:
 
 This project now includes Supabase Edge Functions for background maintenance:
 
-- `supabase/functions/cleanup-retention` removes `user_activities` and `dismissed_activities` rows older than 30 days.
+- `supabase/functions/cleanup-retention` removes `user_activities` and `dismissed_activities` rows older than 30 days, and attempts to remove `auth.audit_log_entries` older than 90 days.
 - `supabase/functions/refresh-media-metadata` refreshes `image`, `release`, and `averagerating` for `movies`, `shows`, and `games`.
 
 Suggested schedules:
@@ -78,7 +78,25 @@ Suggested schedules:
 - Cleanup: daily
 - Metadata refresh: weekly
 
-Both functions expect the Supabase service role key so they can bypass RLS safely during maintenance runs.
+Schedules are managed in Supabase Cron/Dashboard and are not created automatically by deploying the functions. Both functions expect the Supabase service role key so they can bypass RLS safely during maintenance runs.
+
+To inspect whether the cleanup job is scheduled:
+
+```sql
+select jobid, jobname, schedule, active, command
+from cron.job
+where jobname ilike '%cleanup%';
+```
+
+To inspect recent cleanup runs:
+
+```sql
+select jobid, status, start_time, end_time, return_message
+from cron.job_run_details
+where jobid in (select jobid from cron.job where jobname ilike '%cleanup%')
+order by start_time desc
+limit 20;
+```
 
 To run this project in development mode use the following commands:
 

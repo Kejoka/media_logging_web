@@ -7,7 +7,7 @@ type MediumPayload = {
 	release?: string;
 	igdbid?: number;
 	tmdbid?: number;
-	gbid?: number;
+	gbid?: string;
 };
 
 type SocialUserState = {

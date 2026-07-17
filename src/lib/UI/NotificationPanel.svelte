@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { goto, invalidateAll } from '$app/navigation';
-	import { dexieDB, type mediaObject } from '$lib/dbUtils';
+	import { type mediaObject } from '$lib/dbUtils';
 	import NotificationItem from './NotificationItem.svelte';
+	import { pushToast } from '$lib/stores/toast';
 
 	let {
 		isOpen = $bindable(false),
@@ -49,121 +50,32 @@
 	let selectedResponseNotification: NotificationType | null = $state(null);
 	let recommendationReplyMessage = $state('');
 
-	async function upsertAcceptedRecommendationInDexie(
-		notification: NotificationType,
-		responsePayload: {
-			media_id?: number | string | null;
-			media_type?: 'games' | 'movies' | 'shows' | 'books' | null;
-			resolved_medium?: {
-				id: number;
-				added?: string;
-				notes?: string;
-				backlogged?: number;
-			} | null;
-		}
-	) {
-		const mediaType = responsePayload.media_type || notification.media_type;
-		if (!mediaType) {
-			return;
-		}
-
-		const mediumId = Number(responsePayload.media_id || responsePayload.resolved_medium?.id);
-		if (!Number.isFinite(mediumId)) {
-			return;
-		}
-
-		const snapshot = (notification.details?.medium_snapshot || {}) as Record<string, unknown>;
-		const mergedMedium: mediaObject = {
-			id: mediumId,
-			title: String(snapshot.title || notification.media_title || 'Kein Titel angegeben'),
-			image: (snapshot.image as string) || undefined,
-			release: (snapshot.release as string) || undefined,
-			genres: (snapshot.genres as string) || undefined,
-			added: responsePayload.resolved_medium?.added || new Date().toISOString(),
-			backlogged: 1,
-			notes: responsePayload.resolved_medium?.notes || undefined,
-			rating: 0
-		};
-
-		if (mediaType === 'games') {
-			mergedMedium.igdbid = Number(snapshot.igdbid || 0) || undefined;
-			mergedMedium.platforms = (snapshot.platforms as string) || undefined;
-			mergedMedium.trophy = Number(snapshot.trophy || 0) || 0;
-		}
-		if (mediaType === 'movies' || mediaType === 'shows') {
-			mergedMedium.tmdbid = Number(snapshot.tmdbid || 0) || undefined;
-		}
-		if (mediaType === 'shows') {
-			mergedMedium.seasons = (snapshot.seasons as string) || undefined;
-			mergedMedium.episode = Number(snapshot.episode || 0) || 0;
-		}
-		if (mediaType === 'books') {
-			mergedMedium.gbid = Number(snapshot.gbid || 0) || undefined;
-			mergedMedium.author = (snapshot.author as string) || undefined;
-			mergedMedium.subtitle = (snapshot.subtitle as string) || undefined;
-			mergedMedium.pagecount = Number(snapshot.pagecount || 0) || undefined;
-		}
-
-		switch (mediaType) {
-			case 'games': {
-				const existing = await dexieDB.games.get(mediumId);
-				if (existing) {
-					await dexieDB.games.update(mediumId, mergedMedium);
-				} else {
-					await dexieDB.games.add(mergedMedium);
-				}
-				break;
-			}
-			case 'movies': {
-				const existing = await dexieDB.movies.get(mediumId);
-				if (existing) {
-					await dexieDB.movies.update(mediumId, mergedMedium);
-				} else {
-					await dexieDB.movies.add(mergedMedium);
-				}
-				break;
-			}
-			case 'shows': {
-				const existing = await dexieDB.shows.get(mediumId);
-				if (existing) {
-					await dexieDB.shows.update(mediumId, mergedMedium);
-				} else {
-					await dexieDB.shows.add(mergedMedium);
-				}
-				break;
-			}
-			case 'books': {
-				const existing = await dexieDB.books.get(mediumId);
-				if (existing) {
-					await dexieDB.books.update(mediumId, mergedMedium);
-				} else {
-					await dexieDB.books.add(mergedMedium);
-				}
-				break;
-			}
-		}
-
-		await dexieDB.prefs.update(0, { updated_at: new Date().toISOString() });
+	function showSupabaseError(error: unknown, fallbackMessage: string) {
+		pushToast(error instanceof Error && error.message ? error.message : fallbackMessage, 'error');
 	}
 
 	async function dismissNotification(notificationId: string | number) {
 		try {
-			await fetch('/api/v1/dismissNotification', {
+			const res = await fetch('/api/v1/dismissNotification', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({ notificationId })
 			});
+			if (!res.ok) {
+				throw new Error('Benachrichtigung konnte nicht entfernt werden.');
+			}
+			notifications = notifications.filter((n) => n.id !== notificationId);
+			if (unreadCount > 0) {
+				unreadCount--;
+			}
+			if (onUnreadCountChange) {
+				onUnreadCountChange(unreadCount);
+			}
 		} catch (err) {
-			console.error('Error dismissing notification:', err);
-		}
-		notifications = notifications.filter((n) => n.id !== notificationId);
-		if (unreadCount > 0) {
-			unreadCount--;
-		}
-		if (onUnreadCountChange) {
-			onUnreadCountChange(unreadCount);
+			showSupabaseError(err, 'Benachrichtigung konnte nicht entfernt werden.');
+			throw err;
 		}
 	}
 
@@ -198,7 +110,7 @@
 				onUnreadCountChange(unreadCount);
 			}
 		} catch (err) {
-			console.error('Error loading notifications:', err);
+			showSupabaseError(err, 'Benachrichtigungen konnten nicht geladen werden');
 			error = 'Benachrichtigungen konnten nicht geladen werden';
 		} finally {
 			loading = false;
@@ -209,12 +121,15 @@
 		if (unreadCount === 0) return;
 
 		try {
-			await fetch('/api/v1/markNotificationsRead', {
+			const res = await fetch('/api/v1/markNotificationsRead', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				}
 			});
+			if (!res.ok) {
+				throw new Error('Benachrichtigungen konnten nicht als gelesen markiert werden.');
+			}
 
 			// Update local state
 			notifications = notifications.map((n) => ({ ...n, isUnread: false }));
@@ -225,7 +140,7 @@
 				onUnreadCountChange(0);
 			}
 		} catch (err) {
-			console.error('Error marking notifications as read:', err);
+			showSupabaseError(err, 'Benachrichtigungen konnten nicht als gelesen markiert werden.');
 		}
 	}
 
@@ -259,7 +174,11 @@
 	}
 
 	async function openRecommendationResponseModal(notification: NotificationType) {
-		await dismissNotification(notification.id);
+		try {
+			await dismissNotification(notification.id);
+		} catch {
+			return;
+		}
 		selectedResponseNotification = notification;
 		responseModalOpen = true;
 	}
@@ -336,15 +255,12 @@
 			if (!res.ok) {
 				throw new Error(json.error || 'Antwort konnte nicht gesendet werden');
 			}
-			if (action === 'accept' && selectedRecommendation) {
-				await upsertAcceptedRecommendationInDexie(selectedRecommendation, json);
-			}
 			await dismissNotification(selectedRecommendation.id);
 			closeRecommendationModal();
 			await invalidateAll();
 			await loadNotifications();
 		} catch (err) {
-			console.error('Error responding to recommendation:', err);
+			showSupabaseError(err, 'Antwort konnte nicht gesendet werden');
 			recommendationResponseError =
 				err instanceof Error ? err.message : 'Antwort konnte nicht gesendet werden';
 		} finally {

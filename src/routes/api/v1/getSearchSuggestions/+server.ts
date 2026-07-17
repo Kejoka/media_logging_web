@@ -2,9 +2,9 @@ import {
 	PRIVATE_IGDB_CLIENT,
 	PRIVATE_IGDB_SECRET,
 	PRIVATE_IGDB_TOKEN,
-	PRIVATE_TMDB_V3_KEY,
-	PRIVATE_GOOGLE_BOOKS_KEY
+	PRIVATE_TMDB_V3_KEY
 } from '$env/static/private';
+import { env as privateEnv } from '$env/dynamic/private';
 import { PUBLIC_IGDB_SUPABASE } from '$env/static/public';
 import type { mediaObject, MovieResult, TvResult } from '$lib/dbUtils.js';
 import movieGenres from '$lib/movieGenres.js';
@@ -12,6 +12,132 @@ import tvGenres from '$lib/tvGenres.js';
 import { delay } from '$lib/utils.js';
 
 const RETRIES: number = 3;
+const OPENLIBRARY_CONTACT_EMAIL = privateEnv.PRIVATE_OPENLIBRARY_CONTACT_EMAIL;
+
+type OpenLibraryDoc = {
+	key?: string;
+	title?: string;
+	subtitle?: string;
+	author_name?: string[];
+	first_publish_year?: number;
+	first_publish_date?: string;
+	cover_i?: number;
+	number_of_pages_median?: number;
+	ratings_average?: number;
+	subject?: string[];
+};
+
+type OpenLibrarySearchResponse = {
+	docs?: OpenLibraryDoc[];
+};
+
+const BOOK_GENRE_RULES: Array<[string, string[]]> = [
+	['Science Fiction', ['science fiction', 'science fantasy', 'sci fi', 'scifi', 'dystopian']],
+	['Fantasy', ['fantasy', 'magic', 'magical', 'litrpg', 'sword and sorcery']],
+	['Thriller', ['thriller', 'suspense', 'spy stories', 'espionage']],
+	['Krimi', ['detective', 'murder', 'crime', 'criminal', 'mystery fiction']],
+	['Mystery', ['mystery', 'detective']],
+	['Romantik', ['romance', 'love stories']],
+	['Historischer Roman', ['historical fiction', 'history fiction']],
+	['Biografie', ['biography', 'biographies']],
+	['Autobiografie', ['autobiography', 'autobiographies', 'memoir']],
+	['Psychologie', ['psychology', 'psychological']],
+	['Selbsthilfe', ['self-help', 'self help']],
+	['Wirtschaft', ['business', 'economics', 'finance', 'management']],
+	['Wissenschaft', ['popular science', 'technology', 'mathematics', 'physics', 'biology']],
+	['Geschichte', ['history', 'historical']],
+	['Kinderbuch', ['juvenile fiction', 'children', 'children’s', "children's"]],
+	['Jugendbuch', ['young adult', 'juvenile literature', 'teen']],
+	['Manga/Comic', ['comic', 'comics', 'manga', 'graphic novel']],
+	['Lyrik', ['poetry', 'poems']],
+	['Sachbuch', ['nonfiction', 'non-fiction', 'non fiction']],
+	['Belletristik', ['fiction', 'literature', 'novel']]
+];
+
+function getOpenLibraryHeaders() {
+	const headers: Record<string, string> = {
+		Accept: 'application/json',
+		'User-Agent': OPENLIBRARY_CONTACT_EMAIL
+			? `media-logging-web/1.0 (${OPENLIBRARY_CONTACT_EMAIL})`
+			: 'media-logging-web/1.0'
+	};
+
+	if (OPENLIBRARY_CONTACT_EMAIL) {
+		headers.From = OPENLIBRARY_CONTACT_EMAIL;
+	}
+
+	return headers;
+}
+
+function normalizeOpenLibraryWorkId(key: string | undefined) {
+	if (!key) {
+		return null;
+	}
+
+	const match = key.match(/OL\d+W/);
+	return match?.[0] ?? null;
+}
+
+function toOpenLibraryRelease(doc: OpenLibraryDoc) {
+	const publishedDate = doc.first_publish_date?.trim();
+	if (publishedDate) {
+		const parsed = new Date(publishedDate);
+		if (!Number.isNaN(parsed.getTime())) {
+			return parsed.toISOString();
+		}
+	}
+
+	if (typeof doc.first_publish_year === 'number' && Number.isFinite(doc.first_publish_year)) {
+		return new Date(Date.UTC(doc.first_publish_year, 0, 1)).toISOString();
+	}
+
+	return null;
+}
+
+function normalizeSubject(subject: string) {
+	return subject
+		.toLowerCase()
+		.replace(/^(?:subject|genre|series|place|person|time):/i, '')
+		.replace(/[_-]+/g, ' ')
+		.trim();
+}
+
+function mapOpenLibrarySubjectsToGenres(subjects: string[] | undefined) {
+	if (!subjects?.length) {
+		return undefined;
+	}
+
+	const normalizedSubjects = subjects.map(normalizeSubject).filter(Boolean);
+	const genres: string[] = [];
+
+	for (const [genre, needles] of BOOK_GENRE_RULES) {
+		if (normalizedSubjects.some((subject) => needles.some((needle) => subject.includes(needle)))) {
+			genres.push(genre);
+		}
+	}
+
+	return genres.length ? genres.slice(0, 4).join(', ') : undefined;
+}
+
+function mapOpenLibraryDocToMedia(doc: OpenLibraryDoc): mediaObject | null {
+	const workId = normalizeOpenLibraryWorkId(doc.key);
+	if (!workId || !doc.title) {
+		return null;
+	}
+
+	return {
+		gbid: workId,
+		title: doc.title,
+		subtitle: doc.subtitle,
+		author: doc.author_name?.join(', '),
+		release: toOpenLibraryRelease(doc) ?? undefined,
+		image: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : undefined,
+		pagecount: doc.number_of_pages_median,
+		averagerating:
+			typeof doc.ratings_average === 'number' ? Number(doc.ratings_average.toFixed(1)) : undefined,
+		genres: mapOpenLibrarySubjectsToGenres(doc.subject)
+	};
+}
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
@@ -227,68 +353,41 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					});
 					return new Response(JSON.stringify(search_results));
 				case 'books':
-					const books_url = new URL('https://www.googleapis.com/books/v1/volumes?q=search+terms');
-					const books_query = search_author
-						? `${search_val} inauthor:${search_author}`
-						: search_val;
-					books_url.searchParams.set('q', books_query);
-					const extra_params = {
-						maxResults: 20,
-						startIndex: (search_page - 1) * 20,
-						orderBy: 'relevance',
-						projection: 'full'
-					};
-					for (const [key, value] of Object.entries(extra_params)) {
-						books_url.searchParams.set(key, String(value));
+					const books_url = new URL('https://openlibrary.org/search.json');
+					books_url.searchParams.set('q', search_val);
+					if (search_author) {
+						books_url.searchParams.set('author', search_author);
 					}
-					books_url.searchParams.set('key', PRIVATE_GOOGLE_BOOKS_KEY);
-					const raw_book_res = await fetch(books_url.toString());
-					const book_res = (await raw_book_res.json()) as any;
-
-					interface BookVolumeInfo {
-						title?: string;
-						subtitle?: string;
-						authors?: string[];
-						publishedDate?: string;
-						imageLinks?: {
-							smallThumbnail?: string;
-							thumbnail?: string;
-						};
-						pageCount?: number;
-						averageRating?: number;
-						categories?: string[];
+					books_url.searchParams.set('page', String(search_page));
+					books_url.searchParams.set('limit', '20');
+					books_url.searchParams.set(
+						'fields',
+						[
+							'key',
+							'title',
+							'subtitle',
+							'author_name',
+							'first_publish_year',
+							'first_publish_date',
+							'cover_i',
+							'number_of_pages_median',
+							'ratings_average',
+							'subject'
+						].join(',')
+					);
+					const raw_book_res = await fetch(books_url.toString(), {
+						headers: getOpenLibraryHeaders()
+					});
+					if (!raw_book_res.ok) {
+						throw new Error(`OpenLibrary request failed with status ${raw_book_res.status}`);
 					}
+					const book_res = (await raw_book_res.json()) as OpenLibrarySearchResponse;
 
-					interface BookItem {
-						id: string;
-						volumeInfo?: BookVolumeInfo;
-					}
-
-					interface BookResponse {
-						items?: BookItem[];
-					}
-
-					(book_res as BookResponse).items?.forEach((book: BookItem) => {
-						let iso_release: string | null;
-						if (
-							book.volumeInfo?.publishedDate &&
-							!isNaN(new Date(book.volumeInfo?.publishedDate).getTime())
-						) {
-							iso_release = new Date(book.volumeInfo?.publishedDate).toISOString();
-						} else {
-							iso_release = null;
+					book_res.docs?.forEach((book) => {
+						const mappedBook = mapOpenLibraryDocToMedia(book);
+						if (mappedBook) {
+							search_results.push(mappedBook);
 						}
-						search_results.push({
-							gbid: book.id || 0,
-							title: book.volumeInfo?.title,
-							subtitle: book.volumeInfo?.subtitle,
-							author: book.volumeInfo?.authors?.join(', '),
-							release: iso_release,
-							image: book.volumeInfo?.imageLinks?.smallThumbnail,
-							pagecount: book.volumeInfo?.pageCount,
-							averagerating: book.volumeInfo?.averageRating,
-							genres: book.volumeInfo?.categories?.join(', ')
-						} as mediaObject);
 					});
 					return new Response(JSON.stringify(search_results));
 				default:

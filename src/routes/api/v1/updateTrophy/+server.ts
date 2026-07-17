@@ -9,14 +9,23 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const update_id = request_body.id;
 	const sync_timestamp = request_body.sync_timestamp;
 	const { session } = await safeGetSession();
+	if (!session) {
+		return new Response('Unauthorized', { status: 401 });
+	}
 	let try_count = 0;
 	while (try_count < RETRIES) {
 		try {
-			const error = await supabase.from('profiles').upsert({
-				id: session?.user.id,
+			const profileResult = await supabase.from('profiles').upsert({
+				id: session.user.id,
 				updated_at: sync_timestamp
 			});
+			if (profileResult.error) {
+				throw profileResult.error;
+			}
 			const res = await supabase.from('games').update({ trophy: new_value }).eq('id', update_id);
+			if (res.error) {
+				throw res.error;
+			}
 			return new Response(JSON.stringify(res));
 		} catch (error) {
 			console.log(`Error on Endpoint updateTrophy: ${error}`);
@@ -26,5 +35,5 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		}
 		try_count++;
 	}
-	return new Response(`No success updating trophy after ${RETRIES} retries`);
+	return new Response(`No success updating trophy after ${RETRIES} retries`, { status: 500 });
 }

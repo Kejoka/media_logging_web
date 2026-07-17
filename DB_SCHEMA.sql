@@ -197,3 +197,4 @@ BEGIN
     DO UPDATE SET factor = preferences.factor + r_factor;
 END;
 $$ LANGUAGE plpgsql;
+

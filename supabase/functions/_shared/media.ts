@@ -4,6 +4,10 @@ type MediaUpdate = {
 	image?: string | null;
 	release?: string | null;
 	averagerating?: number | null;
+	pagecount?: number | null;
+	genres?: string | null;
+	title?: string | null;
+	author?: string | null;
 };
 
 // Helper to limit concurrent async operations
@@ -82,6 +86,52 @@ type GameRow = {
 	igdbid?: number | null;
 };
 
+type BookRow = {
+	id?: number | null;
+	gbid?: string | null;
+	title?: string | null;
+	author?: string | null;
+};
+
+type OpenLibraryDoc = {
+	key?: string;
+	title?: string;
+	author_name?: string[];
+	first_publish_date?: string;
+	first_publish_year?: number;
+	cover_i?: number;
+	number_of_pages_median?: number;
+	ratings_average?: number;
+	subject?: string[];
+};
+
+type OpenLibrarySearchResponse = {
+	docs?: OpenLibraryDoc[];
+};
+
+const BOOK_GENRE_RULES: Array<[string, string[]]> = [
+	['Science Fiction', ['science fiction', 'science fantasy', 'sci fi', 'scifi', 'dystopian']],
+	['Fantasy', ['fantasy', 'magic', 'magical', 'litrpg', 'sword and sorcery']],
+	['Thriller', ['thriller', 'suspense', 'spy stories', 'espionage']],
+	['Krimi', ['detective', 'murder', 'crime', 'criminal', 'mystery fiction']],
+	['Mystery', ['mystery', 'detective']],
+	['Romantik', ['romance', 'love stories']],
+	['Historischer Roman', ['historical fiction', 'history fiction']],
+	['Biografie', ['biography', 'biographies']],
+	['Autobiografie', ['autobiography', 'autobiographies', 'memoir']],
+	['Psychologie', ['psychology', 'psychological']],
+	['Selbsthilfe', ['self-help', 'self help']],
+	['Wirtschaft', ['business', 'economics', 'finance', 'management']],
+	['Wissenschaft', ['popular science', 'technology', 'mathematics', 'physics', 'biology']],
+	['Geschichte', ['history', 'historical']],
+	['Kinderbuch', ['juvenile fiction', 'children', 'children’s', "children's"]],
+	['Jugendbuch', ['young adult', 'juvenile literature', 'teen']],
+	['Manga/Comic', ['comic', 'comics', 'manga', 'graphic novel']],
+	['Lyrik', ['poetry', 'poems']],
+	['Sachbuch', ['nonfiction', 'non-fiction', 'non fiction']],
+	['Belletristik', ['fiction', 'literature', 'novel']]
+];
+
 class TmdbHttpError extends Error {
 	status: number;
 
@@ -107,6 +157,126 @@ function toGameRelease(value: number | null | undefined) {
 
 	const date = new Date(value * 1000);
 	return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function getOpenLibraryHeaders() {
+	const contactEmail = Deno.env.get('PRIVATE_OPENLIBRARY_CONTACT_EMAIL');
+	const headers: Record<string, string> = {
+		Accept: 'application/json',
+		'User-Agent': contactEmail ? `media-logging-web/1.0 (${contactEmail})` : 'media-logging-web/1.0'
+	};
+
+	if (contactEmail) {
+		headers.From = contactEmail;
+	}
+
+	return headers;
+}
+
+function normalizeOpenLibraryWorkId(key: string | null | undefined) {
+	if (!key) {
+		return null;
+	}
+
+	const match = key.match(/OL\d+W/);
+	return match?.[0] ?? null;
+}
+
+function toOpenLibraryRelease(doc: OpenLibraryDoc) {
+	const publishedDate = doc.first_publish_date?.trim();
+	if (publishedDate) {
+		const parsed = new Date(publishedDate);
+		if (!Number.isNaN(parsed.getTime())) {
+			return parsed.toISOString();
+		}
+	}
+
+	if (typeof doc.first_publish_year === 'number' && Number.isFinite(doc.first_publish_year)) {
+		return new Date(Date.UTC(doc.first_publish_year, 0, 1)).toISOString();
+	}
+
+	return null;
+}
+
+function normalizeSubject(subject: string) {
+	return subject
+		.toLowerCase()
+		.replace(/^(?:subject|genre|series|place|person|time):/i, '')
+		.replace(/[_-]+/g, ' ')
+		.trim();
+}
+
+function mapOpenLibrarySubjectsToGenres(subjects: string[] | undefined) {
+	if (!subjects?.length) {
+		return null;
+	}
+
+	const normalizedSubjects = subjects.map(normalizeSubject).filter(Boolean);
+	const genres: string[] = [];
+
+	for (const [genre, needles] of BOOK_GENRE_RULES) {
+		if (normalizedSubjects.some((subject) => needles.some((needle) => subject.includes(needle)))) {
+			genres.push(genre);
+		}
+	}
+
+	return genres.length ? genres.slice(0, 4).join(', ') : null;
+}
+
+function openLibraryDocToUpdate(doc: OpenLibraryDoc, row?: BookRow): MediaUpdate {
+	const update: MediaUpdate = {
+		image: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : null,
+		release: toOpenLibraryRelease(doc),
+		averagerating:
+			typeof doc.ratings_average === 'number' ? Number(doc.ratings_average.toFixed(1)) : null,
+		pagecount:
+			typeof doc.number_of_pages_median === 'number' && Number.isFinite(doc.number_of_pages_median)
+				? doc.number_of_pages_median
+				: null,
+		genres: mapOpenLibrarySubjectsToGenres(doc.subject)
+	};
+
+	if (row && !row.title && doc.title) {
+		update.title = doc.title;
+	}
+
+	if (row && !row.author && doc.author_name?.length) {
+		update.author = doc.author_name.join(', ');
+	}
+
+	return update;
+}
+
+async function fetchOpenLibraryWorkMetadata(workId: string) {
+	const url = new URL('https://openlibrary.org/search.json');
+	url.searchParams.set('q', `key:/works/${workId}`);
+	url.searchParams.set('limit', '1');
+	url.searchParams.set(
+		'fields',
+		[
+			'key',
+			'title',
+			'author_name',
+			'first_publish_year',
+			'first_publish_date',
+			'cover_i',
+			'number_of_pages_median',
+			'ratings_average',
+			'subject'
+		].join(',')
+	);
+
+	const response = await fetch(url.toString(), {
+		headers: getOpenLibraryHeaders()
+	});
+
+	if (!response.ok) {
+		throw new Error(`OpenLibrary request failed with status ${response.status}`);
+	}
+
+	const payload = (await response.json()) as OpenLibrarySearchResponse;
+	const normalizedWorkId = normalizeOpenLibraryWorkId(workId);
+	return payload.docs?.find((doc) => normalizeOpenLibraryWorkId(doc.key) === normalizedWorkId) ?? null;
 }
 
 function parseSingleSeasonNumber(rawSeasons: string | null | undefined): number | null {
@@ -311,6 +481,9 @@ export async function cleanupOldNotifications(supabase: SupabaseClient) {
 	const cutoff = new Date();
 	cutoff.setDate(cutoff.getDate() - 30);
 	const cutoffIso = cutoff.toISOString();
+	const auditCutoff = new Date();
+	auditCutoff.setDate(auditCutoff.getDate() - 90);
+	const auditCutoffIso = auditCutoff.toISOString();
 
 	const { error: dismissalError, count: dismissalCount } = await supabase
 		.from('dismissed_activities')
@@ -330,10 +503,33 @@ export async function cleanupOldNotifications(supabase: SupabaseClient) {
 		throw activityError;
 	}
 
+	let auditLogResult: { deleted: number; error?: string } = { deleted: 0 };
+	try {
+		const { error: auditLogError, count: auditLogCount } = await supabase
+			.schema('auth')
+			.from('audit_log_entries')
+			.delete({ count: 'exact' })
+			.lt('created_at', auditCutoffIso);
+
+		if (auditLogError) {
+			throw auditLogError;
+		}
+
+		auditLogResult = { deleted: auditLogCount ?? 0 };
+	} catch (error) {
+		auditLogResult = {
+			deleted: 0,
+			error: error instanceof Error ? error.message : String(error)
+		};
+	}
+
 	return {
 		cutoff: cutoffIso,
+		auditCutoff: auditCutoffIso,
 		deletedUserActivities: activityCount ?? 0,
-		deletedDismissedActivities: dismissalCount ?? 0
+		deletedDismissedActivities: dismissalCount ?? 0,
+		deletedAuditLogEntries: auditLogResult.deleted,
+		auditLogCleanupError: auditLogResult.error
 	};
 }
 
@@ -549,6 +745,116 @@ export async function refreshShowMetadata(supabase: SupabaseClient) {
 		if (result.success) {
 			summary.updatedGroups += 1;
 			summary.updatedRows += result.rowCount;
+		}
+	}
+
+	return summary;
+}
+
+export async function refreshBookMetadata(supabase: SupabaseClient) {
+	let data;
+	let error;
+	try {
+		({ data, error } = await supabase.from('books').select('id, gbid, title, author'));
+	} catch (queryError) {
+		throw new Error(
+			`refreshBookMetadata select failed: ${queryError instanceof Error ? queryError.message : String(queryError)}`
+		);
+	}
+	if (error) {
+		throw new Error(`refreshBookMetadata select error: ${error.message || String(error)}`);
+	}
+
+	const rows = (data ?? []) as BookRow[];
+	const rowsByWorkId = new Map<string, BookRow[]>();
+	let legacyIds = 0;
+	let missingIds = 0;
+
+	for (const row of rows) {
+		const workId = normalizeOpenLibraryWorkId(row.gbid);
+		if (!row.gbid) {
+			missingIds += 1;
+			continue;
+		}
+		if (!workId) {
+			legacyIds += 1;
+			continue;
+		}
+
+		const groupedRows = rowsByWorkId.get(workId) ?? [];
+		groupedRows.push(row);
+		rowsByWorkId.set(workId, groupedRows);
+	}
+
+	const uniqueIds = [...rowsByWorkId.keys()];
+	const summary = {
+		table: 'books',
+		uniqueIds: uniqueIds.length,
+		updatedGroups: 0,
+		updatedRows: 0,
+		skippedGroups: 0,
+		failedGroups: 0,
+		failedIds: [] as string[],
+		legacyIds,
+		missingIds
+	};
+
+	const metadataResults = await runWithConcencyLimit(uniqueIds, 1, async (workId) => {
+		try {
+			const doc = await fetchOpenLibraryWorkMetadata(workId);
+			return { workId, doc, error: null };
+		} catch (fetchError) {
+			console.error(`Failed to load book metadata for ${workId}`, fetchError);
+			return { workId, doc: null, error: fetchError };
+		}
+	});
+
+	const updateResults = await runWithConcencyLimit(
+		metadataResults.filter((result) => result.doc !== null && result.error === null),
+		3,
+		async (result) => {
+			const groupedRows = rowsByWorkId.get(result.workId) ?? [];
+			let updatedRows = 0;
+			let failedRows = 0;
+
+			for (const row of groupedRows) {
+				const update = openLibraryDocToUpdate(result.doc!, row);
+				const { data: updated, error: updateError } = await supabase
+					.from('books')
+					.update(update)
+					.eq('id', row.id)
+					.select('id');
+
+				if (updateError) {
+					failedRows += 1;
+					console.error(`Failed to update books row ${row.id}`, updateError);
+					continue;
+				}
+
+				updatedRows += updated?.length ?? 0;
+			}
+
+			return { workId: result.workId, updatedRows, failedRows };
+		}
+	);
+
+	for (const result of metadataResults) {
+		if (result.error) {
+			summary.failedGroups += 1;
+			summary.failedIds.push(result.workId);
+		} else if (!result.doc) {
+			summary.skippedGroups += 1;
+		}
+	}
+
+	for (const result of updateResults) {
+		if (result.failedRows > 0) {
+			summary.failedGroups += 1;
+			summary.failedIds.push(result.workId);
+		}
+		if (result.updatedRows > 0) {
+			summary.updatedGroups += 1;
+			summary.updatedRows += result.updatedRows;
 		}
 	}
 

@@ -1,5 +1,11 @@
 import { redirect } from '@sveltejs/kit';
+import { PAGE_SIZE } from '$lib/utils';
 import type { PageServerLoad } from './$types';
+
+type MediaTable = 'games' | 'movies' | 'shows' | 'books';
+type AvailableYearRow = {
+	year: number;
+};
 
 export const load: PageServerLoad = async ({
 	locals: { supabase, safeGetSession },
@@ -31,31 +37,90 @@ export const load: PageServerLoad = async ({
 	} else {
 		user_id = session.user.id;
 	}
-	const games = await supabase
-		.from('games')
-		.select()
-		.eq('user_id', user_id)
-		.order('added', { ascending: false });
-	const movies = await supabase
-		.from('movies')
-		.select()
-		.eq('user_id', user_id)
-		.order('added', { ascending: false });
-	const shows = await supabase
-		.from('shows')
-		.select()
-		.eq('user_id', user_id)
-		.order('added', { ascending: false });
-	const books = await supabase
-		.from('books')
-		.select()
-		.eq('user_id', user_id)
-		.order('added', { ascending: false });
+	const backlogged_filter = url.searchParams.get('mode') === '1' ? 1 : 0;
+	const requested_year = url.searchParams.get('mediaYear') || String(new Date().getFullYear());
+
+	function applyYearFilter(query: any, year: string) {
+		if (backlogged_filter === 1 || year === 'Gesamt' || !Number.isFinite(Number(year))) {
+			return query;
+		}
+		const yearNumber = Number(year);
+		return query
+			.gte('added', new Date(Date.UTC(yearNumber, 0, 1)).toISOString())
+			.lt('added', new Date(Date.UTC(yearNumber + 1, 0, 1)).toISOString());
+	}
+
+	const games = await applyYearFilter(
+		supabase
+			.from('games')
+			.select()
+			.eq('user_id', user_id)
+			.eq('backlogged', backlogged_filter)
+			.order('added', { ascending: false })
+			.order('id', { ascending: false }),
+		requested_year
+	)
+		.range(0, PAGE_SIZE - 1);
+	const movies = await applyYearFilter(
+		supabase
+			.from('movies')
+			.select()
+			.eq('user_id', user_id)
+			.eq('backlogged', backlogged_filter)
+			.order('added', { ascending: false })
+			.order('id', { ascending: false }),
+		requested_year
+	)
+		.range(0, PAGE_SIZE - 1);
+	const shows = await applyYearFilter(
+		supabase
+			.from('shows')
+			.select()
+			.eq('user_id', user_id)
+			.eq('backlogged', backlogged_filter)
+			.order('added', { ascending: false })
+			.order('id', { ascending: false }),
+		requested_year
+	)
+		.range(0, PAGE_SIZE - 1);
+	const books = await applyYearFilter(
+		supabase
+			.from('books')
+			.select()
+			.eq('user_id', user_id)
+			.eq('backlogged', backlogged_filter)
+			.order('added', { ascending: false })
+			.order('id', { ascending: false }),
+		requested_year
+	)
+		.range(0, PAGE_SIZE - 1);
 	const challenges = await supabase
 		.from('user_challenges')
 		.select()
 		.eq('user_id', user_id)
 		.order('year', { ascending: false });
+
+	async function getAvailableYears(table: MediaTable) {
+		const { data, error } = await supabase.rpc('get_available_years', {
+			table_name: table,
+			p_user_id: user_id,
+			p_backlogged: backlogged_filter
+		});
+
+		if (error) {
+			return [];
+		}
+
+		return ((data as AvailableYearRow[] | null) ?? []).map((row) => String(row.year));
+	}
+
+	const [available_game_years, available_movie_years, available_show_years, available_book_years] =
+		await Promise.all([
+			getAvailableYears('games'),
+			getAvailableYears('movies'),
+			getAvailableYears('shows'),
+			getAvailableYears('books')
+		]);
 
 	return {
 		session,
@@ -65,6 +130,13 @@ export const load: PageServerLoad = async ({
 		movies,
 		shows,
 		books,
+		availableYears: {
+			games: available_game_years,
+			movies: available_movie_years,
+			shows: available_show_years,
+			books: available_book_years
+		},
+		initialYear: requested_year,
 		challenges: challenges.data || [],
 		// Query parameters for routing from notifications
 		mediaId: url.searchParams.get('mediaId'),

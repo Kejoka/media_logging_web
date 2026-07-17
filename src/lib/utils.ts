@@ -7,6 +7,8 @@ export function delay(ms: number): Promise<void> {
 
 export const MEDIA_TYPE_ORDER = ['games', 'movies', 'shows', 'books'] as const;
 
+export const PAGE_SIZE = 10 as const;
+
 export type MediaType = (typeof MEDIA_TYPE_ORDER)[number];
 
 export function isMediaType(value: string): value is MediaType {
@@ -23,7 +25,9 @@ export function normalize_enabled_media_types(value?: string | null): MediaType[
 		return [...MEDIA_TYPE_ORDER];
 	}
 
-	const unique_values = Array.from(new Set(raw_values.filter((entry) => isMediaType(entry)))) as MediaType[];
+	const unique_values = Array.from(
+		new Set(raw_values.filter((entry) => isMediaType(entry)))
+	) as MediaType[];
 	if (unique_values.length === 0) {
 		return [...MEDIA_TYPE_ORDER];
 	}
@@ -99,7 +103,6 @@ export function getMediaCodeIndex(current_medium: string): number {
 			return -1;
 	}
 }
-
 
 /**
  * Determines if a medium should show a repeat icon.

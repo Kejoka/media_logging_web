@@ -25,3 +25,10 @@ vite.config.ts.timestamp-*
 # Code
 .vscode
 package-lock.json
+
+.codex
+playwright-audit
+tmp-playwright-visual-audit
+migration-reports
+test-results
+tmp-playwright*

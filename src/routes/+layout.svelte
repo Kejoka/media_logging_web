@@ -14,7 +14,7 @@
 	import NotificationsUnread from '$lib/Icons/notifications_unread.svelte';
 	import NotificationPanel from '$lib/UI/NotificationPanel.svelte';
 	import FollowerPanel from '$lib/UI/FollowerPanel.svelte';
-	import { dexieDB } from '$lib/dbUtils';
+	import { dismissToast, pushToast, toastMessages } from '$lib/stores/toast';
 	import {
 		enabled_media_types,
 		is_account_page,
@@ -93,11 +93,6 @@
 		}
 
 		const { data } = supabase.auth.onAuthStateChange((event, _session) => {
-			// Clear Dexie DB when user signs out to prevent data leakage to next user
-			if (event === 'SIGNED_OUT') {
-				void dexieDB.delete().then(() => dexieDB.open());
-			}
-
 			if (_session?.expires_at !== session?.expires_at) {
 				invalidate('supabase:auth');
 			}
@@ -113,6 +108,9 @@
 							'Content-Type': 'application/json'
 						}
 					});
+					if (!res.ok) {
+						throw new Error('Benachrichtigungen konnten nicht geladen werden.');
+					}
 					if (res.ok) {
 						const responseData = (await res.json()) as {
 							notifications: any[];
@@ -121,7 +119,12 @@
 						unreadCount = responseData.unreadCount || 0;
 					}
 				} catch (err) {
-					console.error('Error checking unread notifications:', err);
+					pushToast(
+						err instanceof Error && err.message
+							? err.message
+							: 'Benachrichtigungen konnten nicht geladen werden.',
+						'error'
+					);
 				}
 			}
 		};
@@ -276,6 +279,19 @@
 			{@render children()}
 		{/key}
 	</main>
+
+	{#if $toastMessages.length > 0}
+		<div class="fixed top-4 right-4 z-50 flex w-[calc(100vw-2rem)] max-w-md flex-col gap-2">
+			{#each $toastMessages as toast (toast.id)}
+				<div class="pointer-events-auto alert alert-error shadow-lg">
+					<span>{toast.message}</span>
+					<button type="button" class="btn btn-ghost btn-xs" onclick={() => dismissToast(toast.id)}>
+						Dismiss
+					</button>
+				</div>
+			{/each}
+		</div>
+	{/if}
 
 	{#if $is_profile_transition_loading}
 		<div

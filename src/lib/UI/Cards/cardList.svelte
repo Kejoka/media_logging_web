@@ -2,13 +2,7 @@
 	import { goto } from '$app/navigation';
 	import JustWatch_Logo from '../../Icons/justwatch.svelte';
 	import TvCard from './tvCard.svelte';
-	import {
-		dexieDB,
-		sync_offline_changes_to_server,
-		updateRewatchStatus,
-		type mediaObject,
-		type OfflineChangeObject
-	} from '$lib/dbUtils';
+	import { type mediaObject, type OfflineChangeObject } from '$lib/dbUtils';
 	import { createEventDispatcher } from 'svelte';
 	import GameCard from './gameCard.svelte';
 	import MovieCard from './movieCard.svelte';
@@ -25,6 +19,7 @@
 	import bookGenres from '$lib/bookGenres';
 	import gamePlatforms from '$lib/gamePlatforms';
 	import { decodeReviewNotes, encodeReviewNotes, isLegacyReviewNotes } from '$lib/reviewNotes';
+	import { pushToast } from '$lib/stores/toast';
 	import type { SortingMethod, UserChallenge } from '$lib/types';
 	export let media_data: mediaObject[];
 	export let current_medium: string;
@@ -33,6 +28,9 @@
 	export let current_year: string;
 	export let sorting_method: SortingMethod = 'date_added_desc';
 	export let challenges: UserChallenge[] = [];
+	export let isLoadingMore = false;
+	export let isReloading = false;
+	let media_scroll_container: HTMLDivElement;
 	let delete_modal: HTMLInputElement;
 	let streaming_modal: HTMLInputElement;
 	let edit_modal: HTMLInputElement;
@@ -82,6 +80,26 @@
 	let social_eligible: SocialUserState[] = [];
 	const dispatch = createEventDispatcher();
 	const monthFormatter = new Intl.DateTimeFormat('de-DE', { month: 'long' });
+
+	function showSupabaseError(error: unknown, fallbackMessage: string) {
+		pushToast(error instanceof Error && error.message ? error.message : fallbackMessage, 'error');
+	}
+
+	function handleScroll() {
+		if (current_mode === 2 || isReloading || !media_scroll_container) {
+			return;
+		}
+		const remaining_scroll =
+			media_scroll_container.scrollHeight -
+			media_scroll_container.scrollTop -
+			media_scroll_container.clientHeight;
+		if (remaining_scroll <= 48) {
+			dispatch('fetchmore', { current_medium });
+		}
+	}
+
+	const skeletonRows = Array.from({ length: 8 });
+	const skeletonStatCards = Array.from({ length: 6 });
 
 	function splitCommaSeparatedValues(value?: string): string[] {
 		if (!value) {
@@ -315,35 +333,26 @@
 		};
 	}
 
+	function patchVisibleMedium(mediumId: number | undefined, patch: Partial<mediaObject>) {
+		if (mediumId == null) {
+			return;
+		}
+		media_data = media_data.map((medium) =>
+			medium.id === mediumId ? ({ ...medium, ...patch } as mediaObject) : medium
+		);
+		if (social_medium?.id === mediumId) {
+			social_medium = { ...social_medium, ...patch };
+		}
+	}
+
 	async function updateScore(event: CustomEvent) {
 		try {
 			const sync_timestamp = new Date();
-			// DexieDB
-			switch (current_medium) {
-				case 'games':
-					await dexieDB.games.update(event.detail.medium.id, { rating: event.detail.new_score });
-					break;
-				case 'movies':
-					await dexieDB.movies.update(event.detail.medium.id, { rating: event.detail.new_score });
-					break;
-				case 'shows':
-					await dexieDB.shows.update(event.detail.medium.id, { rating: event.detail.new_score });
-					break;
-				case 'books':
-					await dexieDB.books.update(event.detail.medium.id, { rating: event.detail.new_score });
-					break;
-				default:
-					break;
-			}
-			media_data[media_data.findIndex((obj) => obj.id == event.detail.medium.id)].rating =
-				event.detail.new_score;
-			await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
-			// Supabase
+			const mediumId = event.detail.medium.id;
+			const previousScore =
+				media_data.find((obj) => obj.id == mediumId)?.rating ?? event.detail.medium.rating;
+			patchVisibleMedium(mediumId, { rating: event.detail.new_score });
 			try {
-				const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-				if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-					sync_offline_changes_to_server();
-				}
 				const res = await fetch('/api/v1/updateScore', {
 					method: 'POST',
 					body: JSON.stringify({
@@ -356,25 +365,15 @@
 						'Content-Type': 'application/json'
 					}
 				});
-			} catch (error) {
-				console.log(error);
-				let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-				if (dexie_prefs) {
-					if (!navigator.onLine) {
-						const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
-						tmp.push({
-							event: 'score',
-							medium: current_medium,
-							card: { id: event.detail.medium.id, rating: event.detail.new_score } as mediaObject
-						});
-						dexie_prefs.changed_offline = JSON.stringify(tmp);
-					}
-					dexie_prefs.updated_at = sync_timestamp.toISOString();
-					await dexieDB.prefs.update(0, dexie_prefs);
+				if (!res.ok) {
+					throw new Error('Bewertung konnte nicht gespeichert werden.');
 				}
+			} catch (error) {
+				patchVisibleMedium(mediumId, { rating: previousScore });
+				showSupabaseError(error, 'Bewertung konnte nicht gespeichert werden.');
 			}
 		} catch (error) {
-			console.log(error);
+			showSupabaseError(error, 'Bewertung konnte nicht gespeichert werden.');
 		}
 	}
 
@@ -393,35 +392,12 @@
 				return;
 			}
 
-			media_data[mediumIndex].notes = normalizedNotes;
-			const updatedMedium = { ...media_data[mediumIndex] } as mediaObject;
+			const updatedMedium = { ...media_data[mediumIndex], notes: normalizedNotes } as mediaObject;
+			patchVisibleMedium(updatedMedium.id, { notes: normalizedNotes });
 			const sync_timestamp = new Date();
 
-			switch (current_medium) {
-				case 'games':
-					await dexieDB.games.update(updatedMedium.id, { notes: normalizedNotes });
-					break;
-				case 'movies':
-					await dexieDB.movies.update(updatedMedium.id, { notes: normalizedNotes });
-					break;
-				case 'shows':
-					await dexieDB.shows.update(updatedMedium.id, { notes: normalizedNotes });
-					break;
-				case 'books':
-					await dexieDB.books.update(updatedMedium.id, { notes: normalizedNotes });
-					break;
-				default:
-					break;
-			}
-
-			await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
-
 			try {
-				const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-				if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-					sync_offline_changes_to_server();
-				}
-				await fetch('/api/v1/updateMedium', {
+				const res = await fetch('/api/v1/updateMedium', {
 					method: 'POST',
 					body: JSON.stringify({
 						medium_fields_to_update: updatedMedium,
@@ -432,21 +408,15 @@
 						'Content-Type': 'application/json'
 					}
 				});
-			} catch (error) {
-				console.log(error);
-				let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-				if (dexie_prefs) {
-					if (!navigator.onLine) {
-						const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
-						tmp.push({ event: 'update', medium: current_medium, card: updatedMedium });
-						dexie_prefs.changed_offline = JSON.stringify(tmp);
-					}
-					dexie_prefs.updated_at = sync_timestamp.toISOString();
-					await dexieDB.prefs.update(0, dexie_prefs);
+				if (!res.ok) {
+					throw new Error('Änderungen konnten nicht gespeichert werden.');
 				}
+			} catch (error) {
+				patchVisibleMedium(updatedMedium.id, { notes: currentNotes });
+				showSupabaseError(error, 'Änderungen konnten nicht gespeichert werden.');
 			}
 		} catch (error) {
-			console.log(error);
+			showSupabaseError(error, 'Änderungen konnten nicht gespeichert werden.');
 		}
 	}
 
@@ -505,11 +475,14 @@
 					'Content-Type': 'application/json'
 				}
 			});
+			if (!res.ok) {
+				throw new Error('Streamingdienste konnten nicht geladen werden.');
+			}
 			const data = (await res.json()) as { results: { DE: typeof streaming_data } };
 			streaming_data = data.results.DE;
 			streaming_modal.checked = true;
 		} catch (error) {
-			console.log(error);
+			showSupabaseError(error, 'Streamingdienste konnten nicht geladen werden.');
 		}
 	}
 
@@ -556,7 +529,7 @@
 			social_backlog = payload.backlog || [];
 			social_eligible = payload.eligible || [];
 		} catch (error) {
-			console.error(error);
+			showSupabaseError(error, 'Social-Daten konnten nicht geladen werden.');
 			social_error = 'Social-Daten konnten nicht geladen werden.';
 		} finally {
 			social_loading = false;
@@ -612,7 +585,7 @@
 			}
 			await loadSocialState();
 		} catch (error) {
-			console.error(error);
+			showSupabaseError(error, 'Empfehlung konnte nicht versendet werden.');
 			social_error =
 				error instanceof Error ? error.message : 'Empfehlung konnte nicht versendet werden.';
 		} finally {
@@ -649,108 +622,11 @@
 		if (current_medium === 'games') {
 			to_edit.trophy = to_editTrophy ? 1 : 0;
 		}
-		media_data[media_data.findIndex((obj) => obj.id == to_edit.id)] = to_edit;
+		const previousMedium = media_data.find((obj) => obj.id == to_edit.id);
+		patchVisibleMedium(to_edit.id, to_edit);
 		const sync_timestamp = new Date();
-		// DexieDB
-		switch (current_medium) {
-			case 'games':
-				await dexieDB.games.update(to_edit.id, {
-					title:
-						to_edit.title && to_edit.title.trim().length > 0
-							? to_edit.title.trim()
-							: 'Kein Titel angegeben',
-					image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image.trim() : null,
-					release:
-						to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release.trim() : null,
-					genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres.trim() : null,
-					platforms:
-						to_edit.platforms && to_edit.platforms.trim().length > 0
-							? to_edit.platforms.trim()
-							: null,
-					added:
-						to_edit.added && to_edit.added.trim().length > 0
-							? to_edit.added.trim()
-							: new Date().toISOString(),
-					trophy:
-						to_edit.trophy && to_edit.trophy.toString().trim().length > 0 ? to_edit.trophy : 0,
-					notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes.trim() : null
-				} as mediaObject);
-				break;
-			case 'movies':
-				await dexieDB.movies.update(to_edit.id, {
-					title:
-						to_edit.title && to_edit.title.trim().length > 0
-							? to_edit.title.trim()
-							: 'Kein Titel angegeben',
-					image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image.trim() : null,
-					release:
-						to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release.trim() : null,
-					genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres.trim() : null,
-					added:
-						to_edit.added && to_edit.added.trim().length > 0
-							? to_edit.added.trim()
-							: new Date().toISOString(),
-					notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes.trim() : null
-				} as mediaObject);
-				break;
-			case 'shows':
-				await dexieDB.shows.update(to_edit.id, {
-					title:
-						to_edit.title && to_edit.title.trim().length > 0
-							? to_edit.title
-							: 'Kein Titel angegeben',
-					image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image : null,
-					release: to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release : null,
-					genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres : null,
-					added:
-						to_edit.added && to_edit.added.trim().length > 0
-							? to_edit.added
-							: new Date().toISOString(),
-					notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes : null,
-					seasons: to_edit.seasons && to_edit.seasons.trim().length > 0 ? to_edit.seasons : null,
-					episode:
-						to_edit.episode && to_edit.episode.toString().trim().length > 0 ? to_edit.episode : 0
-				} as mediaObject);
-				break;
-			case 'books':
-				await dexieDB.books.update(to_edit.id, {
-					title:
-						to_edit.title && to_edit.title.trim().length > 0
-							? to_edit.title
-							: 'Kein Titel angegeben',
-					author: to_edit.author && to_edit.author.trim().length > 0 ? to_edit.author : null,
-					image: to_edit.image && to_edit.image.trim().length > 0 ? to_edit.image : null,
-					release: to_edit.release && to_edit.release.trim().length > 0 ? to_edit.release : null,
-					genres: to_edit.genres && to_edit.genres.trim().length > 0 ? to_edit.genres : null,
-					pagecount:
-						to_edit.pagecount && to_edit.pagecount.toString().trim().length > 0
-							? to_edit.pagecount
-							: null,
-					added:
-						to_edit.added && to_edit.added.trim().length > 0
-							? to_edit.added
-							: new Date().toISOString(),
-					notes: to_edit.notes && to_edit.notes.trim().length > 0 ? to_edit.notes : null
-				} as mediaObject);
-				break;
-			default:
-				break;
-		}
-		// Update rewatch status after updating the medium
-		if (current_medium === 'games') {
-			await updateRewatchStatus(current_medium, to_edit.igdbid);
-		} else if (current_medium === 'movies' || current_medium === 'shows') {
-			await updateRewatchStatus(current_medium, to_edit.tmdbid);
-		} else if (current_medium === 'books') {
-			await updateRewatchStatus(current_medium, to_edit.gbid);
-		}
-		await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
-		// Supabase
+
 		try {
-			const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-			if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-				sync_offline_changes_to_server();
-			}
 			const res = await fetch('/api/v1/updateMedium', {
 				method: 'POST',
 				body: JSON.stringify({ medium_fields_to_update: to_edit, current_medium, sync_timestamp }),
@@ -758,18 +634,15 @@
 					'Content-Type': 'application/json'
 				}
 			});
-		} catch (error) {
-			console.log(error);
-			let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-			if (dexie_prefs) {
-				if (!navigator.onLine) {
-					const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
-					tmp.push({ event: 'update', medium: current_medium, card: to_edit });
-					dexie_prefs.changed_offline = JSON.stringify(tmp);
-				}
-				dexie_prefs.updated_at = sync_timestamp.toISOString();
-				await dexieDB.prefs.update(0, dexie_prefs);
+			if (!res.ok) {
+				throw new Error('Änderungen konnten nicht gespeichert werden.');
 			}
+		} catch (error) {
+			if (previousMedium) {
+				patchVisibleMedium(previousMedium.id, previousMedium);
+			}
+			showSupabaseError(error, 'Änderungen konnten nicht gespeichert werden.');
+			return;
 		}
 		const collapse_input = document.getElementById(
 			String(to_edit.id) + `_${current_medium.charAt(0)}`
@@ -781,23 +654,51 @@
 		edit_modal.checked = false;
 	}
 
-	async function updateLocalLegacyNotes(mediumId: number, notes: string) {
-		const normalizedNotes = notes.trim().length > 0 ? notes.trim() : undefined;
-		switch (current_medium) {
-			case 'games':
-				await dexieDB.games.update(mediumId, { notes: normalizedNotes });
-				break;
-			case 'movies':
-				await dexieDB.movies.update(mediumId, { notes: normalizedNotes });
-				break;
-			case 'shows':
-				await dexieDB.shows.update(mediumId, { notes: normalizedNotes });
-				break;
-			case 'books':
-				await dexieDB.books.update(mediumId, { notes: normalizedNotes });
-				break;
-			default:
-				break;
+	async function updateTrophy(event: CustomEvent<{ medium: mediaObject; new_value: number }>) {
+		const mediumId = event.detail.medium.id;
+		const previousValue = event.detail.medium.trophy || 0;
+		patchVisibleMedium(mediumId, { trophy: event.detail.new_value });
+		const sync_timestamp = new Date();
+
+		try {
+			const res = await fetch('/api/v1/updateTrophy', {
+				method: 'POST',
+				body: JSON.stringify({
+					new_value: event.detail.new_value,
+					id: mediumId,
+					sync_timestamp
+				})
+			});
+			if (!res.ok) {
+				throw new Error('Trophäe konnte nicht gespeichert werden.');
+			}
+		} catch (error) {
+			patchVisibleMedium(mediumId, { trophy: previousValue });
+			showSupabaseError(error, 'Trophäe konnte nicht gespeichert werden.');
+		}
+	}
+
+	async function updateEpisode(event: CustomEvent<{ medium: mediaObject; new_value: number }>) {
+		const mediumId = event.detail.medium.id;
+		const previousValue = event.detail.medium.episode || 0;
+		patchVisibleMedium(mediumId, { episode: event.detail.new_value });
+		const sync_timestamp = new Date();
+
+		try {
+			const res = await fetch('/api/v1/updateEpisode', {
+				method: 'POST',
+				body: JSON.stringify({
+					new_value: event.detail.new_value,
+					id: mediumId,
+					sync_timestamp
+				})
+			});
+			if (!res.ok) {
+				throw new Error('Episode konnte nicht gespeichert werden.');
+			}
+		} catch (error) {
+			patchVisibleMedium(mediumId, { episode: previousValue });
+			showSupabaseError(error, 'Episode konnte nicht gespeichert werden.');
 		}
 	}
 
@@ -831,15 +732,8 @@
 					media_data[cardIndex] = migratedCard;
 				}
 
-				await updateLocalLegacyNotes(medium.id, encodedNotes);
-				await dexieDB.prefs.update(0, { updated_at: sync_timestamp.toISOString() });
-
 				try {
-					const dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-					if (JSON.parse(dexie_prefs?.changed_offline || '').length != 0) {
-						sync_offline_changes_to_server();
-					}
-					await fetch('/api/v1/updateMedium', {
+					const res = await fetch('/api/v1/updateMedium', {
 						method: 'POST',
 						body: JSON.stringify({
 							medium_fields_to_update: migratedCard,
@@ -850,18 +744,12 @@
 							'Content-Type': 'application/json'
 						}
 					});
-				} catch (error) {
-					console.log(error);
-					let dexie_prefs = (await dexieDB.prefs.toArray()).at(0);
-					if (dexie_prefs) {
-						if (!navigator.onLine) {
-							const tmp: OfflineChangeObject[] = JSON.parse(dexie_prefs.changed_offline);
-							tmp.push({ event: 'update', medium: current_medium, card: migratedCard });
-							dexie_prefs.changed_offline = JSON.stringify(tmp);
-						}
-						dexie_prefs.updated_at = sync_timestamp.toISOString();
-						await dexieDB.prefs.update(0, dexie_prefs);
+					if (!res.ok) {
+						throw new Error('Review-Notizen konnten nicht synchronisiert werden.');
 					}
+					medium.notes = encodedNotes;
+				} catch (error) {
+					showSupabaseError(error, 'Review-Notizen konnten nicht synchronisiert werden.');
 				}
 
 				if (!migratedLegacyNoteIds.includes(medium.id)) {
@@ -888,10 +776,38 @@
 	}
 </script>
 
-<div class="scrollbar-hide grow overflow-x-hidden overflow-y-auto bg-base-300 pt-2">
-	{#if current_mode != 2}
+<div
+	bind:this={media_scroll_container}
+	on:scroll={handleScroll}
+	class="scrollbar-hide grow overflow-x-hidden overflow-y-auto bg-base-300 pt-2 pb-32"
+>
+	{#if isReloading && current_mode != 2}
+		<div class="px-2 pt-3" aria-busy="true" aria-label="Medien werden geladen">
+			{#each skeletonRows as _, index}
+				{#if index === 0 || index === 4}
+					<div class="mx-3 mt-4 mb-2 flex items-center gap-3">
+						<div class="skeleton h-4 w-24 rounded"></div>
+						<div class="h-px flex-1 bg-base-content/10"></div>
+					</div>
+				{/if}
+				<div class="mb-2 flex h-[15vh] min-h-[15vh] overflow-hidden rounded-lg bg-base-100">
+					<div class="skeleton h-full w-[11.25vh] shrink-0 rounded-none"></div>
+					<div class="flex min-w-0 flex-1 flex-col justify-center gap-2 px-3">
+						<div class="skeleton h-5 w-2/3 rounded"></div>
+						<div class="skeleton h-4 w-1/2 rounded"></div>
+						<div class="skeleton h-4 w-1/3 rounded"></div>
+					</div>
+					<div class="flex w-10 shrink-0 flex-col justify-center gap-1 pr-2">
+						{#each Array(5) as _}
+							<div class="skeleton h-4 w-4 rounded-full"></div>
+						{/each}
+					</div>
+				</div>
+			{/each}
+		</div>
+	{:else if current_mode != 2}
 		{#each media_data as medium, index (medium.id)}
-			{#if separatorKeys[index].shouldRender}
+			{#if separatorKeys?.[index]?.shouldRender}
 				<div class="mx-3 mt-4 mb-2 flex items-center gap-3">
 					{#if sorting_method.startsWith('review_score')}
 						<!-- Rating separator with stars or no rating label -->
@@ -940,6 +856,7 @@
 					on:social={openSocialModal}
 					on:update_score={updateScore}
 					on:update_notes={updateNotes}
+					on:update_trophy={updateTrophy}
 					{own_profile}
 					{medium}
 					{config}
@@ -953,6 +870,7 @@
 					on:update_score={updateScore}
 					on:update_notes={updateNotes}
 					on:showStreams={showProviderList}
+					on:update_episode={updateEpisode}
 					{own_profile}
 					{medium}
 					{config}
@@ -985,7 +903,32 @@
 				></BookCard>
 			{/if}
 		{/each}
+		{#if isLoadingMore}
+			<div class="flex justify-center py-6">
+				<span class="loading loading-md loading-dots"></span>
+			</div>
+		{/if}
 		<!-- Stats -->
+	{:else if isReloading}
+		<div class="space-y-2 px-2 pt-3" aria-busy="true" aria-label="Statistiken werden geladen">
+			<div class="rounded-lg bg-base-100 p-4">
+				<div class="skeleton mb-4 h-5 w-40 rounded"></div>
+				<div class="space-y-3">
+					<div class="skeleton h-16 w-full rounded"></div>
+					<div class="skeleton h-16 w-full rounded"></div>
+				</div>
+			</div>
+			{#each skeletonStatCards as _}
+				<div class="rounded-lg bg-base-100 p-6">
+					<div class="mb-4 flex items-center justify-between">
+						<div class="skeleton h-4 w-36 rounded"></div>
+						<div class="skeleton h-8 w-8 rounded"></div>
+					</div>
+					<div class="skeleton mb-4 h-10 w-20 rounded"></div>
+					<div class="skeleton h-4 w-2/3 rounded"></div>
+				</div>
+			{/each}
+		</div>
 	{:else}
 		{#key media_data}
 			{#if media_data.length != 0}
