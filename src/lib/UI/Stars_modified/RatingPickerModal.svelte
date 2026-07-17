@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onDestroy } from 'svelte';
 	import Star from './Star.svelte';
 	import NoteBubbleEditor from '$lib/UI/NoteBubbleEditor.svelte';
 
@@ -18,15 +18,30 @@
 
 	let localScore = 0;
 	let localNotes = '';
+	let wasOpen = false;
+	let autosaveTimeout: ReturnType<typeof setTimeout> | null = null;
+	let lastDispatchedNotes = '';
+	let insertedHistoryEntry = false;
 
 	function clampScore(value: number): number {
 		const clamped = Math.max(0, Math.min(5, value));
 		return Math.round(clamped * 2) / 2;
 	}
 
-	$: if (open) {
+	$: if (open && !wasOpen) {
 		localScore = clampScore(score ?? 0);
 		localNotes = notes || '';
+		lastDispatchedNotes = (notes || '').trim();
+		wasOpen = true;
+		insertBackGestureGuard();
+	} else if (!open && wasOpen) {
+		wasOpen = false;
+		clearAutosave();
+		insertedHistoryEntry = false;
+	}
+
+	$: if (open && localNotes.trim() !== lastDispatchedNotes) {
+		scheduleNotesAutosave();
 	}
 
 	function updateScore(value: number) {
@@ -34,10 +49,52 @@
 		dispatch('scoreChange', { score: localScore });
 	}
 
-	function closeModal() {
+	function clearAutosave() {
+		if (autosaveTimeout) {
+			clearTimeout(autosaveTimeout);
+			autosaveTimeout = null;
+		}
+	}
+
+	function dispatchNotes() {
+		clearAutosave();
+		const normalizedNotes = localNotes.trim();
+		if (normalizedNotes === lastDispatchedNotes) {
+			return;
+		}
+		lastDispatchedNotes = normalizedNotes;
+		dispatch('notesChange', { notes: normalizedNotes });
+	}
+
+	function scheduleNotesAutosave() {
+		clearAutosave();
+		autosaveTimeout = setTimeout(dispatchNotes, 900);
+	}
+
+	function closeModal(fromHistory = false) {
 		updateScore(localScore);
-		dispatch('notesChange', { notes: localNotes.trim() });
+		dispatchNotes();
 		dispatch('close');
+		if (!fromHistory && insertedHistoryEntry && typeof history !== 'undefined') {
+			insertedHistoryEntry = false;
+			history.back();
+		}
+	}
+
+	function insertBackGestureGuard() {
+		if (typeof history === 'undefined' || insertedHistoryEntry) {
+			return;
+		}
+		history.pushState({ ratingModalOpen: true }, '', location.href);
+		insertedHistoryEntry = true;
+	}
+
+	function handlePopState() {
+		if (!open) {
+			return;
+		}
+		insertedHistoryEntry = false;
+		closeModal(true);
 	}
 
 	function handleKeydown(event: KeyboardEvent) {
@@ -47,9 +104,13 @@
 		event.preventDefault();
 		closeModal();
 	}
+
+	onDestroy(() => {
+		clearAutosave();
+	});
 </script>
 
-<svelte:window on:keydown={handleKeydown} />
+<svelte:window on:keydown={handleKeydown} on:popstate={handlePopState} />
 
 <div class="modal" class:modal-open={open} role="dialog" aria-modal={open}>
 	<div class="scrollbar-hide modal-box max-h-[80dvh] overflow-y-auto">
@@ -102,7 +163,7 @@
 			</div>
 		</div>
 	</div>
-	<button type="button" class="modal-backdrop" aria-label="Modal schließen" on:click={closeModal}
+	<button type="button" class="modal-backdrop" aria-label="Modal schließen" on:click={() => closeModal()}
 		>Close</button
 	>
 </div>

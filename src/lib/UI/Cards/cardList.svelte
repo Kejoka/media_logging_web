@@ -967,7 +967,33 @@
 						stat_title={'Komplettierte Games'}
 						stat_desc={'Anteil der Games, die komplettiert wurden'}
 					></StatCard>
-					<ChartCard chart_type={'genre_pie'} chart_title={'Genre-Verteilung'} {media_data}
+					<ChartCard
+						chart_type={'activity_timeline'}
+						chart_title={'Aktivität über Zeit'}
+						{media_data}
+						{current_year}
+					></ChartCard>
+					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'platform_distribution'}
+						chart_title={'Plattform-Verteilung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'release_decades'}
+						chart_title={'Release-Dekaden'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'genre_rating'}
+						chart_title={'Beste Genres nach Bewertung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'release_age'}
+						chart_title={'Neu vs Klassiker'}
+						{media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'rating_bar_user'}
@@ -977,6 +1003,11 @@
 					<ChartCard
 						chart_type={'rating_bar_web'}
 						chart_title={'Online Bewertungs-Verteilung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'rating_difference'}
+						chart_title={'Größte Rating-Abweichungen'}
 						{media_data}
 					></ChartCard>
 					<StatCard
@@ -1029,7 +1060,28 @@
 						stat_title={'Aktuelle Filme'}
 						stat_desc={'Filme, die im Release-Jahr geschaut wurden'}
 					></StatCard>
-					<ChartCard chart_type={'genre_pie'} chart_title={'Genre-Verteilung'} {media_data}
+					<ChartCard
+						chart_type={'activity_timeline'}
+						chart_title={'Aktivität über Zeit'}
+						{media_data}
+						{current_year}
+					></ChartCard>
+					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'release_decades'}
+						chart_title={'Release-Dekaden'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'genre_rating'}
+						chart_title={'Beste Genres nach Bewertung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'release_age'}
+						chart_title={'Neu vs Klassiker'}
+						{media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'rating_bar_user'}
@@ -1039,6 +1091,11 @@
 					<ChartCard
 						chart_type={'rating_bar_web'}
 						chart_title={'Online Bewertungs-Verteilung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'rating_difference'}
+						chart_title={'Größte Rating-Abweichungen'}
 						{media_data}
 					></ChartCard>
 					<StatCard
@@ -1080,18 +1137,37 @@
 					></StatCard>
 					<StatCard
 						{media_data}
-						stat_type={'replayed_media'}
-						stat_lookup_field={'tmdbid'}
-						stat_title={'Mehrfach geschaut'}
-						stat_desc={'Serien, die mehr als einmal geschaut wurden'}
-					></StatCard>
-					<StatCard
-						{media_data}
 						stat_type={'added_in_release_year'}
 						stat_title={'Aktuelle Serien'}
 						stat_desc={'Serien, die im Release-Jahr geschaut wurden'}
 					></StatCard>
-					<ChartCard chart_type={'genre_pie'} chart_title={'Genre-Verteilung'} {media_data}
+					<ChartCard
+						chart_type={'activity_timeline'}
+						chart_title={'Serien-Aktivität'}
+						{media_data}
+						{current_year}
+					></ChartCard>
+					<ChartCard
+						chart_type={'show_logged_seasons'}
+						chart_title={'Meistgeloggte Serien'}
+						{media_data}
+					></ChartCard>
+					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'release_decades'}
+						chart_title={'Release-Dekaden'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'genre_rating'}
+						chart_title={'Beste Genres nach Bewertung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'release_age'}
+						chart_title={'Aktuelle vs ältere Staffeln'}
+						{media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'rating_bar_user'}
@@ -1101,6 +1177,11 @@
 					<ChartCard
 						chart_type={'rating_bar_web'}
 						chart_title={'Online Bewertungs-Verteilung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'rating_difference'}
+						chart_title={'Größte Rating-Abweichungen'}
 						{media_data}
 					></ChartCard>
 					<StatCard
@@ -1160,8 +1241,57 @@
 						stat_desc={'Anzahl deiner gelesenen Seiten'}
 					></StatCard>
 					<ChartCard
+						chart_type={'activity_timeline'}
+						chart_title={'Aktivität über Zeit'}
+						{media_data}
+						{current_year}
+					></ChartCard>
+					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'top_authors'}
+						chart_title={'Top Autor:innen'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'release_decades'}
+						chart_title={'Release-Dekaden'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'genre_rating'}
+						chart_title={'Beste Genres nach Bewertung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'release_age'}
+						chart_title={'Neu vs Klassiker'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'pages_over_time'}
+						chart_title={'Seiten über Zeit'}
+						{media_data}
+						{current_year}
+					></ChartCard>
+					<ChartCard
+						chart_type={'page_distribution'}
+						chart_title={'Seiten-Verteilung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'genre_pages'}
+						chart_title={'Seitenanteil nach Genre'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
 						chart_type={'rating_bar_user'}
 						chart_title={'Deine Bewertungs-Verteilung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'rating_difference'}
+						chart_title={'Größte Rating-Abweichungen'}
 						{media_data}
 					></ChartCard>
 					<StatCard
@@ -1188,8 +1318,6 @@
 						stat_title={'Autoren'}
 						stat_desc={'Anzahl an verschiedenen Autoren'}
 					></StatCard>
-					<ChartCard chart_type={'genre_pie'} chart_title={'Genre-Verteilung'} {media_data}
-					></ChartCard>
 				{/if}
 			{/if}
 		{/key}

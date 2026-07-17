@@ -39,8 +39,8 @@ const SUPABASE_URL =
 	process.env.EDGE_SUPABASE_URL || process.env.PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
 const SERVICE_ROLE_KEY =
 	process.env.EDGE_SUPABASE_SERVICE_ROLE_KEY ||
-	process.env.PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
-	process.env.PRIVATE_SUPABASE_SERVICE_ROLE_KEY;
+	process.env.PRIVATE_SUPABASE_SERVICE_ROLE_KEY ||
+	process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const OPENLIBRARY_WORK_ID_PATTERN = /^OL\d+W$/;
 const REQUEST_INTERVAL_MS = 350;
@@ -78,7 +78,7 @@ Usage:
 
 Required env:
   PUBLIC_SUPABASE_URL or EDGE_SUPABASE_URL
-  SUPABASE_SERVICE_ROLE_KEY or EDGE_SUPABASE_SERVICE_ROLE_KEY
+  SUPABASE_SERVICE_ROLE_KEY, PRIVATE_SUPABASE_SERVICE_ROLE_KEY, or EDGE_SUPABASE_SERVICE_ROLE_KEY
 
 Optional env:
   PRIVATE_OPENLIBRARY_CONTACT_EMAIL
@@ -505,9 +505,18 @@ async function main() {
 			});
 
 			if (APPLY) {
-				const { error: updateError } = await supabase.from('books').update(update).eq('id', row.id);
+				const { data: updatedRows, error: updateError } = await supabase
+					.from('books')
+					.update(update)
+					.eq('id', row.id)
+					.select('id');
 				if (updateError) {
 					throw updateError;
+				}
+				if (!updatedRows?.length) {
+					throw new Error(
+						`No rows updated for books.id=${row.id}. Check that you are using a service role key and the correct Supabase project.`
+					);
 				}
 				await recalculateBookRewatchState(supabase, row.user_id, update.gbid);
 				report.updated += 1;

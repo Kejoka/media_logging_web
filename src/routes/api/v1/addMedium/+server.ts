@@ -1,3 +1,5 @@
+import { recalculateRewatchForMedium } from '$lib/server/rewatch';
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const medium_data_from_request = (await request.json()) as Record<string, any>;
@@ -34,32 +36,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					})
 					.select()
 					.single();
-				// Calculate rewatch status based on duplicates (exclude backlog)
-				if (error.data && medium.igdbid) {
-					const duplicates = await supabase
-						.from(current_medium)
-						.select('id, added')
-						.eq('user_id', session?.user.id)
-						.eq('igdbid', medium.igdbid)
-						.eq('backlogged', 0)
-						.order('added', { ascending: true });
-
-					if (duplicates.data && duplicates.data.length > 1) {
-						const count = duplicates.data.length;
-						const firstEntryId = duplicates.data[0].id;
-
-						// Update entries
-						await supabase
-							.from(current_medium)
-							.update({ is_rewatch: true, rewatch_count: count })
-							.eq('igdbid', medium.igdbid)
-							.eq('user_id', session?.user.id)
-							.eq('backlogged', 0);
-						await supabase
-							.from(current_medium)
-							.update({ is_rewatch: false, rewatch_count: count })
-							.eq('id', firstEntryId);
-					}
+				if (error.data && session?.user.id) {
+					await recalculateRewatchForMedium(supabase, 'games', session.user.id, error.data);
 				}
 
 				// Log activity for notifications
@@ -98,32 +76,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					.select()
 					.single();
 
-				// Calculate rewatch status based on duplicates (exclude backlog)
-				if (error.data && medium.tmdbid) {
-					const duplicates = await supabase
-						.from(current_medium)
-						.select('id, added')
-						.eq('user_id', session?.user.id)
-						.eq('tmdbid', medium.tmdbid)
-						.eq('backlogged', 0)
-						.order('added', { ascending: true });
-
-					if (duplicates.data && duplicates.data.length > 1) {
-						const count = duplicates.data.length;
-						const firstEntryId = duplicates.data[0].id;
-
-						// Update entries
-						await supabase
-							.from(current_medium)
-							.update({ is_rewatch: true, rewatch_count: count })
-							.eq('tmdbid', medium.tmdbid)
-							.eq('backlogged', 0)
-							.eq('user_id', session?.user.id);
-						await supabase
-							.from(current_medium)
-							.update({ is_rewatch: false, rewatch_count: count })
-							.eq('id', firstEntryId);
-					}
+				if (error.data && session?.user.id) {
+					await recalculateRewatchForMedium(supabase, 'movies', session.user.id, error.data);
 				}
 
 				// Log activity for notifications
@@ -155,6 +109,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						rating: 0,
 						backlogged: medium.backlogged || 0,
 						added: medium.added,
+						seasons: medium.seasons || null,
 						episode: 0,
 						notes: medium.notes || '',
 						is_rewatch: false,
@@ -163,32 +118,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					.select()
 					.single();
 
-				// Calculate rewatch status based on duplicates (exclude backlog)
-				if (error.data && medium.tmdbid) {
-					const duplicates = await supabase
-						.from(current_medium)
-						.select('id, added')
-						.eq('user_id', session?.user.id)
-						.eq('tmdbid', medium.tmdbid)
-						.eq('backlogged', 0)
-						.order('added', { ascending: true });
-
-					if (duplicates.data && duplicates.data.length > 1) {
-						const count = duplicates.data.length;
-						const firstEntryId = duplicates.data[0].id;
-
-						// Update entries
-						await supabase
-							.from(current_medium)
-							.update({ is_rewatch: true, rewatch_count: count })
-							.eq('tmdbid', medium.tmdbid)
-							.eq('backlogged', 0)
-							.eq('user_id', session?.user.id);
-						await supabase
-							.from(current_medium)
-							.update({ is_rewatch: false, rewatch_count: count })
-							.eq('id', firstEntryId);
-					}
+				if (error.data && session?.user.id) {
+					await recalculateRewatchForMedium(supabase, 'shows', session.user.id, error.data);
 				}
 
 				// Log activity for notifications
@@ -230,32 +161,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					.select()
 					.single();
 
-				// Calculate rewatch status based on duplicates (exclude backlog)
-				if (error.data && medium.gbid) {
-					const duplicates = await supabase
-						.from(current_medium)
-						.select('id, added')
-						.eq('user_id', session?.user.id)
-						.eq('gbid', medium.gbid)
-						.eq('backlogged', 0)
-						.order('added', { ascending: true });
-
-					if (duplicates.data && duplicates.data.length > 1) {
-						const count = duplicates.data.length;
-						const firstEntryId = duplicates.data[0].id;
-
-						// Update entries
-						await supabase
-							.from(current_medium)
-							.update({ is_rewatch: true, rewatch_count: count })
-							.eq('gbid', medium.gbid)
-							.eq('backlogged', 0)
-							.eq('user_id', session?.user.id);
-						await supabase
-							.from(current_medium)
-							.update({ is_rewatch: false, rewatch_count: count })
-							.eq('id', firstEntryId);
-					}
+				if (error.data && session?.user.id) {
+					await recalculateRewatchForMedium(supabase, 'books', session.user.id, error.data);
 				}
 
 				// Log activity for notifications

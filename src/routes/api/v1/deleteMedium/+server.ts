@@ -1,3 +1,5 @@
+import { recalculateRewatchForMedium } from '$lib/server/rewatch';
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const req_body = (await request.json()) as {
@@ -23,39 +25,13 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		// Perform the deletion
 		error = await supabase.from(current_medium).delete().eq('id', medium_id);
 
-		// Calculate rewatch status based on duplicates (exclude backlog)
-		const medium_id_mapping = {
-			games: 'igdbid',
-			movies: 'tmdbid',
-			shows: 'tmdbid',
-			books: 'gbid'
-		};
-		const external_id_field = medium_id_mapping[current_medium as keyof typeof medium_id_mapping];
-		if (medium_to_delete.data) {
-			const duplicates = await supabase
-				.from(current_medium)
-				.select('id, added')
-				.eq('user_id', session?.user.id)
-				.eq(external_id_field, medium_to_delete.data[external_id_field])
-				.eq('backlogged', 0)
-				.order('added', { ascending: true });
-
-			if (duplicates.data && duplicates.data.length > 1) {
-				const count = duplicates.data.length;
-				const firstEntryId = duplicates.data[0].id;
-
-				// Update entries
-				await supabase
-					.from(current_medium)
-					.update({ is_rewatch: true, rewatch_count: count })
-					.eq(external_id_field, medium_to_delete.data[external_id_field])
-					.eq('backlogged', 0)
-					.eq('user_id', session?.user.id);
-				await supabase
-					.from(current_medium)
-					.update({ is_rewatch: false, rewatch_count: count })
-					.eq('id', firstEntryId);
-			}
+		if (medium_to_delete.data && session?.user.id) {
+			await recalculateRewatchForMedium(
+				supabase,
+				current_medium as 'games' | 'movies' | 'shows' | 'books',
+				session.user.id,
+				medium_to_delete.data
+			);
 		}
 
 		// Log activity for notifications
