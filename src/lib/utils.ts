@@ -8,6 +8,7 @@ export function delay(ms: number): Promise<void> {
 export const MEDIA_TYPE_ORDER = ['games', 'movies', 'shows', 'books'] as const;
 
 export const PAGE_SIZE = 10 as const;
+export const STATS_PAGE_SIZE = 50 as const;
 
 export type MediaType = (typeof MEDIA_TYPE_ORDER)[number];
 

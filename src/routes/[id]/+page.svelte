@@ -17,8 +17,10 @@
 	import {
 		MEDIA_TYPE_ORDER,
 		type MediaType,
+		delay,
 		getMediaCodeIndex,
 		PAGE_SIZE,
+		STATS_PAGE_SIZE,
 		get_media_type_display_label,
 		get_ui_mode_label_from_code
 	} from '$lib/utils';
@@ -270,6 +272,10 @@
 		return current_mode === 1 ? 'Gesamt' : year;
 	}
 
+	function getActivePageSize() {
+		return current_mode === 2 ? STATS_PAGE_SIZE : PAGE_SIZE;
+	}
+
 	async function fetchMediaPage(
 		medium: MediaType,
 		offset = 0,
@@ -282,7 +288,8 @@
 				user_id,
 				offset,
 				backlogged: current_mode === 1 ? 1 : 0,
-				year
+				year,
+				pageSize: getActivePageSize()
 			}),
 			headers: {
 				'Content-Type': 'application/json'
@@ -304,7 +311,7 @@
 			);
 			total_media_data = pages.map((page) => uniqueMediaById(page.data || []));
 			media_has_more = pages.map(
-				(page) => page.hasMore ?? (page.data?.length || 0) >= PAGE_SIZE
+				(page) => page.hasMore ?? (page.data?.length || 0) >= getActivePageSize()
 			);
 			await refreshCardList(year);
 		} catch (error) {
@@ -319,14 +326,20 @@
 			return;
 		}
 		stats_hydrating = true;
+		const hydration_year = current_year;
 		try {
 			for (const medium of MEDIA_TYPE_ORDER) {
 				const medium_index = getMediaCodeIndex(medium);
-				while (media_has_more[medium_index]) {
+				let medium_changed = false;
+				while (
+					current_mode === 2 &&
+					current_year === hydration_year &&
+					media_has_more[medium_index]
+				) {
 					const page = await fetchMediaPage(
 						medium,
 						total_media_data[medium_index]?.length || 0,
-						current_year
+						hydration_year
 					);
 					const next_rows = page.data || [];
 					if (next_rows.length === 0) {
@@ -337,8 +350,12 @@
 						...total_media_data[medium_index],
 						...next_rows
 					]);
-					media_has_more[medium_index] = page.hasMore ?? next_rows.length >= PAGE_SIZE;
-					await refreshCardList(current_year);
+					media_has_more[medium_index] = page.hasMore ?? next_rows.length >= STATS_PAGE_SIZE;
+					medium_changed = true;
+					await delay(120);
+				}
+				if (medium_changed && current_mode === 2 && current_year === hydration_year) {
+					await refreshCardList(hydration_year);
 				}
 			}
 			media_has_more = [...media_has_more];
@@ -386,7 +403,7 @@
 		];
 		media_data = total_media_data.map((list) => [...list]);
 		media_data_unfiltered = total_media_data.map((list) => [...list]);
-		media_has_more = total_media_data.map((list) => list.length >= PAGE_SIZE);
+		media_has_more = total_media_data.map((list) => list.length >= getActivePageSize());
 
 		await refreshCardList(current_year);
 		applySortingToVisibleData();
@@ -781,7 +798,8 @@
 					user_id,
 					offset,
 					backlogged: current_mode === 1 ? 1 : 0,
-					year: normalizeYearForMode(current_year)
+					year: normalizeYearForMode(current_year),
+					pageSize: getActivePageSize()
 				}),
 				headers: {
 					'Content-Type': 'application/json'
@@ -805,7 +823,7 @@
 				...new_media
 			]);
 			await refreshCardList(current_mode === 1 ? 'Gesamt' : current_year);
-			media_has_more[medium_index] = json.hasMore ?? new_media.length >= PAGE_SIZE;
+			media_has_more[medium_index] = json.hasMore ?? new_media.length >= getActivePageSize();
 			media_has_more = [...media_has_more];
 		} catch (error) {
 			showSupabaseError(error, 'Weitere Medien konnten nicht geladen werden.');
@@ -852,6 +870,8 @@
 						{current_mode}
 						isLoadingMore={media_loading_more[getMediaCodeIndex(media_type)]}
 						isReloading={media_reloading}
+						isStatsHydrating={stats_hydrating}
+						hasMoreStatsData={media_has_more[getMediaCodeIndex(media_type)]}
 						on:delete={deleteMedium}
 						on:refresh={() => refreshCardList(current_year)}
 						on:challenge_updated={handleChallengeUpdated}

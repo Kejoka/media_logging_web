@@ -14,14 +14,17 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		offset: number;
 		backlogged?: number;
 		year?: string;
+		pageSize?: number;
 	};
 
 	const current_medium = req_body.current_medium;
 	const user_id = req_body.user_id;
 	const offset = Number(req_body.offset) || 0;
+	const requestedPageSize = Number(req_body.pageSize) || PAGE_SIZE;
+	const pageSize = Math.min(Math.max(Math.floor(requestedPageSize), 1), 100);
 	const backlogged = req_body.backlogged === 1 ? 1 : 0;
 	const year = req_body.year;
-	const end = offset + PAGE_SIZE - 1;
+	const end = offset + pageSize - 1;
 
 	if (!current_medium || !user_id) {
 		return new Response('Missing pagination parameters', { status: 400 });
@@ -55,7 +58,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 
 		const rows = data || [];
 		const hasMore =
-			typeof count === 'number' ? offset + rows.length < count : rows.length === PAGE_SIZE;
+			typeof count === 'number' ? offset + rows.length < count : rows.length === pageSize;
 
 		return new Response(JSON.stringify({ data: rows, hasMore }));
 	} catch (error) {

@@ -44,6 +44,7 @@
 
 	let canvas: HTMLCanvasElement;
 	let chart: ChartJS | null = null;
+	let renderedChartType: string | null = null;
 	let chartRows: ChartRow[] = [];
 	let chartConfig: ChartConfiguration | null = null;
 
@@ -300,6 +301,7 @@
 				indexAxis: isLine ? 'x' : 'y',
 				responsive: true,
 				maintainAspectRatio: false,
+				animation: false,
 				plugins: {
 					legend: { display: false },
 					tooltip: {
@@ -328,20 +330,42 @@
 		if (chart) {
 			chart.destroy();
 			chart = null;
+			renderedChartType = null;
+		}
+	}
+
+	function renderChart() {
+		if (!canvas || !chartConfig) {
+			destroyChart();
+			return;
+		}
+
+		try {
+			const nextChartType = (chartConfig as ChartConfiguration).type;
+			if (!chart || renderedChartType !== nextChartType) {
+				destroyChart();
+				chart = new ChartJS(canvas, chartConfig);
+				renderedChartType = nextChartType;
+				return;
+			}
+
+			chart.data.labels = chartConfig.data?.labels || [];
+			chart.data.datasets = chartConfig.data?.datasets || [];
+			chart.options = chartConfig.options || {};
+			chart.update('none');
+		} catch (error) {
+			console.error('Failed to render stats chart', error);
+			destroyChart();
 		}
 	}
 
 	$: chartRows = rowsForType().filter((row) => row.value !== 0);
 	$: chartConfig = chartRows.length ? buildConfig(chartRows) : null;
 	$: if (canvas && chartConfig) {
-		void tick().then(() => {
-			destroyChart();
-			try {
-				chart = new ChartJS(canvas, chartConfig!);
-			} catch (error) {
-				console.error('Failed to render stats chart', error);
-			}
-		});
+		void tick().then(renderChart);
+	}
+	$: if (!chartConfig) {
+		destroyChart();
 	}
 
 	onDestroy(destroyChart);

@@ -30,6 +30,8 @@
 	export let challenges: UserChallenge[] = [];
 	export let isLoadingMore = false;
 	export let isReloading = false;
+	export let isStatsHydrating = false;
+	export let hasMoreStatsData = false;
 	let media_scroll_container: HTMLDivElement;
 	let delete_modal: HTMLInputElement;
 	let streaming_modal: HTMLInputElement;
@@ -183,6 +185,7 @@
 
 	// Determine if we're in a year-specific view or "Gesamt" (all years)
 	$: isYearSpecific = current_year !== 'Gesamt' && Number.isFinite(Number(current_year));
+	$: showStatsLoadingIndicator = current_mode === 2 && (isStatsHydrating || hasMoreStatsData);
 
 	// Get separator key and label based on sorting method
 	function getSeparatorKey(medium: mediaObject): string {
@@ -932,6 +935,23 @@
 	{:else}
 		{#key media_data}
 			{#if media_data.length != 0}
+				{#if showStatsLoadingIndicator}
+					<div
+						class="sticky top-2 z-10 mx-2 mb-2 rounded-lg border border-info/30 bg-base-100/95 px-4 py-3 shadow-sm backdrop-blur"
+						aria-live="polite"
+						aria-busy="true"
+					>
+						<div class="flex items-center gap-3">
+							<span class="loading loading-sm loading-spinner text-info"></span>
+							<div class="min-w-0">
+								<p class="text-sm font-semibold">Statistiken werden vervollständigt</p>
+								<p class="text-xs text-base-content/70">
+									Weitere Einträge werden geladen. Die Werte können sich noch aktualisieren.
+								</p>
+							</div>
+						</div>
+					</div>
+				{/if}
 				<ChallengeCard
 					{media_data}
 					{current_medium}
