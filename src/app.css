@@ -61,6 +61,13 @@
 	color: #bde7d7;
 }
 
+/* Leave a reliably tappable strip of backdrop on both sides of mobile overlays. */
+@media (max-width: 639px) {
+	.modal > .modal-box {
+		width: calc(100vw - 3rem);
+	}
+}
+
 .btn.btn-success {
 	background-color: #2f7a60;
 	border-color: #285f4d;

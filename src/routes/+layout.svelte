@@ -283,7 +283,12 @@
 	{#if $toastMessages.length > 0}
 		<div class="fixed top-4 right-4 z-50 flex w-[calc(100vw-2rem)] max-w-md flex-col gap-2">
 			{#each $toastMessages as toast (toast.id)}
-				<div class="pointer-events-auto alert alert-error shadow-lg">
+				<div
+					class="pointer-events-auto alert shadow-lg"
+					class:alert-error={toast.kind === 'error'}
+					class:alert-success={toast.kind === 'success'}
+					class:alert-info={toast.kind === 'info'}
+				>
 					<span>{toast.message}</span>
 					<button type="button" class="btn btn-ghost btn-xs" onclick={() => dismissToast(toast.id)}>
 						Dismiss

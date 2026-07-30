@@ -50,6 +50,13 @@
 	let to_editEpisode = 0;
 	let to_editTrophy = false;
 	let show_advanced_fields = false;
+	let replacementSearchValue = '';
+	let replacementSearchAuthor = '';
+	let replacementSuggestions: mediaObject[] = [];
+	let replacementSearchLoading = false;
+	let replacementSearchError: string | null = null;
+	let replacementSearchTimer: ReturnType<typeof setTimeout> | null = null;
+	let replacementSearchRequestId = 0;
 	let legacyMigrationRunning = false;
 	let migratedLegacyNoteIds: number[] = [];
 	type StreamingProvider = {
@@ -85,6 +92,13 @@
 
 	function showSupabaseError(error: unknown, fallbackMessage: string) {
 		pushToast(error instanceof Error && error.message ? error.message : fallbackMessage, 'error');
+	}
+
+	function usePlaceholderImage(event: Event) {
+		const image = event.currentTarget;
+		if (image instanceof HTMLImageElement && !image.src.endsWith('/placeholder.png')) {
+			image.src = '/placeholder.png';
+		}
 	}
 
 	function handleScroll() {
@@ -442,7 +456,101 @@
 		to_editEpisode = clampNonNegativeInt(to_edit.episode);
 		to_editTrophy = Number(to_edit.trophy || 0) > 0;
 		show_advanced_fields = false;
+		resetReplacementSearch();
 		edit_modal.checked = true;
+	}
+
+	function resetReplacementSearch() {
+		if (replacementSearchTimer) {
+			clearTimeout(replacementSearchTimer);
+			replacementSearchTimer = null;
+		}
+		replacementSearchValue = '';
+		replacementSearchAuthor = '';
+		replacementSuggestions = [];
+		replacementSearchLoading = false;
+		replacementSearchError = null;
+		++replacementSearchRequestId;
+	}
+
+	function scheduleReplacementSearch() {
+		if (replacementSearchTimer) {
+			clearTimeout(replacementSearchTimer);
+		}
+		const query = replacementSearchValue.trim();
+		if (!query) {
+			replacementSuggestions = [];
+			replacementSearchLoading = false;
+			replacementSearchError = null;
+			return;
+		}
+		replacementSearchLoading = true;
+		replacementSearchError = null;
+		replacementSearchTimer = setTimeout(() => void searchReplacement(query), 400);
+	}
+
+	async function searchReplacement(query: string) {
+		const requestId = ++replacementSearchRequestId;
+		try {
+			const res = await fetch('/api/v1/getSearchSuggestions', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					search_val: query,
+					search_author: replacementSearchAuthor,
+					last_search_page: 1,
+					current_medium
+				})
+			});
+			if (!res.ok) throw new Error('Suchvorschläge konnten nicht geladen werden.');
+			if (requestId === replacementSearchRequestId) {
+				replacementSuggestions = (await res.json()) as mediaObject[];
+			}
+		} catch (error) {
+			if (requestId === replacementSearchRequestId) {
+				replacementSuggestions = [];
+				replacementSearchError =
+				error instanceof Error ? error.message : 'Suchvorschläge konnten nicht geladen werden.';
+			}
+		} finally {
+			if (requestId === replacementSearchRequestId) replacementSearchLoading = false;
+		}
+	}
+
+	function replaceMetadata(selection: mediaObject) {
+		// Keep all logging-specific fields on this card; only replace data supplied by the source.
+		const replacementRelease = selection.release || to_edit.release;
+		to_edit = {
+			...to_edit,
+			title: selection.title,
+			image: selection.image,
+			release: replacementRelease,
+			genres: selection.genres,
+			averagerating:
+				current_medium === 'games' && selection.averagerating !== undefined
+					? Number((selection.averagerating / 10).toFixed(1))
+					: selection.averagerating,
+			...(current_medium === 'games'
+				? { igdbid: selection.igdbid, platforms: selection.platforms }
+				: {}),
+			...(current_medium === 'movies' || current_medium === 'shows'
+				? { tmdbid: selection.tmdbid }
+				: {}),
+			...(current_medium === 'books'
+				? {
+						gbid: selection.gbid,
+						subtitle: selection.subtitle,
+						author: selection.author,
+						pagecount: selection.pagecount
+					}
+				: {})
+		};
+		to_editRelease = new Date(replacementRelease || '');
+		original_to_edit_release = replacementRelease || null;
+		to_editGenreTags = splitCommaSeparatedValues(selection.genres);
+		if (current_medium === 'games') to_editPlatformTags = splitCommaSeparatedValues(selection.platforms);
+		resetReplacementSearch();
+		pushToast('Metadaten wurden ersetzt. Speichere die Änderungen, um sie zu übernehmen.', 'success');
 	}
 
 	function getDayKey(dateValue: string | null): string | null {
@@ -1585,6 +1693,60 @@
 			</button>
 			{#if show_advanced_fields}
 				<div class="space-y-3 px-4 pt-1 pb-4">
+					<div class="rounded-xl border border-base-content/10 bg-base-200/50 p-3">
+						<p class="font-medium">Eintrag durch Suchergebnis ersetzen</p>
+						<p class="mt-1 text-xs opacity-70">
+							Übernimmt Titel, Cover und weitere Metadaten. Deine Bewertung, Notizen,
+							Fortschritt und das Hinzufügedatum bleiben erhalten.
+						</p>
+						<div class="mt-3 space-y-2">
+							<input
+								type="search"
+								class="ml-input"
+								placeholder="Neuen Titel suchen"
+								bind:value={replacementSearchValue}
+								on:input={scheduleReplacementSearch}
+							/>
+							{#if current_medium === 'books'}
+								<input
+									type="search"
+									class="ml-input"
+									placeholder="Autor eingrenzen (optional)"
+									bind:value={replacementSearchAuthor}
+									on:input={scheduleReplacementSearch}
+								/>
+							{/if}
+						</div>
+						{#if replacementSearchLoading}
+							<div class="mt-3 flex justify-center"><span class="loading loading-sm loading-dots"></span></div>
+						{:else if replacementSearchError}
+							<p class="mt-2 text-xs text-error">{replacementSearchError}</p>
+						{:else if replacementSuggestions.length > 0}
+							<div class="mt-3 max-h-56 space-y-2 overflow-y-auto">
+								{#each replacementSuggestions as suggestion (suggestion.igdbid || suggestion.tmdbid || suggestion.gbid || suggestion.title)}
+									<button
+										type="button"
+										class="btn h-auto min-h-0 w-full justify-start whitespace-normal py-2 text-left"
+										on:click={() => replaceMetadata(suggestion)}
+									>
+										<img
+											src={suggestion.image || '/placeholder.png'}
+											alt=""
+											class="h-12 w-8 shrink-0 rounded object-cover bg-base-200"
+											on:error={usePlaceholderImage}
+										/>
+										<span class="min-w-0">
+											<span class="block line-clamp-1 font-semibold">{suggestion.title}</span>
+											<span class="block line-clamp-1 text-xs font-normal opacity-70">
+												{new Date(suggestion.release || '').getFullYear() || 'Unbekannt'}
+												{suggestion.author ? ` · ${suggestion.author}` : ''}
+											</span>
+										</span>
+									</button>
+								{/each}
+							</div>
+						{/if}
+					</div>
 					<!-- Titel -->
 					<label class="w-full sm:col-span-2">
 						<div class="label pb-1">

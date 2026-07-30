@@ -140,6 +140,24 @@
 		if (!url) return null;
 		return url.replace(/^http:\/\//, 'https://');
 	}
+
+	function formatPublicationDate(release?: string) {
+		if (!release) return null;
+		const storedDate = release.slice(0, 10);
+		// PostgreSQL's `timestamp` value is returned without a timezone. Read the
+		// calendar portion directly so a generated Jan 1 value cannot become Dec 31
+		// when JavaScript converts it between local time and UTC.
+		if (/^\d{4}-01-01$/.test(storedDate)) {
+			return storedDate.slice(0, 4);
+		}
+
+		const date = new Date(release);
+		if (Number.isNaN(date.getTime())) return null;
+
+		// OpenLibrary usually provides only a work's first publication year. The data layer
+		// stores that as January 1 for sorting and statistics, but it is not a real day.
+		return date.toLocaleDateString('de-DE');
+	}
 </script>
 
 {#key unique}
@@ -222,9 +240,9 @@
 						{#if medium.genres}
 							<p class="line-clamp-1 text-sm font-light">{medium.genres}</p>
 						{/if}
-						{#if medium.release}
+						{#if formatPublicationDate(medium.release)}
 							<p class="line-clamp-1 text-sm font-light">
-								Erschienen: {new Date(medium.release || 404).toLocaleDateString('de-DE')}
+								Erstveröffentlicht: {formatPublicationDate(medium.release)}
 							</p>
 						{/if}
 						{#if medium.pagecount != undefined && medium.pagecount > 0}

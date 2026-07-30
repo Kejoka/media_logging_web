@@ -13,7 +13,6 @@
 		is_profile_transition_loading,
 		sorting_method as sorting_method_store
 	} from '../../stores/uiState';
-	import Fuse, { type IFuseOptions } from 'fuse.js';
 	import {
 		MEDIA_TYPE_ORDER,
 		type MediaType,
@@ -102,6 +101,8 @@
 	let media_reloading = false;
 	let stats_hydrating = false;
 	let backlog_matches: mediaObject[] = [];
+	let active_filter = '';
+	let media_request_id = 0;
 	// Misc variables
 	let header_text = get_ui_mode_label_from_code(current_mode);
 	let input_timeout = setTimeout(function () {}, 0);
@@ -121,18 +122,19 @@
 	$: current_medium_store.set(current_medium);
 	$: current_year_store.set(current_year);
 	$: sorting_method_store.set(sorting_method);
-	const fuse_options: IFuseOptions<mediaObject> = {
-		keys: ['title'],
-		isCaseSensitive: false,
-		minMatchCharLength: 3
-	};
-
 	function getDateTimestamp(dateValue?: string): number {
 		if (!dateValue) {
 			return Number.NEGATIVE_INFINITY;
 		}
 		const timestamp = new Date(dateValue).getTime();
 		return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
+	}
+
+	function usePlaceholderImage(event: Event) {
+		const image = event.currentTarget;
+		if (image instanceof HTMLImageElement && !image.src.endsWith('/placeholder.png')) {
+			image.src = '/placeholder.png';
+		}
 	}
 
 	// Helper to get tab index from media type
@@ -279,7 +281,8 @@
 	async function fetchMediaPage(
 		medium: MediaType,
 		offset = 0,
-		year = normalizeYearForMode(current_year)
+		year = normalizeYearForMode(current_year),
+		search = active_filter
 	) {
 		const res = await fetch('/api/v1/getMediaPage', {
 			method: 'POST',
@@ -289,6 +292,7 @@
 				offset,
 				backlogged: current_mode === 1 ? 1 : 0,
 				year,
+				search,
 				pageSize: getActivePageSize()
 			}),
 			headers: {
@@ -304,11 +308,14 @@
 	}
 
 	async function reloadVisibleMedia(year = normalizeYearForMode(current_year)) {
+		const requestId = ++media_request_id;
+		const filterForRequest = active_filter;
 		media_reloading = true;
 		try {
 			const pages = await Promise.all(
-				MEDIA_TYPE_ORDER.map((medium) => fetchMediaPage(medium, 0, year))
+				MEDIA_TYPE_ORDER.map((medium) => fetchMediaPage(medium, 0, year, filterForRequest))
 			);
+			if (requestId !== media_request_id) return;
 			total_media_data = pages.map((page) => uniqueMediaById(page.data || []));
 			media_has_more = pages.map(
 				(page) => page.hasMore ?? (page.data?.length || 0) >= getActivePageSize()
@@ -317,7 +324,7 @@
 		} catch (error) {
 			showSupabaseError(error, 'Medien konnten nicht geladen werden.');
 		} finally {
-			media_reloading = false;
+			if (requestId === media_request_id) media_reloading = false;
 		}
 	}
 
@@ -500,6 +507,11 @@
 	// Handle the switch between the modes Media-Log, Backlog and Stats
 	async function handleModeSwitch(event: any) {
 		current_mode = event.mode;
+		// Search is not available in Stats mode. Clear it there so returning to a
+		// list view cannot apply a query that is no longer shown in the input.
+		if (current_mode === 2) {
+			active_filter = '';
+		}
 		header_text = get_ui_mode_label_from_code(current_mode);
 		if (current_mode != 1) {
 			current_year = new Date().getFullYear().toString();
@@ -565,24 +577,13 @@
 			}
 		}, 1000);
 	}
-	// Handles input changes in the search bar filter
+	// The filter is applied on the server before pagination, so it also finds entries
+	// that are not part of the currently loaded page.
 	async function handleFilter(detail: { value: string }) {
-		if (detail.value.trim().length == 0) {
-			media_data = media_data_unfiltered.map((list) => [...list]);
-		} else {
-			let fuses: Fuse<mediaObject>[] = [];
-			for (let media of media_data_unfiltered) {
-				fuses.push(new Fuse(media, fuse_options));
-			}
-			for (let [index, _] of media_data.entries()) {
-				media_data[index] = fuses[index]
-					.search(detail.value.trim())
-					.map((res) => res.item) as mediaObject[];
-			}
-		}
-		for (let index = 0; index < media_data.length; index += 1) {
-			media_data[index] = sortMediaList(media_data[index]);
-		}
+		const nextFilter = detail.value.trim();
+		if (nextFilter === active_filter) return;
+		active_filter = nextFilter;
+		await reloadVisibleMedia(normalizeYearForMode(current_year));
 	}
 
 	function handleChallengeUpdated(event: CustomEvent) {
@@ -789,6 +790,9 @@
 
 		media_loading_more[medium_index] = true;
 		media_loading_more = [...media_loading_more];
+		const requestId = media_request_id;
+		const filterForRequest = active_filter;
+		const yearForRequest = normalizeYearForMode(current_year);
 		try {
 			const offset = total_media_data[medium_index]?.length || 0;
 			const res = await fetch('/api/v1/getMediaPage', {
@@ -798,7 +802,8 @@
 					user_id,
 					offset,
 					backlogged: current_mode === 1 ? 1 : 0,
-					year: normalizeYearForMode(current_year),
+					year: yearForRequest,
+					search: filterForRequest,
 					pageSize: getActivePageSize()
 				}),
 				headers: {
@@ -811,6 +816,7 @@
 			}
 
 			const json = (await res.json()) as { data?: mediaObject[]; hasMore?: boolean };
+			if (requestId !== media_request_id || filterForRequest !== active_filter) return;
 			const new_media = json.data || [];
 			if (new_media.length === 0) {
 				media_has_more[medium_index] = false;
@@ -873,7 +879,8 @@
 						isStatsHydrating={stats_hydrating}
 						hasMoreStatsData={media_has_more[getMediaCodeIndex(media_type)]}
 						on:delete={deleteMedium}
-						on:refresh={() => refreshCardList(current_year)}
+						on:refresh={() =>
+							reloadVisibleMedia(current_mode === 1 ? 'Gesamt' : current_year)}
 						on:challenge_updated={handleChallengeUpdated}
 						on:challenge_deleted={handleChallengeDeleted}
 						on:swipe={handleMediaSwitch}
@@ -948,14 +955,22 @@
 								}
 							}}
 						>
-							<div class="flex flex-col">
-								<p class="text-base font-bold">
-									{`${suggestion.title} (${new Date(suggestion.release || 404).getFullYear()})`}
-								</p>
-								{#if suggestion.author != undefined}
-									<p class="text-sm">Von: {suggestion.author || ''}</p>
-								{/if}
-								<p class="text-sm">{suggestion.genres || ''}</p>
+							<div class="flex w-full items-center gap-3 text-left">
+								<img
+									src={suggestion.image || '/placeholder.png'}
+									alt=""
+									class="h-16 w-11 shrink-0 rounded object-cover bg-base-200"
+									onerror={usePlaceholderImage}
+								/>
+								<div class="min-w-0 flex-1">
+									<p class="line-clamp-2 text-base font-bold">
+										{`${suggestion.title} (${new Date(suggestion.release || 404).getFullYear()})`}
+									</p>
+									{#if suggestion.author != undefined}
+										<p class="line-clamp-1 text-sm">Von: {suggestion.author || ''}</p>
+									{/if}
+									<p class="line-clamp-1 text-sm">{suggestion.genres || ''}</p>
+								</div>
 							</div>
 						</button>
 					{/each}

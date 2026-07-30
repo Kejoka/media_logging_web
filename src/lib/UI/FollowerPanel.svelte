@@ -174,7 +174,7 @@
 {/if}
 
 <div
-	class="fixed top-14 right-4 z-50 w-96 max-w-[calc(100vw-2rem)] transition-all duration-300 {isOpen
+	class="fixed top-14 right-6 z-50 w-96 max-w-[calc(100vw-3rem)] transition-all duration-300 sm:right-4 sm:max-w-[calc(100vw-2rem)] {isOpen
 		? 'translate-x-0 opacity-100'
 		: 'pointer-events-none translate-x-full opacity-0'}"
 >

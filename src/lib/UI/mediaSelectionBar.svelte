@@ -28,7 +28,6 @@
 	const RATING_SORTS: SortingMethod[] = ['review_score_desc', 'review_score_asc'];
 
 	function mediaSwitch(medium: MediaType) {
-		search_filter = '';
 		onSwitchMedium?.({ medium });
 	}
 

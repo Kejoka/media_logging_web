@@ -24,17 +24,45 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 			updated_at: sync_timestamp
 		});
 
+		// A replacement can move an entry from one title's rewatch group into another.
+		// Keep the former group as well as the new group in sync.
+		let previousMedium: any = null;
+		if (['games', 'movies', 'shows', 'books'].includes(current_medium)) {
+			const { data } = await supabase
+				.from(current_medium)
+				.select('*')
+				.eq('id', medium_fields_to_update.id)
+				.single();
+			previousMedium = data;
+		}
+		const recalculateAffectedRewatchGroups = async (
+			medium: 'games' | 'movies' | 'shows' | 'books'
+		) => {
+			if (!session?.user.id) return;
+			if (previousMedium) {
+				await recalculateRewatchForMedium(supabase, medium, session.user.id, previousMedium);
+			}
+			await recalculateRewatchForMedium(
+				supabase,
+				medium,
+				session.user.id,
+				medium_fields_to_update
+			);
+		};
+
 		// Normalize all optional text fields before persisting to keep server-side data consistent.
 		switch (current_medium) {
 			case 'games':
 				error = await supabase
 					.from(current_medium)
 					.update({
+						igdbid: medium_fields_to_update.igdbid ?? null,
 						title: validate_and_trim_field(medium_fields_to_update.title, 'Kein Titel angegeben'),
 						image: validate_and_trim_field(medium_fields_to_update.image, null),
 						release: validate_and_trim_field(medium_fields_to_update.release, null),
 						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
 						platforms: validate_and_trim_field(medium_fields_to_update.platforms, null),
+						averagerating: medium_fields_to_update.averagerating ?? null,
 						...(medium_fields_to_update.trophy !== undefined
 							? { trophy: medium_fields_to_update.trophy }
 							: {}),
@@ -42,44 +70,34 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
 					})
 					.eq('id', medium_fields_to_update.id);
-				if (session?.user.id) {
-					await recalculateRewatchForMedium(
-						supabase,
-						'games',
-						session.user.id,
-						medium_fields_to_update
-					);
-				}
+				await recalculateAffectedRewatchGroups('games');
 				return new Response(JSON.stringify(error));
 			case 'movies':
 				error = await supabase
 					.from(current_medium)
 					.update({
+						tmdbid: medium_fields_to_update.tmdbid ?? null,
 						title: validate_and_trim_field(medium_fields_to_update.title, 'Kein Titel angegeben'),
 						image: validate_and_trim_field(medium_fields_to_update.image, null),
 						release: validate_and_trim_field(medium_fields_to_update.release, null),
 						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
+						averagerating: medium_fields_to_update.averagerating ?? null,
 						added: validate_and_trim_field(medium_fields_to_update.added, new Date().toISOString()),
 						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
 					})
 					.eq('id', medium_fields_to_update.id);
-				if (session?.user.id) {
-					await recalculateRewatchForMedium(
-						supabase,
-						'movies',
-						session.user.id,
-						medium_fields_to_update
-					);
-				}
+				await recalculateAffectedRewatchGroups('movies');
 				return new Response(JSON.stringify(error));
 			case 'shows':
 				error = await supabase
 					.from(current_medium)
 					.update({
+						tmdbid: medium_fields_to_update.tmdbid ?? null,
 						title: validate_and_trim_field(medium_fields_to_update.title, 'Kein Titel angegeben'),
 						image: validate_and_trim_field(medium_fields_to_update.image, null),
 						release: validate_and_trim_field(medium_fields_to_update.release, null),
 						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
+						averagerating: medium_fields_to_update.averagerating ?? null,
 						added: validate_and_trim_field(medium_fields_to_update.added, new Date().toISOString()),
 						notes: validate_and_trim_field(medium_fields_to_update.notes, null),
 						seasons: validate_and_trim_field(medium_fields_to_update.seasons, null),
@@ -90,24 +108,20 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 								: 0
 					})
 					.eq('id', medium_fields_to_update.id);
-				if (session?.user.id) {
-					await recalculateRewatchForMedium(
-						supabase,
-						'shows',
-						session.user.id,
-						medium_fields_to_update
-					);
-				}
+				await recalculateAffectedRewatchGroups('shows');
 				return new Response(JSON.stringify(error));
 			case 'books':
 				error = await supabase
 					.from(current_medium)
 					.update({
+						gbid: validate_and_trim_field(medium_fields_to_update.gbid, null),
 						title: validate_and_trim_field(medium_fields_to_update.title, 'Kein Titel angegeben'),
+						subtitle: validate_and_trim_field(medium_fields_to_update.subtitle, null),
 						author: validate_and_trim_field(medium_fields_to_update.author, null),
 						image: validate_and_trim_field(medium_fields_to_update.image, null),
 						release: validate_and_trim_field(medium_fields_to_update.release, null),
 						genres: validate_and_trim_field(medium_fields_to_update.genres, null),
+						averagerating: medium_fields_to_update.averagerating ?? null,
 						pagecount:
 							medium_fields_to_update.pagecount &&
 							medium_fields_to_update.pagecount.toString().trim().length > 0
@@ -117,14 +131,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
 					})
 					.eq('id', medium_fields_to_update.id);
-				if (session?.user.id) {
-					await recalculateRewatchForMedium(
-						supabase,
-						'books',
-						session.user.id,
-						medium_fields_to_update
-					);
-				}
+				await recalculateAffectedRewatchGroups('books');
 				return new Response(JSON.stringify(error));
 			default:
 				throw 'Switch Statement failed';
