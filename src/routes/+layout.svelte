@@ -200,9 +200,9 @@
 <div class="flex h-screen flex-col">
 	{#if !$is_auth_page && session}
 		<nav class="sticky top-0 right-0 left-0 z-10 bg-base-300 shadow-lg shadow-black/30">
-			<div class="relative flex min-h-12 w-full flex-row items-center px-4 py-2">
+			<div class="relative flex min-h-12 w-full items-center px-4 py-2">
 				<!-- Left icons -->
-				<div class="flex items-center">
+				<div class="z-10 flex min-w-0 items-center justify-start">
 					{#if $is_own_profile && !$is_account_page}
 						<Icon />
 					{:else if !$is_own_profile && !$is_account_page}
@@ -229,20 +229,21 @@
 				<!-- Centered title -->
 				{#if $is_own_profile && !$is_account_page}
 					<p
-						class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-bold whitespace-nowrap text-neutral-300 transition hover:text-neutral-400"
+						class="absolute top-1/2 left-1/2 w-[calc(100%-12rem)] -translate-x-1/2 -translate-y-1/2 truncate text-center text-lg font-bold whitespace-nowrap text-neutral-300 transition hover:text-neutral-400"
 					>
 						Deine Medien
 					</p>
 				{:else if !$is_own_profile && !$is_account_page && $is_profile_root_page}
 					<p
-						class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-lg font-bold whitespace-nowrap text-neutral-300 transition hover:text-neutral-400"
+						title={$route_profile_username + "'s Medien"}
+						class="absolute top-1/2 left-1/2 w-[calc(100%-12rem)] -translate-x-1/2 -translate-y-1/2 truncate text-center text-lg font-bold whitespace-nowrap text-neutral-300 transition hover:text-neutral-400"
 					>
 						{$route_profile_username + "'s"} Medien
 					</p>
 				{/if}
 
 				<!-- Right icons -->
-				<div class="ml-auto flex items-center gap-2">
+				<div class="z-10 ml-auto flex min-w-0 items-center justify-end gap-1.5">
 					{#if !$is_own_profile && !followingUser && $is_profile_root_page}
 						<button onclick={toggleFollow}>
 							<UserFollow />

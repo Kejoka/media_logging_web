@@ -657,9 +657,37 @@
 
 	// Checks if an item that is about to be added already exists in the backlog
 	async function checkBacklog() {
-		backlog_matches = getMediaArrayForType(current_medium).filter(
-			(medium) => medium.title === last_selection.title && medium.backlogged == 1
-		);
+		const title = last_selection.title?.trim();
+		if (!title) {
+			await addMedium(2);
+			return;
+		}
+
+		try {
+			// Backlog entries are loaded independently from the active log view, so this
+			// also works when pagination has not yet reached the matching entry.
+			const response = await fetch('/api/v1/getMediaPage', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					current_medium,
+					user_id,
+					offset: 0,
+					backlogged: 1,
+					year: 'Gesamt',
+					exactTitle: title,
+					pageSize: 100
+				})
+			});
+			if (!response.ok) throw new Error('Backlog konnte nicht geprüft werden.');
+			const payload = (await response.json()) as { data?: mediaObject[] };
+			backlog_matches = payload.data || [];
+		} catch (error) {
+			showSupabaseError(error, 'Backlog konnte nicht geprüft werden.');
+			add_button.disabled = false;
+			return;
+		}
+
 		if (backlog_matches.length != 0) {
 			backlog_modal.checked = true;
 		} else {

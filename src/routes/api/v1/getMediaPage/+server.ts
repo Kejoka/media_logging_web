@@ -16,6 +16,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		year?: string;
 		pageSize?: number;
 		search?: string;
+		exactTitle?: string;
 	};
 
 	const current_medium = req_body.current_medium;
@@ -26,6 +27,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const backlogged = req_body.backlogged === 1 ? 1 : 0;
 	const year = req_body.year;
 	const search = typeof req_body.search === 'string' ? req_body.search.trim().slice(0, 120) : '';
+	const exactTitle =
+		typeof req_body.exactTitle === 'string' ? req_body.exactTitle.trim().slice(0, 500) : '';
 	const end = offset + pageSize - 1;
 
 	if (!current_medium || !user_id) {
@@ -52,7 +55,9 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 				.lt('added', new Date(Date.UTC(yearNumber + 1, 0, 1)).toISOString());
 		}
 
-		if (search) {
+		if (exactTitle) {
+			query = query.eq('title', exactTitle);
+		} else if (search) {
 			// Escape PostgreSQL ILIKE wildcards so a user's search stays literal.
 			const escapedSearch = search.replace(/[\\%_]/g, '\\$&');
 			query = query.ilike('title', `%${escapedSearch}%`);

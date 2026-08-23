@@ -1491,7 +1491,7 @@
 									class="btn w-full justify-between btn-ghost"
 									on:click={() => navigateToUserEntry(user)}
 								>
-									<span>@{user.username}</span>
+									<span class="min-w-0 flex-1 truncate" title={`@${user.username}`}>@{user.username}</span>
 									<span class="text-xs opacity-70">Eintrag anzeigen</span>
 								</button>
 							{/each}
@@ -1511,7 +1511,7 @@
 									class="btn w-full justify-between btn-ghost"
 									on:click={() => navigateToUserEntry(user)}
 								>
-									<span>@{user.username}</span>
+									<span class="min-w-0 flex-1 truncate" title={`@${user.username}`}>@{user.username}</span>
 									<span class="text-xs opacity-70">Eintrag anzeigen</span>
 								</button>
 							{/each}
@@ -1535,7 +1535,7 @@
 					<div class="space-y-2">
 						{#each social_eligible as user (user.user_id)}
 							<div class="flex items-center justify-between rounded bg-base-200 px-3 py-2">
-								<span>@{user.username}</span>
+								<span class="min-w-0 flex-1 truncate" title={`@${user.username}`}>@{user.username}</span>
 								<button
 									type="button"
 									class="btn btn-sm btn-primary"

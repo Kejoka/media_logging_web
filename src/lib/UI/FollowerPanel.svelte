@@ -246,7 +246,7 @@
 										class="min-w-0 flex-1 text-left text-sm text-neutral-100 transition hover:text-white"
 										onclick={() => openProfile(user.username)}
 									>
-										<span class="truncate">{user.username}</span>
+										<span class="block truncate" title={user.username}>{user.username}</span>
 									</button>
 									<button
 										type="button"
@@ -291,7 +291,7 @@
 										class="min-w-0 flex-1 text-left text-sm text-neutral-100 transition hover:text-white"
 										onclick={() => openProfile(user.username)}
 									>
-										<span class="truncate">{user.username}</span>
+										<span class="block truncate" title={user.username}>{user.username}</span>
 									</button>
 									<button
 										type="button"
@@ -332,7 +332,7 @@
 										class="min-w-0 flex-1 text-left text-sm text-neutral-100 transition hover:text-white"
 										onclick={() => openProfile(user.username)}
 									>
-										<span class="truncate">{user.username}</span>
+										<span class="block truncate" title={user.username}>{user.username}</span>
 									</button>
 									<button
 										type="button"

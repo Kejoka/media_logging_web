@@ -197,7 +197,9 @@
 
 	<div class="min-w-0 flex-1">
 		<p class="text-sm">
-			<span class="font-semibold">{notification.username}</span>
+			<span class="inline-block max-w-[50%] truncate align-bottom font-semibold" title={notification.username}
+				>{notification.username}</span
+			>
 			<span class="text-neutral-400"> {getActivityText(notification)}</span>
 		</p>
 		{#if notification.media_title}

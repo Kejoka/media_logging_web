@@ -369,7 +369,9 @@
 		<div
 			class="scrollbar-hide modal-box flex max-h-[85dvh] w-[94vw] max-w-lg flex-col gap-3 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-300 p-4 shadow-2xl"
 		>
-			<p class="text-lg font-bold">Empfehlung von @{selectedRecommendation.username}</p>
+			<p class="truncate text-lg font-bold" title={`Empfehlung von @${selectedRecommendation.username}`}>
+				Empfehlung von @{selectedRecommendation.username}
+			</p>
 			{#if selectedRecommendation.media_title}
 				<p class="mt-1 text-lg opacity-80">{selectedRecommendation.media_title}</p>
 			{/if}
@@ -428,7 +430,9 @@
 			<div class="flex items-start justify-between gap-3">
 				<div>
 					<p class="text-lg font-bold">Antwort auf deine Empfehlung</p>
-					<p class="text-sm opacity-80">Von @{selectedResponseNotification.username}</p>
+					<p class="truncate text-sm opacity-80" title={`Von @${selectedResponseNotification.username}`}>
+						Von @{selectedResponseNotification.username}
+					</p>
 				</div>
 			</div>
 			{#if selectedResponseNotification.media_title}
