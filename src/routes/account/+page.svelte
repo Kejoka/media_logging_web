@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { MEDIA_TYPE_ORDER, normalize_enabled_media_types } from '$lib/utils';
+	import ChangelogHistory from '$lib/UI/ChangelogHistory.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 
 	let { data, form } = $props();
@@ -105,7 +106,7 @@
 					<p class="mb-1 text-sm font-medium text-neutral-300">Sichtbare Medientypen</p>
 					<p class="mb-3 text-xs text-neutral-500">Mindestens ein Typ muss aktiv sein</p>
 					<div class="grid grid-cols-2 gap-2">
-						{#each MEDIA_TYPE_ORDER as mediaType}
+						{#each MEDIA_TYPE_ORDER as mediaType (mediaType)}
 							<label
 								class="ml-focus flex cursor-pointer items-center justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2 text-sm text-neutral-200 transition hover:bg-white/10"
 							>
@@ -142,6 +143,10 @@
 					Abmelden
 				</button>
 			</form>
+
+			<div class="mt-3">
+				<ChangelogHistory />
+			</div>
 		</div>
 	</div>
 </div>

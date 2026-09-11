@@ -198,3 +198,54 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Keep login metadata private instead of storing it on public profiles.
+-- Supabase Auth also maintains auth.users.last_sign_in_at, but that schema is
+-- not exposed to the client through the normal publishable-key API.
+create table if not exists user_login_metadata (
+  user_id uuid not null references auth.users on delete cascade primary key,
+  last_login_at timestamp with time zone not null default now()
+);
+
+alter table user_login_metadata enable row level security;
+
+drop policy if exists "Users can view their own login metadata." on user_login_metadata;
+create policy "Users can view their own login metadata."
+  on user_login_metadata
+  for select using ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can insert their own login metadata." on user_login_metadata;
+create policy "Users can insert their own login metadata."
+  on user_login_metadata
+  for insert with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can update their own login metadata." on user_login_metadata;
+create policy "Users can update their own login metadata."
+  on user_login_metadata
+  for update using ((select auth.uid()) = user_id);
+
+-- Track which release changelog each user has acknowledged.
+-- The release version is part of the primary key so a new release can be shown
+-- once to every user without showing older releases again.
+create table if not exists user_release_acknowledgements (
+  user_id uuid not null references auth.users on delete cascade,
+  release_version text not null,
+  acknowledged_at timestamp with time zone not null default now(),
+  primary key (user_id, release_version)
+);
+
+alter table user_release_acknowledgements enable row level security;
+
+drop policy if exists "Users can view their own release acknowledgements." on user_release_acknowledgements;
+create policy "Users can view their own release acknowledgements."
+  on user_release_acknowledgements
+  for select using ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can acknowledge releases for themselves." on user_release_acknowledgements;
+create policy "Users can acknowledge releases for themselves."
+  on user_release_acknowledgements
+  for insert with check ((select auth.uid()) = user_id);
+
+drop policy if exists "Users can update their own release acknowledgements." on user_release_acknowledgements;
+create policy "Users can update their own release acknowledgements."
+  on user_release_acknowledgements
+  for update using ((select auth.uid()) = user_id);

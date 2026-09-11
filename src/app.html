@@ -12,6 +12,20 @@
 		<meta name="mobile-web-app-capable" content="yes" />
 		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 		%sveltekit.head%
+		<script>
+			// A worker from an earlier production build can prevent the dev app from
+			// loading its JavaScript modules. Remove it before hydration starts.
+			if (
+				(location.hostname === 'localhost' || location.hostname === '127.0.0.1') &&
+				'serviceWorker' in navigator
+			) {
+				navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+					if (registrations.length === 0) return;
+					await Promise.all(registrations.map((registration) => registration.unregister()));
+					location.reload();
+				});
+			}
+		</script>
 	</head>
 
 	<body class="bg-base-300" data-sveltekit-preload-data="hover">

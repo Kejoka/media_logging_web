@@ -8,6 +8,19 @@ export const GET: RequestHandler = async ({ url, locals: { supabase } }) => {
 	if (code) {
 		const { error, data } = await supabase.auth.exchangeCodeForSession(code);
 		if (!error) {
+			if (data.user) {
+				const { error: loginTrackingError } = await supabase
+					.from('user_login_metadata')
+					.upsert(
+						{ user_id: data.user.id, last_login_at: new Date().toISOString() },
+						{ onConflict: 'user_id' }
+					);
+
+				if (loginTrackingError) {
+					console.error('Could not track last login:', loginTrackingError);
+				}
+			}
+
 			if (next) {
 				redirect(303, next);
 			}

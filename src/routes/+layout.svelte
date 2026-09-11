@@ -2,7 +2,7 @@
 	import '../app.css';
 	import { afterNavigate, beforeNavigate, goto, invalidate } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { browser } from '$app/environment';
+	import { browser, dev } from '$app/environment';
 	import { page } from '$app/state';
 	import Account from '$lib/Icons/account.svelte';
 	import Back from '$lib/Icons/back.svelte';
@@ -14,6 +14,7 @@
 	import NotificationsUnread from '$lib/Icons/notifications_unread.svelte';
 	import NotificationPanel from '$lib/UI/NotificationPanel.svelte';
 	import FollowerPanel from '$lib/UI/FollowerPanel.svelte';
+	import ReleaseNotice from '$lib/UI/ReleaseNotice.svelte';
 	import { dismissToast, pushToast, toastMessages } from '$lib/stores/toast';
 	import {
 		enabled_media_types,
@@ -89,7 +90,16 @@
 
 	onMount(() => {
 		if (browser && 'serviceWorker' in navigator) {
-			navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+			if (dev) {
+				// Never let the production PWA worker intercept Vite/HMR requests.
+				navigator.serviceWorker.getRegistrations().then(async (registrations) => {
+					for (const registration of registrations) {
+						await registration.unregister();
+					}
+				});
+			} else {
+				navigator.serviceWorker.register('/service-worker.js').catch(() => {});
+			}
 		}
 
 		const { data } = supabase.auth.onAuthStateChange((event, _session) => {
@@ -316,5 +326,9 @@
 			onUnreadCountChange={(count) => (unreadCount = count)}
 		/>
 		<FollowerPanel bind:isOpen={followerPanelOpen} />
+	{/if}
+
+	{#if !$is_auth_page && session}
+		<ReleaseNotice />
 	{/if}
 </div>

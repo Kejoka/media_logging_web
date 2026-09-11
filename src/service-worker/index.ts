@@ -36,8 +36,15 @@ self.addEventListener('fetch', (event) => {
 	// ignore POST requests etc
 	if (event.request.method !== 'GET') return;
 
+	// The worker must never handle local development traffic. Vite modules,
+	// HMR updates, and SvelteKit data responses are not cacheable app assets.
+	const requestUrl = new URL(event.request.url);
+	if (requestUrl.hostname === 'localhost' || requestUrl.hostname === '127.0.0.1') {
+		return;
+	}
+
 	// ✅ Safari fix: skip manifest.json
-	if (new URL(event.request.url).pathname === '/manifest.json') return;
+	if (requestUrl.pathname === '/manifest.json') return;
 
 	async function respond() {
 		const url = new URL(event.request.url);
