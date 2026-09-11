@@ -15,10 +15,13 @@ type MediumPayload = {
 	igdbid?: number;
 	tmdbid?: number;
 	gbid?: string;
+	mbid?: string;
+	artist?: string;
+	music_type?: string;
 	averagerating?: number;
 };
 
-function getLookupField(mediaType: MediaType): 'igdbid' | 'tmdbid' | 'gbid' {
+function getLookupField(mediaType: MediaType): 'igdbid' | 'tmdbid' | 'gbid' | 'mbid' {
 	switch (mediaType) {
 		case 'games':
 			return 'igdbid';
@@ -27,6 +30,8 @@ function getLookupField(mediaType: MediaType): 'igdbid' | 'tmdbid' | 'gbid' {
 			return 'tmdbid';
 		case 'books':
 			return 'gbid';
+		case 'music':
+			return 'mbid';
 	}
 }
 
@@ -88,6 +93,15 @@ function buildBacklogInsert(mediaType: MediaType, medium: MediumPayload, userId:
 				subtitle: medium.subtitle || null,
 				author: medium.author || null,
 				pagecount: medium.pagecount || null
+			};
+		case 'music':
+			return {
+				...common,
+				mbid: medium.mbid || null,
+				artist: medium.artist || null,
+				music_type: ['album', 'ep', 'single'].includes(medium.music_type || '')
+					? medium.music_type
+					: 'album'
 			};
 	}
 }

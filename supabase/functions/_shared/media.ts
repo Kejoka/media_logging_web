@@ -8,6 +8,8 @@ type MediaUpdate = {
 	genres?: string | null;
 	title?: string | null;
 	author?: string | null;
+	artist?: string | null;
+	music_type?: string | null;
 };
 
 // Helper to limit concurrent async operations
@@ -93,6 +95,32 @@ type BookRow = {
 	author?: string | null;
 };
 
+type MusicRow = {
+	id?: number | null;
+	mbid?: string | null;
+};
+
+type MusicReleaseGroup = {
+	title?: string;
+	'first-release-date'?: string;
+	'primary-type'?: string;
+	'artist-credit'?: Array<{ name?: string }>;
+	genres?: Array<{ name?: string }>;
+	tags?: Array<{ name?: string }>;
+	rating?: { value?: number | null };
+};
+
+type CoverArtArchiveInfo = {
+	images?: Array<{
+		front?: boolean;
+		image?: string;
+		thumbnails?: {
+			'250'?: string;
+			small?: string;
+		};
+	}>;
+};
+
 type OpenLibraryDoc = {
 	key?: string;
 	title?: string;
@@ -157,6 +185,57 @@ function toGameRelease(value: number | null | undefined) {
 
 	const date = new Date(value * 1000);
 	return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function toMusicReleaseDate(value: string | null | undefined) {
+	if (!value) return null;
+	const match = value.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?/);
+	if (!match) return null;
+	const date = new Date(
+		Date.UTC(Number(match[1]), Number(match[2] || 1) - 1, Number(match[3] || 1))
+	);
+	return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+let lastMusicBrainzRequestAt = 0;
+
+async function fetchMusicBrainzReleaseGroup(mbid: string) {
+	const elapsed = Date.now() - lastMusicBrainzRequestAt;
+	const waitMs = Math.max(0, 1100 - elapsed);
+	if (waitMs > 0) {
+		await new Promise((resolve) => setTimeout(resolve, waitMs));
+	}
+	lastMusicBrainzRequestAt = Date.now();
+	const contact =
+		Deno.env.get('PRIVATE_MUSICBRAINZ_CONTACT') ||
+		Deno.env.get('PRIVATE_OPENLIBRARY_CONTACT_EMAIL') ||
+		'media-logging-web';
+	const response = await fetch(
+		`https://musicbrainz.org/ws/2/release-group/${encodeURIComponent(mbid)}?fmt=json&inc=artist-credits+genres+ratings`,
+		{
+			headers: {
+				Accept: 'application/json',
+				'User-Agent': `media-logging-web/1.0 (${contact})`
+			}
+		}
+	);
+	if (response.status === 404) return null;
+	if (!response.ok) {
+		throw new Error(`MusicBrainz request failed with status ${response.status}`);
+	}
+	return (await response.json()) as MusicReleaseGroup;
+}
+
+async function fetchMusicBrainzCoverArt(mbid: string) {
+	const response = await fetch(`https://coverartarchive.org/release-group/${encodeURIComponent(mbid)}`);
+	if (response.status === 404) return null;
+	if (!response.ok) {
+		throw new Error(`Cover Art Archive request failed with status ${response.status}`);
+	}
+
+	const payload = (await response.json()) as CoverArtArchiveInfo;
+	const image = payload.images?.find((entry) => entry.front) ?? payload.images?.[0];
+	return image?.thumbnails?.['250'] || image?.thumbnails?.small || image?.image || null;
 }
 
 function getOpenLibraryHeaders() {
@@ -276,7 +355,9 @@ async function fetchOpenLibraryWorkMetadata(workId: string) {
 
 	const payload = (await response.json()) as OpenLibrarySearchResponse;
 	const normalizedWorkId = normalizeOpenLibraryWorkId(workId);
-	return payload.docs?.find((doc) => normalizeOpenLibraryWorkId(doc.key) === normalizedWorkId) ?? null;
+	return (
+		payload.docs?.find((doc) => normalizeOpenLibraryWorkId(doc.key) === normalizedWorkId) ?? null
+	);
 }
 
 function parseSingleSeasonNumber(rawSeasons: string | null | undefined): number | null {
@@ -394,7 +475,10 @@ async function resolveIgdbToken(supabase: SupabaseClient) {
 	};
 
 	if (igdbStore) {
-		const { error: updateError } = await supabase.from('igdb_store').update(tokenRecord).eq('id', igdbStore.id);
+		const { error: updateError } = await supabase
+			.from('igdb_store')
+			.update(tokenRecord)
+			.eq('id', igdbStore.id);
 		if (updateError) {
 			throw updateError;
 		}
@@ -415,7 +499,9 @@ async function refreshAllRows(
 	mediaIds: Array<number | null | undefined>,
 	loadUpdate: (externalId: number) => Promise<MediaUpdate | null>
 ) {
-	const uniqueIds = [...new Set(mediaIds.filter((id): id is number => typeof id === 'number' && !Number.isNaN(id)))];
+	const uniqueIds = [
+		...new Set(mediaIds.filter((id): id is number => typeof id === 'number' && !Number.isNaN(id)))
+	];
 	const summary = {
 		table,
 		uniqueIds: uniqueIds.length,
@@ -564,12 +650,12 @@ export async function refreshMovieMetadata(supabase: SupabaseClient) {
 			);
 
 			return {
-				image: details.poster_path ? `https://image.tmdb.org/t/p/w154/${details.poster_path}` : null,
+				image: details.poster_path
+					? `https://image.tmdb.org/t/p/w154/${details.poster_path}`
+					: null,
 				release: toIsoDate(details.release_date),
 				averagerating:
-					typeof details.vote_average === 'number'
-						? Number(details.vote_average.toFixed(1))
-						: null
+					typeof details.vote_average === 'number' ? Number(details.vote_average.toFixed(1)) : null
 			};
 		}
 	);
@@ -861,6 +947,132 @@ export async function refreshBookMetadata(supabase: SupabaseClient) {
 	return summary;
 }
 
+export async function refreshMusicMetadata(supabase: SupabaseClient) {
+	let data;
+	let error;
+	try {
+		({ data, error } = await supabase.from('music').select('id, mbid'));
+	} catch (queryError) {
+		throw new Error(
+			`refreshMusicMetadata select failed: ${queryError instanceof Error ? queryError.message : String(queryError)}`
+		);
+	}
+	if (error) {
+		throw new Error(`refreshMusicMetadata select error: ${error.message || String(error)}`);
+	}
+
+	const rows = (data ?? []) as MusicRow[];
+	const rowsByMbid = new Map<string, MusicRow[]>();
+	for (const row of rows) {
+		if (!row.mbid) continue;
+		const groupedRows = rowsByMbid.get(row.mbid) ?? [];
+		groupedRows.push(row);
+		rowsByMbid.set(row.mbid, groupedRows);
+	}
+
+	const mbids = [...rowsByMbid.keys()];
+	const summary = {
+		table: 'music',
+		uniqueIds: mbids.length,
+		updatedGroups: 0,
+		updatedRows: 0,
+		skippedGroups: 0,
+		failedGroups: 0,
+		failedIds: [] as string[]
+	};
+
+	// MusicBrainz asks clients to stay within its rate limit. Process these
+	// lookups serially; the client-side search route has its own throttling too.
+	const metadataResults = await runWithConcencyLimit(mbids, 1, async (mbid) => {
+		try {
+			const group = await fetchMusicBrainzReleaseGroup(mbid);
+			return { mbid, group, error: null };
+		} catch (fetchError) {
+			console.error(`Failed to load music metadata for ${mbid}`, fetchError);
+			return { mbid, group: null, error: fetchError };
+		}
+	});
+
+	const updateResults = await runWithConcencyLimit(
+		metadataResults.filter((result) => result.group !== null && result.error === null),
+		3,
+		async (result) => {
+			const group = result.group!;
+			const musicType = group['primary-type']?.toLowerCase();
+			if (!group.title || !['album', 'ep', 'single'].includes(musicType || '')) {
+				return { mbid: result.mbid, updatedRows: 0, failedRows: 0 };
+			}
+
+			const genres = (group.genres || group.tags || [])
+				.map((entry) => entry.name?.trim())
+				.filter((entry): entry is string => Boolean(entry))
+				.slice(0, 5)
+				.join(', ');
+			let image: string | null = null;
+			try {
+				image = await fetchMusicBrainzCoverArt(result.mbid);
+			} catch (coverError) {
+				console.error(`Failed to load music cover art for ${result.mbid}`, coverError);
+			}
+			const update = {
+				title: group.title,
+				artist:
+					group['artist-credit']
+						?.map((credit) => credit.name?.trim())
+						.filter(Boolean)
+						.join(', ') || null,
+				music_type: musicType,
+				image,
+				release: toMusicReleaseDate(group['first-release-date']),
+				genres: genres || null,
+				averagerating:
+					typeof group.rating?.value === 'number'
+						? Number((group.rating.value * 2).toFixed(1))
+						: null
+			};
+			const groupedRows = rowsByMbid.get(result.mbid) ?? [];
+			let updatedRows = 0;
+			let failedRows = 0;
+			for (const row of groupedRows) {
+				if (typeof row.id !== 'number') continue;
+				const { data: updated, error: updateError } = await supabase
+					.from('music')
+					.update(update)
+					.eq('id', row.id)
+					.select('id');
+				if (updateError) {
+					failedRows += 1;
+					console.error(`Failed to update music row ${row.id}`, updateError);
+				} else {
+					updatedRows += updated?.length ?? 0;
+				}
+			}
+			return { mbid: result.mbid, updatedRows, failedRows };
+		}
+	);
+
+	for (const result of metadataResults) {
+		if (result.error) {
+			summary.failedGroups += 1;
+			summary.failedIds.push(result.mbid);
+		} else if (!result.group) {
+			summary.skippedGroups += 1;
+		}
+	}
+	for (const result of updateResults) {
+		if (result.failedRows > 0) {
+			summary.failedGroups += 1;
+			summary.failedIds.push(result.mbid);
+		}
+		if (result.updatedRows > 0) {
+			summary.updatedGroups += 1;
+			summary.updatedRows += result.updatedRows;
+		}
+	}
+
+	return summary;
+}
+
 export async function refreshGameMetadata(supabase: SupabaseClient) {
 	let data;
 	let error;
@@ -877,25 +1089,29 @@ export async function refreshGameMetadata(supabase: SupabaseClient) {
 	const rows = (data ?? []) as GameRow[];
 
 	const token = await resolveIgdbToken(supabase);
-	return refreshAllRows(supabase, 'games', 'igdbid', rows.map((row) => row.igdbid), async (igdbId) => {
-		const details = await fetchIgdbJson(
-			token,
-			`fields cover.image_id, first_release_date, total_rating; where id = ${igdbId}; limit 1;`
-		);
-		const game = details[0];
-		if (!game) {
-			return null;
-		}
+	return refreshAllRows(
+		supabase,
+		'games',
+		'igdbid',
+		rows.map((row) => row.igdbid),
+		async (igdbId) => {
+			const details = await fetchIgdbJson(
+				token,
+				`fields cover.image_id, first_release_date, total_rating; where id = ${igdbId}; limit 1;`
+			);
+			const game = details[0];
+			if (!game) {
+				return null;
+			}
 
-		return {
-			image: game.cover?.image_id
-				? `https://images.igdb.com/igdb/image/upload/t_cover_big/${game.cover.image_id}.jpg`
-				: null,
-			release: toGameRelease(game.first_release_date),
-			averagerating:
-				typeof game.total_rating === 'number'
-					? Number((game.total_rating / 10).toFixed(1))
-					: null
-		};
-	});
+			return {
+				image: game.cover?.image_id
+					? `https://images.igdb.com/igdb/image/upload/t_cover_big/${game.cover.image_id}.jpg`
+					: null,
+				release: toGameRelease(game.first_release_date),
+				averagerating:
+					typeof game.total_rating === 'number' ? Number((game.total_rating / 10).toFixed(1)) : null
+			};
+		}
+	);
 }

@@ -3,9 +3,24 @@ import type { Actions, PageServerLoad } from './$types';
 import {
 	MEDIA_TYPE_ORDER,
 	isMediaType,
+	normalize_notification_preferences,
 	serialize_enabled_media_types,
-	type MediaType
+	type MediaType,
+	type NotificationPreferences
 } from '$lib/utils';
+
+function getNotificationPreferencesFromForm(formData: FormData): NotificationPreferences {
+	const preferences = normalize_notification_preferences(null);
+
+	for (const mediaType of MEDIA_TYPE_ORDER) {
+		preferences[mediaType] = {
+			backlog_adds: formData.has(`notification_${mediaType}_backlog_adds`),
+			regular_adds: formData.has(`notification_${mediaType}_regular_adds`)
+		};
+	}
+
+	return preferences;
+}
 
 export const load: PageServerLoad = async ({ locals: { supabase, safeGetSession } }) => {
 	const { session } = await safeGetSession();
@@ -19,12 +34,25 @@ export const load: PageServerLoad = async ({ locals: { supabase, safeGetSession 
 		.select(`username, enabled_media_types`)
 		.eq('id', session.user.id)
 		.single();
-	return { session, profile };
+
+	const { data: notificationSettings } = await supabase
+		.from('notification_preferences')
+		.select('notifications_enabled, preferences')
+		.eq('user_id', session.user.id)
+		.maybeSingle();
+
+	return { session, profile, notificationSettings };
 };
 
 export const actions: Actions = {
 	update: async ({ request, locals: { supabase, safeGetSession } }) => {
 		const formData = await request.formData();
+		const { session } = await safeGetSession();
+
+		if (!session) {
+			redirect(303, '/');
+		}
+
 		const fullName = formData.get('fullName') as string;
 		let username = (formData.get('username') as string) ?? '';
 		username = username.trim();
@@ -36,15 +64,32 @@ export const actions: Actions = {
 		const enabled_media_types = MEDIA_TYPE_ORDER.filter((type) =>
 			enabled_media_types_values.some((value) => isMediaType(value) && value === type)
 		) as MediaType[];
+		let notifications_enabled: boolean;
+		let notification_preferences: NotificationPreferences;
 
-		const { session } = await safeGetSession();
-
-		if (!session) {
-			redirect(303, '/');
+		if (formData.has('notification_settings_submitted')) {
+			notifications_enabled = formData.has('notifications_enabled');
+			notification_preferences = getNotificationPreferencesFromForm(formData);
+		} else {
+			const { data: currentNotificationSettings } = await supabase
+				.from('notification_preferences')
+				.select('notifications_enabled, preferences')
+				.eq('user_id', session.user.id)
+				.maybeSingle();
+			notifications_enabled = currentNotificationSettings?.notifications_enabled !== false;
+			notification_preferences = normalize_notification_preferences(
+				currentNotificationSettings?.preferences
+			);
 		}
+
+		const notificationFormState = {
+			notifications_enabled,
+			notification_preferences
+		};
 
 		if (enabled_media_types.length === 0) {
 			return fail(400, {
+				...notificationFormState,
 				fullName,
 				username,
 				website,
@@ -58,6 +103,7 @@ export const actions: Actions = {
 		if (username) {
 			if (username.length < 3) {
 				return fail(400, {
+					...notificationFormState,
 					fullName,
 					username,
 					website,
@@ -69,6 +115,7 @@ export const actions: Actions = {
 
 			if (!/^[A-Za-z0-9_]+$/.test(username)) {
 				return fail(400, {
+					...notificationFormState,
 					fullName,
 					username,
 					website,
@@ -86,6 +133,7 @@ export const actions: Actions = {
 
 			if (existingUserError) {
 				return fail(500, {
+					...notificationFormState,
 					fullName,
 					username,
 					website,
@@ -97,6 +145,7 @@ export const actions: Actions = {
 
 			if (existingUser?.id) {
 				return fail(400, {
+					...notificationFormState,
 					fullName,
 					username,
 					website,
@@ -107,7 +156,7 @@ export const actions: Actions = {
 			}
 		}
 
-		const updates: Record<string, any> = {
+		const updates: Record<string, unknown> = {
 			id: session.user.id,
 			updated_at: new Date()
 		};
@@ -118,14 +167,11 @@ export const actions: Actions = {
 		if (avatarUrl != null && avatarUrl !== '') updates.avatar_url = avatarUrl;
 		updates.enabled_media_types = serialize_enabled_media_types(enabled_media_types);
 
-		const { data: updatedProfile, error } = await supabase
-			.from('profiles')
-			.upsert(updates)
-			.select()
-			.maybeSingle();
+		const { error } = await supabase.from('profiles').upsert(updates);
 
 		if (error) {
 			return fail(500, {
+				...notificationFormState,
 				fullName,
 				username,
 				website,
@@ -135,7 +181,29 @@ export const actions: Actions = {
 			});
 		}
 
+		const { error: notificationSettingsError } = await supabase
+			.from('notification_preferences')
+			.upsert({
+				user_id: session.user.id,
+				notifications_enabled,
+				preferences: notification_preferences,
+				updated_at: new Date().toISOString()
+			});
+
+		if (notificationSettingsError) {
+			return fail(500, {
+				...notificationFormState,
+				fullName,
+				username,
+				website,
+				avatarUrl,
+				enabled_media_types,
+				error: notificationSettingsError.message
+			});
+		}
+
 		return {
+			...notificationFormState,
 			fullName,
 			username,
 			website,

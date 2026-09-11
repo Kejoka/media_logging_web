@@ -36,6 +36,7 @@
 		movies,
 		shows,
 		books,
+		music,
 		challenges = [],
 		mediaId,
 		mediaType,
@@ -55,6 +56,7 @@
 		movies,
 		shows,
 		books,
+		music,
 		challenges = [],
 		mediaId,
 		mediaType,
@@ -94,10 +96,10 @@
 	// Media data variables
 	let total_media_data: mediaObject[][] = [];
 	let years_in_db: { year: string; active: boolean }[] = [];
-	let media_data: mediaObject[][] = [[], [], [], []];
+	let media_data: mediaObject[][] = [[], [], [], [], []];
 	let media_data_unfiltered: mediaObject[][] = [];
-	let media_loading_more: boolean[] = [false, false, false, false];
-	let media_has_more: boolean[] = [true, true, true, true];
+	let media_loading_more: boolean[] = [false, false, false, false, false];
+	let media_has_more: boolean[] = [true, true, true, true, true];
 	let media_reloading = false;
 	let stats_hydrating = false;
 	let backlog_matches: mediaObject[] = [];
@@ -184,7 +186,8 @@
 			games: '_g',
 			movies: '_m',
 			shows: '_s',
-			books: '_b'
+			books: '_b',
+			music: '_u'
 		};
 		const suffix = suffixMap[mediaType || 'movies'] || '_m';
 
@@ -293,6 +296,7 @@
 				backlogged: current_mode === 1 ? 1 : 0,
 				year,
 				search,
+				sorting_method,
 				pageSize: getActivePageSize()
 			}),
 			headers: {
@@ -406,13 +410,18 @@
 			uniqueMediaById(games.data || []),
 			uniqueMediaById(movies.data || []),
 			uniqueMediaById(shows.data || []),
-			uniqueMediaById(books.data || [])
+			uniqueMediaById(books.data || []),
+			uniqueMediaById(music.data || [])
 		];
 		media_data = total_media_data.map((list) => [...list]);
 		media_data_unfiltered = total_media_data.map((list) => [...list]);
 		media_has_more = total_media_data.map((list) => list.length >= getActivePageSize());
 
-		await refreshCardList(current_year);
+		if (sorting_method !== 'date_added_desc') {
+			await reloadVisibleMedia(normalizeYearForMode(current_year));
+		} else {
+			await refreshCardList(current_year);
+		}
 		applySortingToVisibleData();
 		challenge_data = challenges;
 		years_in_db = getYearsForCurrentMedium(current_year);
@@ -617,9 +626,16 @@
 		}
 	}
 
-	function handleSortingMethodChange(detail: { method: SortingMethod }) {
+	async function handleSortingMethodChange(detail: { method: SortingMethod }) {
+		if (sorting_method === detail.method) {
+			return;
+		}
 		sorting_method = detail.method;
-		applySortingToVisibleData();
+		if (is_initializing) {
+			applySortingToVisibleData();
+			return;
+		}
+		await reloadVisibleMedia(normalizeYearForMode(current_year));
 	}
 	// Handles reaching the end of the current suggestions and lazy loads more suggestions
 	async function handleSuggestionScroll(e: Event) {
@@ -752,12 +768,14 @@
 				}
 			});
 			if (!res.ok) {
-				throw new Error('Titel konnte nicht hinzugefügt werden.');
+				const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+				throw new Error(payload?.error || 'Titel konnte nicht hinzugefügt werden.');
 			}
 			const json = (await res.json()) as { data?: { id?: number } };
 			last_selection.id = json.data?.id;
 		} catch (error) {
 			showSupabaseError(error, 'Titel konnte nicht hinzugefügt werden.');
+			add_button.disabled = false;
 			return;
 		}
 
@@ -832,6 +850,7 @@
 					backlogged: current_mode === 1 ? 1 : 0,
 					year: yearForRequest,
 					search: filterForRequest,
+					sorting_method,
 					pageSize: getActivePageSize()
 				}),
 				headers: {
@@ -907,8 +926,7 @@
 						isStatsHydrating={stats_hydrating}
 						hasMoreStatsData={media_has_more[getMediaCodeIndex(media_type)]}
 						on:delete={deleteMedium}
-						on:refresh={() =>
-							reloadVisibleMedia(current_mode === 1 ? 'Gesamt' : current_year)}
+						on:refresh={() => reloadVisibleMedia(current_mode === 1 ? 'Gesamt' : current_year)}
 						on:challenge_updated={handleChallengeUpdated}
 						on:challenge_deleted={handleChallengeDeleted}
 						on:swipe={handleMediaSwitch}
@@ -932,7 +950,7 @@
 					<input
 						type="text"
 						class="ml-input"
-						placeholder="Suche"
+						placeholder={current_medium === 'music' ? 'Titel oder Künstler suchen' : 'Suche'}
 						bind:value={search_val}
 						oninput={handleInput}
 					/>
@@ -987,7 +1005,7 @@
 								<img
 									src={suggestion.image || '/placeholder.png'}
 									alt=""
-									class="h-16 w-11 shrink-0 rounded object-cover bg-base-200"
+									class="h-16 w-11 shrink-0 rounded bg-base-200 object-cover"
 									onerror={usePlaceholderImage}
 								/>
 								<div class="min-w-0 flex-1">
@@ -996,6 +1014,16 @@
 									</p>
 									{#if suggestion.author != undefined}
 										<p class="line-clamp-1 text-sm">Von: {suggestion.author || ''}</p>
+									{/if}
+									{#if current_medium === 'music'}
+										<p class="line-clamp-1 text-sm">
+											{suggestion.artist || 'Unbekannter Künstler'} · {suggestion.music_type ===
+											'ep'
+												? 'EP'
+												: suggestion.music_type === 'single'
+													? 'Single'
+													: 'Album'}
+										</p>
 									{/if}
 									<p class="line-clamp-1 text-sm">{suggestion.genres || ''}</p>
 								</div>
@@ -1045,7 +1073,9 @@
 						? 'Gespielt am'
 						: current_medium === 'books'
 							? 'Gelesen am'
-							: 'Geschaut am'}
+							: current_medium === 'music'
+								? 'Gehört am'
+								: 'Geschaut am'}
 					className="w-full"
 				/>
 				<button

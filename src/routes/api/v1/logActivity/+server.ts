@@ -2,7 +2,7 @@
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const req_body = (await request.json()) as {
 		activity_type: 'add' | 'update' | 'delete' | 'recommendation' | 'recommendation_response';
-		media_type: 'games' | 'movies' | 'shows' | 'books';
+		media_type: 'games' | 'movies' | 'shows' | 'books' | 'music';
 		media_title?: string;
 		details?: any;
 	};

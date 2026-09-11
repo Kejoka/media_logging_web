@@ -28,7 +28,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		if (medium_to_delete.data && session?.user.id) {
 			await recalculateRewatchForMedium(
 				supabase,
-				current_medium as 'games' | 'movies' | 'shows' | 'books',
+				current_medium as 'games' | 'movies' | 'shows' | 'books' | 'music',
 				session.user.id,
 				medium_to_delete.data
 			);

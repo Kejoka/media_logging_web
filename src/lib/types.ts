@@ -30,7 +30,7 @@ export type UserChallenge = {
  * Predefined challenge templates
  */
 export type ChallengeTemplate = {
-	medium: 'games' | 'movies' | 'shows' | 'books';
+	medium: 'games' | 'movies' | 'shows' | 'books' | 'music';
 	id: string;
 	label: string;
 	type: 'count' | 'pages' | 'completion';
@@ -93,5 +93,14 @@ export const CHALLENGE_TEMPLATES: ChallengeTemplate[] = [
 		type: 'pages',
 		defaultTarget: 5000,
 		description: 'Wie viele Seiten möchtest du dieses Jahr lesen?'
+	},
+	// Music
+	{
+		medium: 'music',
+		id: 'music_logged_per_year',
+		label: 'Veröffentlicht pro Jahr',
+		type: 'count',
+		defaultTarget: 20,
+		description: 'Wie viele Alben, EPs oder Singles möchtest du dieses Jahr hören?'
 	}
 ];

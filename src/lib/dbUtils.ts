@@ -31,7 +31,7 @@ export function getYears(
  * Maps carousel tab indices to the corresponding media table key.
  */
 export function get_media_type_from_index(index: number) {
-	return ['games', 'movies', 'shows', 'books'][index] || 'error';
+	return ['games', 'movies', 'shows', 'books', 'music'][index] || 'error';
 }
 
 export type mediaObject = {
@@ -40,10 +40,13 @@ export type mediaObject = {
 	igdbid?: number;
 	tmdbid?: number;
 	gbid?: string;
+	mbid?: string;
+	music_type?: 'album' | 'ep' | 'single' | string;
 	title?: string;
 	subtitle?: string;
 	pagecount?: number;
 	author?: string;
+	artist?: string;
 	seasons?: string;
 	episode?: number;
 	image?: string;

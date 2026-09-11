@@ -7,6 +7,7 @@
 	import GameCard from './gameCard.svelte';
 	import MovieCard from './movieCard.svelte';
 	import BookCard from './bookCard.svelte';
+	import MusicCard from './musicCard.svelte';
 	import WheelDatePicker from '$lib/UI/WheelDatePicker.svelte';
 	import StatCard from './statCard.svelte';
 	import ChartCard from './chartCard.svelte';
@@ -189,6 +190,8 @@
 				return gameGenres.genres.map((entry) => entry.name);
 			case 'books':
 				return bookGenres.genres.map((entry) => entry.name);
+			case 'music':
+				return [];
 			default:
 				return [];
 		}
@@ -510,7 +513,7 @@
 			if (requestId === replacementSearchRequestId) {
 				replacementSuggestions = [];
 				replacementSearchError =
-				error instanceof Error ? error.message : 'Suchvorschläge konnten nicht geladen werden.';
+					error instanceof Error ? error.message : 'Suchvorschläge konnten nicht geladen werden.';
 			}
 		} finally {
 			if (requestId === replacementSearchRequestId) replacementSearchLoading = false;
@@ -543,14 +546,24 @@
 						author: selection.author,
 						pagecount: selection.pagecount
 					}
-				: {})
+				: current_medium === 'music'
+					? {
+							mbid: selection.mbid,
+							artist: selection.artist,
+							music_type: selection.music_type
+						}
+					: {})
 		};
 		to_editRelease = new Date(replacementRelease || '');
 		original_to_edit_release = replacementRelease || null;
 		to_editGenreTags = splitCommaSeparatedValues(selection.genres);
-		if (current_medium === 'games') to_editPlatformTags = splitCommaSeparatedValues(selection.platforms);
+		if (current_medium === 'games')
+			to_editPlatformTags = splitCommaSeparatedValues(selection.platforms);
 		resetReplacementSearch();
-		pushToast('Metadaten wurden ersetzt. Speichere die Änderungen, um sie zu übernehmen.', 'success');
+		pushToast(
+			'Metadaten wurden ersetzt. Speichere die Änderungen, um sie zu übernehmen.',
+			'success'
+		);
 	}
 
 	function getDayKey(dateValue: string | null): string | null {
@@ -897,20 +910,20 @@
 			{#each skeletonRows as _, index}
 				{#if index === 0 || index === 4}
 					<div class="mx-3 mt-4 mb-2 flex items-center gap-3">
-						<div class="skeleton h-4 w-24 rounded"></div>
+						<div class="h-4 w-24 skeleton rounded"></div>
 						<div class="h-px flex-1 bg-base-content/10"></div>
 					</div>
 				{/if}
 				<div class="mb-2 flex h-[15vh] min-h-[15vh] overflow-hidden rounded-lg bg-base-100">
-					<div class="skeleton h-full w-[11.25vh] shrink-0 rounded-none"></div>
+					<div class="h-full w-[11.25vh] shrink-0 skeleton rounded-none"></div>
 					<div class="flex min-w-0 flex-1 flex-col justify-center gap-2 px-3">
-						<div class="skeleton h-5 w-2/3 rounded"></div>
-						<div class="skeleton h-4 w-1/2 rounded"></div>
-						<div class="skeleton h-4 w-1/3 rounded"></div>
+						<div class="h-5 w-2/3 skeleton rounded"></div>
+						<div class="h-4 w-1/2 skeleton rounded"></div>
+						<div class="h-4 w-1/3 skeleton rounded"></div>
 					</div>
 					<div class="flex w-10 shrink-0 flex-col justify-center gap-1 pr-2">
 						{#each Array(5) as _}
-							<div class="skeleton h-4 w-4 rounded-full"></div>
+							<div class="h-4 w-4 skeleton rounded-full"></div>
 						{/each}
 					</div>
 				</div>
@@ -1012,6 +1025,18 @@
 					{config}
 					{current_mode}
 				></BookCard>
+			{:else if current_medium === 'music'}
+				<MusicCard
+					on:delete={askDelete}
+					on:edit={showEditForm}
+					on:social={openSocialModal}
+					on:update_score={updateScore}
+					on:update_notes={updateNotes}
+					{own_profile}
+					{medium}
+					{config}
+					{current_mode}
+				></MusicCard>
 			{/if}
 		{/each}
 		{#if isLoadingMore}
@@ -1023,20 +1048,20 @@
 	{:else if isReloading}
 		<div class="space-y-2 px-2 pt-3" aria-busy="true" aria-label="Statistiken werden geladen">
 			<div class="rounded-lg bg-base-100 p-4">
-				<div class="skeleton mb-4 h-5 w-40 rounded"></div>
+				<div class="mb-4 h-5 w-40 skeleton rounded"></div>
 				<div class="space-y-3">
-					<div class="skeleton h-16 w-full rounded"></div>
-					<div class="skeleton h-16 w-full rounded"></div>
+					<div class="h-16 w-full skeleton rounded"></div>
+					<div class="h-16 w-full skeleton rounded"></div>
 				</div>
 			</div>
 			{#each skeletonStatCards as _}
 				<div class="rounded-lg bg-base-100 p-6">
 					<div class="mb-4 flex items-center justify-between">
-						<div class="skeleton h-4 w-36 rounded"></div>
-						<div class="skeleton h-8 w-8 rounded"></div>
+						<div class="h-4 w-36 skeleton rounded"></div>
+						<div class="h-8 w-8 skeleton rounded"></div>
 					</div>
-					<div class="skeleton mb-4 h-10 w-20 rounded"></div>
-					<div class="skeleton h-4 w-2/3 rounded"></div>
+					<div class="mb-4 h-10 w-20 skeleton rounded"></div>
+					<div class="h-4 w-2/3 skeleton rounded"></div>
 				</div>
 			{/each}
 		</div>
@@ -1101,27 +1126,20 @@
 						{media_data}
 						{current_year}
 					></ChartCard>
-					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}
-					></ChartCard>
+					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}></ChartCard>
 					<ChartCard
 						chart_type={'platform_distribution'}
 						chart_title={'Plattform-Verteilung'}
 						{media_data}
 					></ChartCard>
-					<ChartCard
-						chart_type={'release_decades'}
-						chart_title={'Release-Dekaden'}
-						{media_data}
+					<ChartCard chart_type={'release_decades'} chart_title={'Release-Dekaden'} {media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'genre_rating'}
 						chart_title={'Beste Genres nach Bewertung'}
 						{media_data}
 					></ChartCard>
-					<ChartCard
-						chart_type={'release_age'}
-						chart_title={'Neu vs Klassiker'}
-						{media_data}
+					<ChartCard chart_type={'release_age'} chart_title={'Neu vs Klassiker'} {media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'rating_bar_user'}
@@ -1194,22 +1212,15 @@
 						{media_data}
 						{current_year}
 					></ChartCard>
-					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}
-					></ChartCard>
-					<ChartCard
-						chart_type={'release_decades'}
-						chart_title={'Release-Dekaden'}
-						{media_data}
+					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}></ChartCard>
+					<ChartCard chart_type={'release_decades'} chart_title={'Release-Dekaden'} {media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'genre_rating'}
 						chart_title={'Beste Genres nach Bewertung'}
 						{media_data}
 					></ChartCard>
-					<ChartCard
-						chart_type={'release_age'}
-						chart_title={'Neu vs Klassiker'}
-						{media_data}
+					<ChartCard chart_type={'release_age'} chart_title={'Neu vs Klassiker'} {media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'rating_bar_user'}
@@ -1280,12 +1291,8 @@
 						chart_title={'Meistgeloggte Serien'}
 						{media_data}
 					></ChartCard>
-					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}
-					></ChartCard>
-					<ChartCard
-						chart_type={'release_decades'}
-						chart_title={'Release-Dekaden'}
-						{media_data}
+					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}></ChartCard>
+					<ChartCard chart_type={'release_decades'} chart_title={'Release-Dekaden'} {media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'genre_rating'}
@@ -1374,27 +1381,17 @@
 						{media_data}
 						{current_year}
 					></ChartCard>
-					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}
+					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}></ChartCard>
+					<ChartCard chart_type={'top_authors'} chart_title={'Top Autor:innen'} {media_data}
 					></ChartCard>
-					<ChartCard
-						chart_type={'top_authors'}
-						chart_title={'Top Autor:innen'}
-						{media_data}
-					></ChartCard>
-					<ChartCard
-						chart_type={'release_decades'}
-						chart_title={'Release-Dekaden'}
-						{media_data}
+					<ChartCard chart_type={'release_decades'} chart_title={'Release-Dekaden'} {media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'genre_rating'}
 						chart_title={'Beste Genres nach Bewertung'}
 						{media_data}
 					></ChartCard>
-					<ChartCard
-						chart_type={'release_age'}
-						chart_title={'Neu vs Klassiker'}
-						{media_data}
+					<ChartCard chart_type={'release_age'} chart_title={'Neu vs Klassiker'} {media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'pages_over_time'}
@@ -1402,15 +1399,9 @@
 						{media_data}
 						{current_year}
 					></ChartCard>
-					<ChartCard
-						chart_type={'page_distribution'}
-						chart_title={'Seiten-Verteilung'}
-						{media_data}
+					<ChartCard chart_type={'page_distribution'} chart_title={'Seiten-Verteilung'} {media_data}
 					></ChartCard>
-					<ChartCard
-						chart_type={'genre_pages'}
-						chart_title={'Seitenanteil nach Genre'}
-						{media_data}
+					<ChartCard chart_type={'genre_pages'} chart_title={'Seitenanteil nach Genre'} {media_data}
 					></ChartCard>
 					<ChartCard
 						chart_type={'rating_bar_user'}
@@ -1446,6 +1437,95 @@
 						stat_title={'Autoren'}
 						stat_desc={'Anzahl an verschiedenen Autoren'}
 					></StatCard>
+				{:else if current_medium === 'music'}
+					<StatCard
+						{media_data}
+						stat_type={'total_amount'}
+						stat_title={'Anzahl der Musik'}
+						stat_desc={'Anzahl der gehörten Alben, EPs und Singles im Zeitraum'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'replayed_media'}
+						stat_lookup_field={'mbid'}
+						stat_title={'Mehrfach gehört'}
+						stat_desc={'Musikveröffentlichungen, die mehr als einmal gehört wurden'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'added_in_release_year'}
+						stat_title={'Aktuelle Musik'}
+						stat_desc={'Veröffentlichungen, die im Release-Jahr gehört wurden'}
+					></StatCard>
+					<!-- <StatCard
+						{media_data}
+						stat_type={'music_type_count'}
+						stat_title={'Veröffentlichungsarten'}
+						stat_desc={'Alben, EPs und Singles in deiner Sammlung'}
+					></StatCard> -->
+					<ChartCard
+						chart_type={'activity_timeline'}
+						chart_title={'Musik-Aktivität'}
+						{media_data}
+						{current_year}
+					></ChartCard>
+					<ChartCard chart_type={'genre_bar'} chart_title={'Top Genres'} {media_data}></ChartCard>
+					<ChartCard chart_type={'top_artists'} chart_title={'Top Künstler:innen'} {media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'music_type_distribution'}
+						chart_title={'Veröffentlichungsarten'}
+						{media_data}
+					></ChartCard>
+					<ChartCard chart_type={'release_decades'} chart_title={'Release-Dekaden'} {media_data}
+					></ChartCard>
+					<ChartCard chart_type={'release_age'} chart_title={'Neu vs Klassiker'} {media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'rating_bar_user'}
+						chart_title={'Deine Bewertungs-Verteilung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'rating_bar_web'}
+						chart_title={'Online Bewertungs-Verteilung'}
+						{media_data}
+					></ChartCard>
+					<ChartCard
+						chart_type={'rating_difference'}
+						chart_title={'Größte Rating-Abweichungen'}
+						{media_data}
+					></ChartCard>
+					<StatCard
+						{media_data}
+						stat_type={'rating_difference'}
+						stat_title={'Deine Meinung vs Online'}
+						stat_desc={'Durchschnitt des Meinungsunterschiedes'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'rating_below_average_percentage'}
+						stat_title={'Unter dem Web-Score'}
+						stat_desc={'Anteil deiner Ratings unter dem Durchschnitt'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'rating_above_average_percentage'}
+						stat_title={'Mindestens Web-Score'}
+						stat_desc={'Anteil deiner Ratings auf/über dem Durchschnitt'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'average_rating_user'}
+						stat_title={'Dein Bewertungsdurchschnitt'}
+						stat_desc={'Durchschnitt deiner bewerteten Musik'}
+					></StatCard>
+					<StatCard
+						{media_data}
+						stat_type={'average_rating_web'}
+						stat_title={'Online Bewertungsdurchschnitt'}
+						stat_desc={'Durchschnitts-Score der gehörten Musik'}
+					></StatCard>
 				{/if}
 			{/if}
 		{/key}
@@ -1479,7 +1559,9 @@
 								? 'gespielt'
 								: current_medium === 'books'
 									? 'gelesen'
-									: 'geschaut')}
+									: current_medium === 'music'
+										? 'gehört'
+										: 'geschaut')}
 					</p>
 					{#if social_consumed.length === 0}
 						<p class="text-sm text-base-content/70">Niemand aus deinen Followings.</p>
@@ -1491,7 +1573,9 @@
 									class="btn w-full justify-between btn-ghost"
 									on:click={() => navigateToUserEntry(user)}
 								>
-									<span class="min-w-0 flex-1 truncate" title={`@${user.username}`}>@{user.username}</span>
+									<span class="min-w-0 flex-1 truncate" title={`@${user.username}`}
+										>@{user.username}</span
+									>
 									<span class="text-xs opacity-70">Eintrag anzeigen</span>
 								</button>
 							{/each}
@@ -1511,7 +1595,9 @@
 									class="btn w-full justify-between btn-ghost"
 									on:click={() => navigateToUserEntry(user)}
 								>
-									<span class="min-w-0 flex-1 truncate" title={`@${user.username}`}>@{user.username}</span>
+									<span class="min-w-0 flex-1 truncate" title={`@${user.username}`}
+										>@{user.username}</span
+									>
 									<span class="text-xs opacity-70">Eintrag anzeigen</span>
 								</button>
 							{/each}
@@ -1535,7 +1621,9 @@
 					<div class="space-y-2">
 						{#each social_eligible as user (user.user_id)}
 							<div class="flex items-center justify-between rounded bg-base-200 px-3 py-2">
-								<span class="min-w-0 flex-1 truncate" title={`@${user.username}`}>@{user.username}</span>
+								<span class="min-w-0 flex-1 truncate" title={`@${user.username}`}
+									>@{user.username}</span
+								>
 								<button
 									type="button"
 									class="btn btn-sm btn-primary"
@@ -1696,8 +1784,8 @@
 					<div class="rounded-xl border border-base-content/10 bg-base-200/50 p-3">
 						<p class="font-medium">Eintrag durch Suchergebnis ersetzen</p>
 						<p class="mt-1 text-xs opacity-70">
-							Übernimmt Titel, Cover und weitere Metadaten. Deine Bewertung, Notizen,
-							Fortschritt und das Hinzufügedatum bleiben erhalten.
+							Übernimmt Titel, Cover und weitere Metadaten. Deine Bewertung, Notizen, Fortschritt
+							und das Hinzufügedatum bleiben erhalten.
 						</p>
 						<div class="mt-3 space-y-2">
 							<input
@@ -1718,28 +1806,31 @@
 							{/if}
 						</div>
 						{#if replacementSearchLoading}
-							<div class="mt-3 flex justify-center"><span class="loading loading-sm loading-dots"></span></div>
+							<div class="mt-3 flex justify-center">
+								<span class="loading loading-sm loading-dots"></span>
+							</div>
 						{:else if replacementSearchError}
 							<p class="mt-2 text-xs text-error">{replacementSearchError}</p>
 						{:else if replacementSuggestions.length > 0}
 							<div class="mt-3 max-h-56 space-y-2 overflow-y-auto">
-								{#each replacementSuggestions as suggestion (suggestion.igdbid || suggestion.tmdbid || suggestion.gbid || suggestion.title)}
+								{#each replacementSuggestions as suggestion (suggestion.igdbid || suggestion.tmdbid || suggestion.gbid || suggestion.mbid || suggestion.title)}
 									<button
 										type="button"
-										class="btn h-auto min-h-0 w-full justify-start whitespace-normal py-2 text-left"
+										class="btn h-auto min-h-0 w-full justify-start py-2 text-left whitespace-normal"
 										on:click={() => replaceMetadata(suggestion)}
 									>
 										<img
 											src={suggestion.image || '/placeholder.png'}
 											alt=""
-											class="h-12 w-8 shrink-0 rounded object-cover bg-base-200"
+											class="h-12 w-8 shrink-0 rounded bg-base-200 object-cover"
 											on:error={usePlaceholderImage}
 										/>
 										<span class="min-w-0">
-											<span class="block line-clamp-1 font-semibold">{suggestion.title}</span>
-											<span class="block line-clamp-1 text-xs font-normal opacity-70">
+											<span class="line-clamp-1 block font-semibold">{suggestion.title}</span>
+											<span class="line-clamp-1 block text-xs font-normal opacity-70">
 												{new Date(suggestion.release || '').getFullYear() || 'Unbekannt'}
 												{suggestion.author ? ` · ${suggestion.author}` : ''}
+												{suggestion.artist ? ` · ${suggestion.artist}` : ''}
 											</span>
 										</span>
 									</button>
@@ -1775,6 +1866,24 @@
 								bind:value={to_edit.pagecount}
 								class="ml-input"
 							/>
+						</label>
+					{/if}
+					{#if current_medium === 'music'}
+						<label class="form-control w-full">
+							<div class="label pb-1">
+								<span class="label-text font-medium">Künstler</span>
+							</div>
+							<input type="text" bind:value={to_edit.artist} class="ml-input" />
+						</label>
+						<label class="form-control w-full">
+							<div class="label pb-1">
+								<span class="label-text font-medium">Art</span>
+							</div>
+							<select bind:value={to_edit.music_type} class="ml-input">
+								<option value="album">Album</option>
+								<option value="ep">EP</option>
+								<option value="single">Single</option>
+							</select>
 						</label>
 					{/if}
 					<!-- Release -->

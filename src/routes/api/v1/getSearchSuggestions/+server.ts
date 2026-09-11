@@ -9,10 +9,30 @@ import { PUBLIC_IGDB_SUPABASE } from '$env/static/public';
 import type { mediaObject, MovieResult, TvResult } from '$lib/dbUtils.js';
 import movieGenres from '$lib/movieGenres.js';
 import tvGenres from '$lib/tvGenres.js';
-import { delay } from '$lib/utils.js';
+import { delay, format_music_genres } from '$lib/utils.js';
+import { CoverArtArchiveApi, MusicBrainzApi } from 'musicbrainz-api';
 
 const RETRIES: number = 3;
 const OPENLIBRARY_CONTACT_EMAIL = privateEnv.PRIVATE_OPENLIBRARY_CONTACT_EMAIL;
+const MUSICBRAINZ_CONTACT =
+	privateEnv.PRIVATE_MUSICBRAINZ_CONTACT || OPENLIBRARY_CONTACT_EMAIL || 'media-logging-web';
+const musicBrainzApi = new MusicBrainzApi({
+	appName: 'media-logging-web',
+	appVersion: import.meta.env.VITE_APP_VERSION || '0.0.1',
+	appContactInfo: MUSICBRAINZ_CONTACT
+});
+const coverArtArchiveApi = new CoverArtArchiveApi();
+
+type MusicReleaseGroup = {
+	id?: string;
+	title?: string;
+	'first-release-date'?: string;
+	'primary-type'?: string;
+	'artist-credit'?: Array<{ name?: string }>;
+	genres?: Array<{ name?: string }>;
+	tags?: Array<{ name?: string }>;
+	rating?: { value?: number | null };
+};
 
 type OpenLibraryDoc = {
 	key?: string;
@@ -139,6 +159,58 @@ function mapOpenLibraryDocToMedia(doc: OpenLibraryDoc): mediaObject | null {
 	};
 }
 
+function toMusicReleaseDate(value?: string) {
+	if (!value) return null;
+	const match = value.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?/);
+	if (!match) return null;
+	const year = Number(match[1]);
+	const month = Number(match[2] || 1);
+	const day = Number(match[3] || 1);
+	const date = new Date(Date.UTC(year, month - 1, day));
+	return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function mapMusicReleaseGroupToMedia(group: MusicReleaseGroup): mediaObject | null {
+	const musicType = group['primary-type']?.toLowerCase();
+	if (!group.id || !group.title || !['album', 'ep', 'single'].includes(musicType || '')) {
+		return null;
+	}
+
+	const genres = format_music_genres(
+		(group.genres || group.tags || [])
+			.map((entry) => entry.name?.trim())
+			.filter((entry): entry is string => Boolean(entry))
+			.slice(0, 5)
+			.join(', ')
+	);
+	const rating = group.rating?.value;
+
+	return {
+		mbid: group.id,
+		title: group.title,
+		artist: group['artist-credit']
+			?.map((credit) => credit.name?.trim())
+			.filter(Boolean)
+			.join(', '),
+		music_type: musicType,
+		release: toMusicReleaseDate(group['first-release-date']) || undefined,
+		genres,
+		averagerating: typeof rating === 'number' ? Number((rating * 2).toFixed(1)) : undefined
+	};
+}
+
+async function addMusicCoverArt(medium: mediaObject): Promise<mediaObject> {
+	if (!medium.mbid) return medium;
+
+	try {
+		const cover = await coverArtArchiveApi.getReleaseGroupCover(medium.mbid, 'front');
+		return { ...medium, image: cover.url || undefined };
+	} catch (error) {
+		console.warn(`Cover art unavailable for MusicBrainz release group ${medium.mbid}`, error);
+		return medium;
+	}
+}
+
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
 	const { session } = await safeGetSession();
@@ -176,9 +248,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 							token: string;
 							created: string;
 							expires_in: number;
-						} = (
-							await supabase.from('igdb_store').select().single()
-						).data;
+						} = (await supabase.from('igdb_store').select().single()).data;
 						if (!igdb_token_store_record) {
 							console.log('No igdb data stored yet, requesting new token..');
 							const token_refresh_request = (await fetch(
@@ -267,9 +337,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 							result.first_release_date &&
 							!isNaN(new Date(result.first_release_date * 1000).getTime())
 						) {
-							release_date_iso_format = new Date(
-								result.first_release_date * 1000
-							).toISOString();
+							release_date_iso_format = new Date(result.first_release_date * 1000).toISOString();
 						} else {
 							release_date_iso_format = null;
 						}
@@ -390,6 +458,25 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 						}
 					});
 					return new Response(JSON.stringify(search_results));
+				case 'music': {
+					const music_response = await musicBrainzApi.search('release-group', {
+						query: search_val,
+						limit: 50,
+						offset: Math.max(search_page - 1, 0) * 50,
+						inc: ['artist-credits', 'genres', 'ratings']
+					});
+					const music_groups = (music_response['release-groups'] || []) as MusicReleaseGroup[];
+					const music_candidates: mediaObject[] = [];
+					for (const group of music_groups) {
+						const mappedMusic = mapMusicReleaseGroupToMedia(group);
+						if (mappedMusic) {
+							music_candidates.push(mappedMusic);
+						}
+						if (music_candidates.length >= 20) break;
+					}
+					search_results.push(...(await Promise.all(music_candidates.map(addMusicCoverArt))));
+					return new Response(JSON.stringify(search_results));
+				}
 				default:
 					break;
 			}

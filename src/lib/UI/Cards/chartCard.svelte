@@ -15,6 +15,7 @@
 		type ChartConfiguration
 	} from 'chart.js';
 	import type { mediaObject } from '$lib/dbUtils';
+	import { format_music_genres } from '$lib/utils';
 	import distinctColors from 'distinct-colors';
 
 	ChartJS.register(
@@ -48,13 +49,30 @@
 	let chartRows: ChartRow[] = [];
 	let chartConfig: ChartConfiguration | null = null;
 
-	const monthLabels = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+	const monthLabels = [
+		'Jan',
+		'Feb',
+		'Mär',
+		'Apr',
+		'Mai',
+		'Jun',
+		'Jul',
+		'Aug',
+		'Sep',
+		'Okt',
+		'Nov',
+		'Dez'
+	];
 
 	function splitValues(value: string | undefined) {
 		return (value || '')
 			.split(',')
 			.map((item) => item.trim())
 			.filter(Boolean);
+	}
+
+	function splitGenres(medium: mediaObject) {
+		return splitValues(medium.music_type ? format_music_genres(medium.genres) : medium.genres);
 	}
 
 	function getYear(value: string | undefined) {
@@ -82,7 +100,7 @@
 		const groups = new Map<string, { total: number; count: number }>();
 		for (const medium of media_data) {
 			if (!medium.rating) continue;
-			for (const genre of splitValues(medium.genres)) {
+			for (const genre of splitGenres(medium)) {
 				const group = groups.get(genre) || { total: 0, count: 0 };
 				group.total += medium.rating * 2;
 				group.count += 1;
@@ -128,7 +146,9 @@
 
 	function ratingDifferenceRows() {
 		return media_data
-			.filter((medium) => medium.rating && medium.averagerating && !Number.isNaN(medium.averagerating))
+			.filter(
+				(medium) => medium.rating && medium.averagerating && !Number.isNaN(medium.averagerating)
+			)
 			.map((medium) => ({
 				label: medium.title || 'Ohne Titel',
 				value: Number((medium.rating! * 2 - medium.averagerating!).toFixed(1)),
@@ -160,7 +180,13 @@
 			if (!addedYear || !releaseYear) continue;
 			const age = Math.max(addedYear - releaseYear, 0);
 			const label =
-				age === 0 ? 'Release-Jahr' : age <= 5 ? '1-5 Jahre alt' : age <= 15 ? '6-15 Jahre alt' : '16+ Jahre alt';
+				age === 0
+					? 'Release-Jahr'
+					: age <= 5
+						? '1-5 Jahre alt'
+						: age <= 15
+							? '6-15 Jahre alt'
+							: '16+ Jahre alt';
 			buckets.set(label, (buckets.get(label) || 0) + 1);
 		}
 		return [...buckets.entries()].map(([label, value]) => ({ label, value }));
@@ -191,7 +217,8 @@
 		for (const medium of media_data) {
 			const pages = Number(medium.pagecount || 0);
 			if (!pages) continue;
-			const label = pages < 250 ? '< 250' : pages < 400 ? '250-399' : pages < 600 ? '400-599' : '600+';
+			const label =
+				pages < 250 ? '< 250' : pages < 400 ? '250-399' : pages < 600 ? '400-599' : '600+';
 			buckets.set(label, (buckets.get(label) || 0) + 1);
 		}
 		return [...buckets.entries()].map(([label, value]) => ({ label, value }));
@@ -231,6 +258,16 @@
 			.slice(0, 8);
 	}
 
+	function musicTypeRows() {
+		return countBy(
+			media_data.map((medium) => {
+				if (medium.music_type === 'ep') return 'EPs';
+				if (medium.music_type === 'single') return 'Singles';
+				return 'Alben';
+			})
+		);
+	}
+
 	function ratingBarRows(source: 'user' | 'web') {
 		const counts = new Array(10).fill(0);
 		for (const medium of media_data) {
@@ -246,7 +283,7 @@
 		switch (chart_type) {
 			case 'genre_pie':
 			case 'genre_bar':
-				return countBy(media_data.flatMap((medium) => splitValues(medium.genres)));
+				return countBy(media_data.flatMap(splitGenres));
 			case 'rating_bar_user':
 				return ratingBarRows('user');
 			case 'rating_bar_web':
@@ -267,6 +304,10 @@
 				return showLoggedSeasonRows();
 			case 'top_authors':
 				return countBy(media_data.flatMap((medium) => splitValues(medium.author)));
+			case 'top_artists':
+				return countBy(media_data.flatMap((medium) => splitValues(medium.artist)));
+			case 'music_type_distribution':
+				return musicTypeRows();
 			case 'pages_over_time':
 				return pagesOverTimeRows();
 			case 'page_distribution':

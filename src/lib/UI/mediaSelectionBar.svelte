@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import Book from '$lib/Icons/book.svelte';
 	import Tv from '$lib/Icons/tv.svelte';
 	import Movie from '$lib/Icons/movie.svelte';
 	import Controller from '$lib/Icons/controller.svelte';
+	import Music from '$lib/Icons/music.svelte';
 	import Sort from '$lib/Icons/sort.svelte';
 	import type { SortingMethod } from '$lib/types';
 	import { type MediaType } from '$lib/utils';
@@ -24,8 +26,53 @@
 	let input_timeout: ReturnType<typeof setTimeout>;
 	let dropdown_top = 0;
 	let dropdown_right = 0;
+	let media_tabs: HTMLDivElement;
+	let media_tab_font_size = 16;
+	let media_tab_icon_size = 24;
+	let media_tab_gap = 8;
+
+	const MEDIA_LABELS: Record<MediaType, string> = {
+		games: 'Games',
+		movies: 'Filme',
+		shows: 'Serien',
+		books: 'Bücher',
+		music: 'Musik'
+	};
 
 	const RATING_SORTS: SortingMethod[] = ['review_score_desc', 'review_score_asc'];
+
+	function updateMediaTabSizing() {
+		if (!media_tabs || active_media_types.length === 0) return;
+
+		const computedStyle = getComputedStyle(media_tabs);
+		const canvas = document.createElement('canvas');
+		const context = canvas.getContext('2d');
+		if (!context) return;
+
+		const baseFontSize = 14;
+
+		context.font = `${computedStyle.fontWeight} ${baseFontSize}px ${computedStyle.fontFamily}`;
+
+		const maxGap = 10;
+		const maxIconSize = 18;
+
+		media_tab_icon_size = Math.max(14, Math.min(maxIconSize, baseFontSize * 1.5));
+		media_tab_gap = Math.max(3, Math.min(maxGap, baseFontSize * 0.5));
+	}
+
+	onMount(() => {
+		updateMediaTabSizing();
+		const observer = new ResizeObserver(updateMediaTabSizing);
+		observer.observe(media_tabs);
+		window.addEventListener('resize', updateMediaTabSizing);
+
+		return () => {
+			observer.disconnect();
+			window.removeEventListener('resize', updateMediaTabSizing);
+		};
+	});
+
+	$: (active_media_types, updateMediaTabSizing());
 
 	function mediaSwitch(medium: MediaType) {
 		onSwitchMedium?.({ medium });
@@ -72,26 +119,37 @@
 
 <svelte:window on:click={handleClickOutside} />
 
-<div role="tablist" class="tabs-border tabs flex-row justify-evenly bg-base-100 pt-1 pb-2 shadow-lg shadow-base-300">
+<div
+	bind:this={media_tabs}
+	role="tablist"
+	class="tabs-border tabs flex w-full flex-nowrap justify-between overflow-hidden bg-base-100 pt-1 pb-2 shadow-lg shadow-base-300"
+>
 	{#each active_media_types as media_type}
 		<button
 			role="tab"
-			class="tab {current_medium === media_type ? 'tab-active' : ''}"
+			class="tab min-w-0 flex-1 px-0 {current_medium === media_type ? 'tab-active' : ''}"
+			style={`font-size: ${media_tab_font_size}px`}
 			onclick={() => mediaSwitch(media_type)}
 		>
-			<div class="flex w-fit flex-row items-center gap-2">
+			<div
+				class="flex w-full min-w-0 flex-row items-center justify-center whitespace-nowrap"
+				style={`gap: ${media_tab_gap}px; --media-tab-icon-size: ${media_tab_icon_size}px`}
+			>
 				{#if media_type === 'games'}
-					<Controller></Controller>
-					<p>Games</p>
+					<span class="media-tab-icon shrink-0"><Controller></Controller></span>
+					<p class="min-w-0 truncate">Games</p>
 				{:else if media_type === 'movies'}
-					<Movie></Movie>
-					<p>Filme</p>
+					<span class="media-tab-icon shrink-0"><Movie></Movie></span>
+					<p class="min-w-0 truncate">Filme</p>
 				{:else if media_type === 'shows'}
-					<Tv></Tv>
-					<p>Serien</p>
+					<span class="media-tab-icon shrink-0"><Tv></Tv></span>
+					<p class="min-w-0 truncate">Serien</p>
 				{:else if media_type === 'books'}
-					<Book></Book>
-					<p>Bücher</p>
+					<span class="media-tab-icon shrink-0"><Book></Book></span>
+					<p class="min-w-0 truncate">Bücher</p>
+				{:else if media_type === 'music'}
+					<span class="media-tab-icon shrink-0"><Music></Music></span>
+					<p class="min-w-0 truncate">Musik</p>
 				{/if}
 			</div>
 		</button>
@@ -268,3 +326,10 @@
 		</button>
 	</div>
 {/if}
+
+<style>
+	:global(.media-tab-icon svg) {
+		height: var(--media-tab-icon-size, 24px);
+		width: var(--media-tab-icon-size, 24px);
+	}
+</style>

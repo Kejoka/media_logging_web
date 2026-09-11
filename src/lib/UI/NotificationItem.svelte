@@ -12,7 +12,7 @@
 			| 'follow'
 			| 'recommendation'
 			| 'recommendation_response';
-		media_type: 'games' | 'movies' | 'shows' | 'books' | null;
+		media_type: 'games' | 'movies' | 'shows' | 'books' | 'music' | null;
 		media_title?: string;
 		media_image?: string;
 		created_at: string;
@@ -22,6 +22,7 @@
 			media_year?: number;
 			mode?: number | string;
 			backlogged?: number | string;
+			music_type?: 'album' | 'ep' | 'single' | string;
 			status?: string;
 			response?: 'accept' | 'decline';
 			[key: string]: any;
@@ -126,7 +127,8 @@
 			games: 'Spiel',
 			movies: 'Film',
 			shows: 'Serie',
-			books: 'Buch'
+			books: 'Buch',
+			music: 'Musik'
 		};
 		return names[mediaType] || 'Medium';
 	}
@@ -136,9 +138,16 @@
 			games: 'spielen',
 			movies: 'schauen',
 			shows: 'schauen',
-			books: 'lesen'
+			books: 'lesen',
+			music: 'hören'
 		};
 		return verbs[mediaType] || 'konsumiert';
+	}
+
+	function getMusicTypeName(musicType?: string) {
+		if (musicType === 'ep') return 'EP';
+		if (musicType === 'single') return 'Single';
+		return 'Album';
 	}
 
 	function getActivityText(currentNotification: NotificationItemType) {
@@ -156,10 +165,17 @@
 
 		const mediaName = getMediaTypeName(currentNotification.media_type || 'games');
 		switch (currentNotification.activity_type) {
-			case 'add':
+			case 'add': {
+				if (currentNotification.media_type === 'music') {
+					const musicType = getMusicTypeName(currentNotification.details?.music_type);
+					return currentNotification.details?.backlogged === 0
+						? `hat ${musicType} hinzugefügt`
+						: `will ${musicType} hören`;
+				}
 				return currentNotification.details?.backlogged === 0
 					? `hat ${mediaName} hinzugefügt`
 					: `will ${mediaName} ${getConsumeVerb(currentNotification.media_type || '')}`;
+			}
 			case 'update':
 				return `hat ${mediaName} aktualisiert`;
 			case 'delete':
@@ -197,8 +213,9 @@
 
 	<div class="min-w-0 flex-1">
 		<p class="text-sm">
-			<span class="inline-block max-w-[50%] truncate align-bottom font-semibold" title={notification.username}
-				>{notification.username}</span
+			<span
+				class="inline-block max-w-[50%] truncate align-bottom font-semibold"
+				title={notification.username}>{notification.username}</span
 			>
 			<span class="text-neutral-400"> {getActivityText(notification)}</span>
 		</p>

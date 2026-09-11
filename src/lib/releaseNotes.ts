@@ -20,6 +20,19 @@ const releaseNotes: Record<string, ReleaseNote> = {
 			'Changelogs, wow! Den hier siehst du weil du in den Settings gestöbert hast.',
 			'Feature Beschreibungen, die weiter zurück liegen beschreibe ich jetzt aber nicht weil zu faul.'
 		]
+	},
+	'2.3.0': {
+		version: '2.3.0',
+		title: 'Neuer Medientyp: Musik!',
+		summary:
+			'Musik kann jetzt genauso wie Games, Filme, Serien und Bücher getrackt werden. Außerdem gibt es dazu ein paar weitere kleine Verbesserungen.',
+		items: [
+			'Musik kann jetzt getrackt werden. Wenn dich das nicht interessiert, kannst du Musik in den Einstellungen einfach deaktivieren.',
+			'Alben, EPs und Singles können getrackt werden. Die Musikdaten kommen von MusicBrainz (wenn die Daten Mist sind bin ich also nicht Schuld).',
+			'Die Musik Suche funktioniert am besten mit Angabe von Artist + Titel.',
+			'Die Settings wurden erweitert: Du kannst jetzt einstellen welche Art von Benachrichtigungen du bekommen willst.',
+			'Die verschiedenen Anzeigemöglichkeiten deiner Medien (Filter-Button neben der aufklappbaren Suchleiste und der Medienauswahl) funktioniert jetzt mit der neuen Datenladestrategie.'
+		]
 	}
 };
 

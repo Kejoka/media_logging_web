@@ -41,9 +41,11 @@
 			? 'Games'
 			: current_medium === 'movies'
 				? 'Filme'
-				: current_medium === 'shows'
-					? 'Serien'
-					: 'Bücher';
+			: current_medium === 'shows'
+				? 'Serien'
+				: current_medium === 'books'
+					? 'Bücher'
+					: 'Musik';
 
 	function getTemplateForChallenge(challenge: UserChallenge): ChallengeTemplate | null {
 		return (

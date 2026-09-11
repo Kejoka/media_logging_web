@@ -5,7 +5,7 @@ import { MEDIA_TYPE_ORDER, type MediaType } from '$lib/utils';
 const is_client = typeof window !== 'undefined';
 
 /**
- * Currently selected medium (games, movies, shows, books)
+ * Currently selected medium (games, movies, shows, books, music)
  */
 export const current_medium = writable<string>(is_client ? 'movies' : 'movies');
 

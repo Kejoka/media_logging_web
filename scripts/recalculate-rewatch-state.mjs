@@ -57,7 +57,8 @@ const CONFIG = {
 			return seasonKey ? `${row.tmdbid}:${seasonKey}` : `${row.tmdbid}:unknown:${row.id}`;
 		}
 	},
-	books: { select: 'id, user_id, added, gbid', getKey: (row) => row.gbid }
+	books: { select: 'id, user_id, added, gbid', getKey: (row) => row.gbid },
+	music: { select: 'id, user_id, added, mbid', getKey: (row) => row.mbid }
 };
 
 function usage() {

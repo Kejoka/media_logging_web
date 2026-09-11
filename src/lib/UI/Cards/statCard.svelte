@@ -17,7 +17,7 @@
 	export let stat_type: string;
 	export let stat_title: string;
 	export let stat_desc: string;
-	export let stat_lookup_field: 'igdbid' | 'tmdbid' | 'gbid' | 'title' = 'title';
+	export let stat_lookup_field: 'igdbid' | 'tmdbid' | 'gbid' | 'mbid' | 'title' = 'title';
 	let stat_value: string;
 	let stat_exists: boolean = false;
 	let unique = {};
@@ -128,6 +128,18 @@
 				.filter((author, index, self) => index == self.indexOf(author)).length
 		);
 		stat_exists = true;
+	} else if (stat_type === 'music_type_count') {
+		const counts = new Map<string, number>();
+		for (const medium of media_data) {
+			const type =
+				medium.music_type === 'ep' ? 'EP' : medium.music_type === 'single' ? 'Singles' : 'Alben';
+			counts.set(type, (counts.get(type) || 0) + 1);
+		}
+		stat_value = [...counts.entries()]
+			.sort(([, left], [, right]) => right - left)
+			.map(([label, count]) => `${label}: ${count}`)
+			.join(' · ');
+		stat_exists = media_data.length > 0;
 	} else if (stat_type === 'rating_difference') {
 		const diff_list = media_data
 			.map((medium) =>
@@ -176,6 +188,8 @@
 							<Pages></Pages>
 						{:else if stat_type === 'author_count'}
 							<Person></Person>
+						{:else if stat_type === 'music_type_count'}
+							<Category></Category>
 						{:else if stat_type === 'added_in_release_year'}
 							<CalendarCheck></CalendarCheck>
 						{:else if stat_type === 'genre_ranking'}
@@ -202,7 +216,7 @@
 					</div>
 					<div class="stat-title">{stat_title}</div>
 					<div class="stat-value">{stat_value}</div>
-					<div class="stat-desc line-clamp-1">{stat_desc}</div>
+					<div class="stat-desc max-w-full wrap-break-word whitespace-normal">{stat_desc}</div>
 				</div>
 			</div>
 		</div>

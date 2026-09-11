@@ -5,12 +5,21 @@ export function delay(ms: number): Promise<void> {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export const MEDIA_TYPE_ORDER = ['games', 'movies', 'shows', 'books'] as const;
+export const MEDIA_TYPE_ORDER = ['games', 'movies', 'shows', 'books', 'music'] as const;
 
 export const PAGE_SIZE = 10 as const;
 export const STATS_PAGE_SIZE = 50 as const;
 
 export type MediaType = (typeof MEDIA_TYPE_ORDER)[number];
+
+export type NotificationMediaPreferences = {
+	backlog_adds: boolean;
+	regular_adds: boolean;
+};
+
+export type NotificationPreferences = {
+	[type in MediaType]: NotificationMediaPreferences;
+};
 
 export function isMediaType(value: string): value is MediaType {
 	return MEDIA_TYPE_ORDER.includes(value as MediaType);
@@ -41,6 +50,77 @@ export function serialize_enabled_media_types(media_types: MediaType[]): string 
 	return filtered.join(',');
 }
 
+export function normalize_notification_preferences(value: unknown): NotificationPreferences {
+	let raw_value = value;
+
+	if (typeof raw_value === 'string') {
+		try {
+			raw_value = JSON.parse(raw_value);
+		} catch {
+			raw_value = null;
+		}
+	}
+
+	const raw_preferences =
+		raw_value && typeof raw_value === 'object' ? (raw_value as Record<string, unknown>) : {};
+
+	return Object.fromEntries(
+		MEDIA_TYPE_ORDER.map((media_type) => {
+			const raw_media_preferences = raw_preferences[media_type];
+			const media_preferences =
+				raw_media_preferences && typeof raw_media_preferences === 'object'
+					? (raw_media_preferences as Record<string, unknown>)
+					: {};
+
+			return [
+				media_type,
+				{
+					backlog_adds: media_preferences.backlog_adds !== false,
+					regular_adds: media_preferences.regular_adds !== false
+				}
+			];
+		})
+	) as NotificationPreferences;
+}
+
+const MUSIC_GENRE_SPECIAL_CASES: Record<string, string> = {
+	edm: 'EDM',
+	dnb: 'DnB',
+	'r&b': 'R&B',
+	rnb: 'RnB',
+	uk: 'UK',
+	usa: 'USA'
+};
+
+/**
+ * Formats MusicBrainz genres consistently for storage and display.
+ * MusicBrainz commonly returns lower-case genre names such as "hip hop".
+ */
+export function format_music_genre(value: string): string {
+	const normalized = value
+		.trim()
+		.replace(/[_-]+/g, ' ')
+		.replace(/\s+/g, ' ')
+		.toLocaleLowerCase('en-US');
+	if (!normalized) return '';
+
+	return normalized
+		.split(' ')
+		.map(
+			(word) => MUSIC_GENRE_SPECIAL_CASES[word] || `${word.charAt(0).toUpperCase()}${word.slice(1)}`
+		)
+		.join(' ');
+}
+
+export function format_music_genres(value?: string | null): string | undefined {
+	const formatted = (value || '')
+		.split(',')
+		.map(format_music_genre)
+		.filter(Boolean)
+		.filter((genre, index, genres) => genres.indexOf(genre) === index);
+	return formatted.length > 0 ? formatted.join(', ') : undefined;
+}
+
 /**
  * Converts a medium code used in the DB/API to a German UI label.
  */
@@ -54,6 +134,8 @@ export function get_media_type_display_label(current_medium: string): string {
 			return 'Serie';
 		case 'books':
 			return 'Buch';
+		case 'music':
+			return 'Musik';
 		default:
 			return 'Error';
 	}
@@ -100,6 +182,8 @@ export function getMediaCodeIndex(current_medium: string): number {
 			return 2;
 		case 'books':
 			return 3;
+		case 'music':
+			return 4;
 		default:
 			return -1;
 	}
@@ -115,6 +199,8 @@ export function shouldShowRepeatIcon(
 	allMedia: mediaObject[],
 	mediaType: string
 ): boolean {
+	void allMedia;
+	void mediaType;
 	return medium.is_rewatch || false;
 }
 
@@ -128,5 +214,7 @@ export function getReplayInfo(
 	allMedia: mediaObject[],
 	mediaType: string
 ): { count: number; dates: string[] } {
+	void allMedia;
+	void mediaType;
 	return { count: medium.rewatch_count || 1, dates: [] };
 }

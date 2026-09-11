@@ -14,10 +14,13 @@ type MediumPayload = {
 	igdbid?: number;
 	tmdbid?: number;
 	gbid?: string;
+	mbid?: string;
+	artist?: string;
+	music_type?: string;
 	averagerating?: number;
 };
 
-function getLookupField(mediaType: MediaType): 'igdbid' | 'tmdbid' | 'gbid' {
+function getLookupField(mediaType: MediaType): 'igdbid' | 'tmdbid' | 'gbid' | 'mbid' {
 	switch (mediaType) {
 		case 'games':
 			return 'igdbid';
@@ -26,6 +29,8 @@ function getLookupField(mediaType: MediaType): 'igdbid' | 'tmdbid' | 'gbid' {
 			return 'tmdbid';
 		case 'books':
 			return 'gbid';
+		case 'music':
+			return 'mbid';
 	}
 }
 

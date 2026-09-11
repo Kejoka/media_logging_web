@@ -2,7 +2,8 @@ import {
 	refreshBookMetadata,
 	refreshGameMetadata,
 	refreshMovieMetadata,
-	refreshShowMetadata
+	refreshShowMetadata,
+	refreshMusicMetadata
 } from '../_shared/media.ts';
 import { getSupabaseAdminClient } from '../_shared/supabase.ts';
 
@@ -19,23 +20,27 @@ Deno.serve(async () => {
 			shows: unknown;
 			games: unknown;
 			books: unknown;
-			errors: Array<{ medium: 'movies' | 'shows' | 'games' | 'books'; message: string }>;
+			music: unknown;
+			errors: Array<{ medium: 'movies' | 'shows' | 'games' | 'books' | 'music'; message: string }>;
 		} = {
 			ok: true,
 			movies: null,
 			shows: null,
 			games: null,
 			books: null,
+			music: null,
 			errors: []
 		};
 
 		// Run refresh functions concurrently instead of sequentially
-		const [moviesResult, showsResult, gamesResult, booksResult] = await Promise.allSettled([
-			refreshMovieMetadata(supabase),
-			refreshShowMetadata(supabase),
-			refreshGameMetadata(supabase),
-			refreshBookMetadata(supabase)
-		]);
+		const [moviesResult, showsResult, gamesResult, booksResult, musicResult] =
+			await Promise.allSettled([
+				refreshMovieMetadata(supabase),
+				refreshShowMetadata(supabase),
+				refreshGameMetadata(supabase),
+				refreshBookMetadata(supabase),
+				refreshMusicMetadata(supabase)
+			]);
 
 		// Handle movie metadata result
 		if (moviesResult.status === 'fulfilled') {
@@ -44,7 +49,10 @@ Deno.serve(async () => {
 			result.ok = false;
 			result.errors.push({
 				medium: 'movies',
-				message: moviesResult.reason instanceof Error ? moviesResult.reason.message : String(moviesResult.reason)
+				message:
+					moviesResult.reason instanceof Error
+						? moviesResult.reason.message
+						: String(moviesResult.reason)
 			});
 		}
 
@@ -55,7 +63,10 @@ Deno.serve(async () => {
 			result.ok = false;
 			result.errors.push({
 				medium: 'shows',
-				message: showsResult.reason instanceof Error ? showsResult.reason.message : String(showsResult.reason)
+				message:
+					showsResult.reason instanceof Error
+						? showsResult.reason.message
+						: String(showsResult.reason)
 			});
 		}
 
@@ -66,7 +77,10 @@ Deno.serve(async () => {
 			result.ok = false;
 			result.errors.push({
 				medium: 'games',
-				message: gamesResult.reason instanceof Error ? gamesResult.reason.message : String(gamesResult.reason)
+				message:
+					gamesResult.reason instanceof Error
+						? gamesResult.reason.message
+						: String(gamesResult.reason)
 			});
 		}
 
@@ -77,7 +91,23 @@ Deno.serve(async () => {
 			result.ok = false;
 			result.errors.push({
 				medium: 'books',
-				message: booksResult.reason instanceof Error ? booksResult.reason.message : String(booksResult.reason)
+				message:
+					booksResult.reason instanceof Error
+						? booksResult.reason.message
+						: String(booksResult.reason)
+			});
+		}
+
+		if (musicResult.status === 'fulfilled') {
+			result.music = musicResult.value;
+		} else {
+			result.ok = false;
+			result.errors.push({
+				medium: 'music',
+				message:
+					musicResult.reason instanceof Error
+						? musicResult.reason.message
+						: String(musicResult.reason)
 			});
 		}
 

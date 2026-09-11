@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import { PAGE_SIZE } from '$lib/utils';
 import type { PageServerLoad } from './$types';
 
-type MediaTable = 'games' | 'movies' | 'shows' | 'books';
+type MediaTable = 'games' | 'movies' | 'shows' | 'books' | 'music';
 type AvailableYearRow = {
 	year: number;
 };
@@ -94,6 +94,17 @@ export const load: PageServerLoad = async ({
 		requested_year
 	)
 		.range(0, PAGE_SIZE - 1);
+	const music = await applyYearFilter(
+		supabase
+			.from('music')
+			.select()
+			.eq('user_id', user_id)
+			.eq('backlogged', backlogged_filter)
+			.order('added', { ascending: false })
+			.order('id', { ascending: false }),
+		requested_year
+	)
+		.range(0, PAGE_SIZE - 1);
 	const challenges = await supabase
 		.from('user_challenges')
 		.select()
@@ -144,12 +155,19 @@ export const load: PageServerLoad = async ({
 		return [...years].sort((a, b) => Number(b) - Number(a));
 	}
 
-	const [available_game_years, available_movie_years, available_show_years, available_book_years] =
+	const [
+		available_game_years,
+		available_movie_years,
+		available_show_years,
+		available_book_years,
+		available_music_years
+	] =
 		await Promise.all([
 			getAvailableYears('games'),
 			getAvailableYears('movies'),
 			getAvailableYears('shows'),
-			getAvailableYears('books')
+			getAvailableYears('books'),
+			getAvailableYears('music')
 		]);
 
 	return {
@@ -160,11 +178,13 @@ export const load: PageServerLoad = async ({
 		movies,
 		shows,
 		books,
+		music,
 		availableYears: {
 			games: available_game_years,
 			movies: available_movie_years,
 			shows: available_show_years,
-			books: available_book_years
+			books: available_book_years,
+			music: available_music_years
 		},
 		initialYear: requested_year,
 		challenges: challenges.data || [],

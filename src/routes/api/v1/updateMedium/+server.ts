@@ -1,4 +1,4 @@
-import { validate_and_trim_field } from '$lib/utils.js';
+import { format_music_genres, validate_and_trim_field } from '$lib/utils.js';
 import { recalculateRewatchForMedium } from '$lib/server/rewatch';
 
 /** @type {import('./$types').RequestHandler} */
@@ -27,7 +27,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		// A replacement can move an entry from one title's rewatch group into another.
 		// Keep the former group as well as the new group in sync.
 		let previousMedium: any = null;
-		if (['games', 'movies', 'shows', 'books'].includes(current_medium)) {
+		if (['games', 'movies', 'shows', 'books', 'music'].includes(current_medium)) {
 			const { data } = await supabase
 				.from(current_medium)
 				.select('*')
@@ -36,18 +36,13 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 			previousMedium = data;
 		}
 		const recalculateAffectedRewatchGroups = async (
-			medium: 'games' | 'movies' | 'shows' | 'books'
+			medium: 'games' | 'movies' | 'shows' | 'books' | 'music'
 		) => {
 			if (!session?.user.id) return;
 			if (previousMedium) {
 				await recalculateRewatchForMedium(supabase, medium, session.user.id, previousMedium);
 			}
-			await recalculateRewatchForMedium(
-				supabase,
-				medium,
-				session.user.id,
-				medium_fields_to_update
-			);
+			await recalculateRewatchForMedium(supabase, medium, session.user.id, medium_fields_to_update);
 		};
 
 		// Normalize all optional text fields before persisting to keep server-side data consistent.
@@ -132,6 +127,26 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					})
 					.eq('id', medium_fields_to_update.id);
 				await recalculateAffectedRewatchGroups('books');
+				return new Response(JSON.stringify(error));
+			case 'music':
+				error = await supabase
+					.from(current_medium)
+					.update({
+						mbid: validate_and_trim_field(medium_fields_to_update.mbid, null),
+						title: validate_and_trim_field(medium_fields_to_update.title, 'Kein Titel angegeben'),
+						artist: validate_and_trim_field(medium_fields_to_update.artist, null),
+						music_type: ['album', 'ep', 'single'].includes(medium_fields_to_update.music_type)
+							? medium_fields_to_update.music_type
+							: 'album',
+						image: validate_and_trim_field(medium_fields_to_update.image, null),
+						release: validate_and_trim_field(medium_fields_to_update.release, null),
+						genres: format_music_genres(medium_fields_to_update.genres) ?? null,
+						averagerating: medium_fields_to_update.averagerating ?? null,
+						added: validate_and_trim_field(medium_fields_to_update.added, new Date().toISOString()),
+						notes: validate_and_trim_field(medium_fields_to_update.notes, null)
+					})
+					.eq('id', medium_fields_to_update.id);
+				await recalculateAffectedRewatchGroups('music');
 				return new Response(JSON.stringify(error));
 			default:
 				throw 'Switch Statement failed';

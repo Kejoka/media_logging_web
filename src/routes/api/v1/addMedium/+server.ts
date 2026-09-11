@@ -1,4 +1,5 @@
 import { recalculateRewatchForMedium } from '$lib/server/rewatch';
+import { format_music_genres } from '$lib/utils.js';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request, locals: { supabase, safeGetSession } }) {
@@ -180,11 +181,61 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 					});
 				}
 				return new Response(JSON.stringify(error));
+			case 'music':
+				error = await supabase
+					.from(current_medium)
+					.insert({
+						user_id: session?.user.id,
+						mbid: medium.mbid,
+						title: medium.title,
+						artist: medium.artist,
+						music_type: ['album', 'ep', 'single'].includes(medium.music_type)
+							? medium.music_type
+							: 'album',
+						image: medium.image,
+						release: medium.release,
+						genres: format_music_genres(medium.genres),
+						averagerating: medium.averagerating ?? null,
+						rating: 0,
+						backlogged: medium.backlogged || 0,
+						added: medium.added,
+						notes: medium.notes || '',
+						is_rewatch: false,
+						rewatch_count: 1
+					})
+					.select()
+					.single();
+				if (error.error) {
+					console.error('Music insert failed:', error.error);
+					return new Response(JSON.stringify({ error: error.error.message }), { status: 500 });
+				}
+
+				if (error.data && session?.user.id) {
+					await recalculateRewatchForMedium(supabase, 'music', session.user.id, error.data);
+				}
+
+				if (error.data) {
+					const { error: activityError } = await supabase.from('user_activities').insert({
+						user_id: session?.user.id,
+						activity_type: 'add',
+						media_type: current_medium,
+						media_title: medium.title,
+						details: {
+							media_id: error.data.id,
+							media_year: new Date(medium.added).getFullYear(),
+							backlogged: medium.backlogged || 0,
+							music_type: medium.music_type
+						}
+					});
+					if (activityError) console.error('Music activity insert failed:', activityError);
+				}
+				return new Response(JSON.stringify(error));
 			default:
 				throw 'Switch Statement failed';
 		}
 	} catch (error) {
-		console.log(`Error on Endpoint addMedium: \n ${error}`);
-		return new Response(String(error));
+		const message = error instanceof Error ? error.message : String(error);
+		console.error(`Error on Endpoint addMedium: ${message}`);
+		return new Response(JSON.stringify({ error: message }), { status: 500 });
 	}
 }

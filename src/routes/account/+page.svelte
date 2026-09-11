@@ -1,16 +1,25 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { MEDIA_TYPE_ORDER, normalize_enabled_media_types } from '$lib/utils';
+	import {
+		MEDIA_TYPE_ORDER,
+		normalize_enabled_media_types,
+		normalize_notification_preferences,
+		type NotificationPreferences
+	} from '$lib/utils';
 	import ChangelogHistory from '$lib/UI/ChangelogHistory.svelte';
 	import type { SubmitFunction } from '@sveltejs/kit';
 
 	let { data, form } = $props();
-	let { profile } = $derived(data);
+	let { profile, notificationSettings } = $derived(data);
 	let profileForm: HTMLFormElement;
 	let loading = $state(false);
 	let username = $derived(profile?.username ?? '');
 	let usernameInput = $state('');
 	let selectedMediaTypes = $state<(typeof MEDIA_TYPE_ORDER)[number][]>([]);
+	let notificationsEnabled = $state(true);
+	let notificationPreferences = $state<NotificationPreferences>(
+		normalize_notification_preferences(null)
+	);
 
 	$effect(() => {
 		const fallback_username = profile?.username ?? '';
@@ -26,13 +35,22 @@
 			form?.enabled_media_types && form.enabled_media_types.length > 0
 				? [...form.enabled_media_types]
 				: [...fallback_media_types];
+
+		notificationsEnabled =
+			typeof form?.notifications_enabled === 'boolean'
+				? form.notifications_enabled
+				: notificationSettings?.notifications_enabled !== false;
+		notificationPreferences = normalize_notification_preferences(
+			form?.notification_preferences ?? notificationSettings?.preferences
+		);
 	});
 
 	const MEDIA_TYPE_LABELS: Record<(typeof MEDIA_TYPE_ORDER)[number], string> = {
 		games: 'Games',
 		movies: 'Filme',
 		shows: 'Serien',
-		books: 'Bücher'
+		books: 'Bücher',
+		music: 'Musik'
 	};
 
 	const handleSubmit: SubmitFunction = () => {
@@ -83,6 +101,7 @@
 		{/if}
 
 		<form method="post" action="?/update" use:enhance={handleSubmit} bind:this={profileForm}>
+			<input type="hidden" name="notification_settings_submitted" value="true" />
 			<div class="space-y-5">
 				<div>
 					<label for="username" class="mb-1.5 block text-sm font-medium text-neutral-300"
@@ -100,6 +119,75 @@
 							(e.currentTarget.value = e.currentTarget.value.replace(/[^A-Za-z0-9_]/g, ''))}
 						class="ml-focus w-full rounded-lg border border-white/10 bg-white/5 px-4 py-2.5 text-white placeholder-neutral-500 transition"
 					/>
+				</div>
+
+				<div class="rounded-lg border border-white/10 bg-white/5 p-4">
+					<p class="mb-1 text-sm font-medium text-neutral-300">Benachrichtigungen</p>
+					<p class="mb-3 text-xs text-neutral-500">
+						Lege fest, welche Aktivitäten in deinem Benachrichtigungsbereich erscheinen.
+					</p>
+
+					<label
+						for="notifications_enabled"
+						class="ml-focus flex cursor-pointer items-center justify-between rounded-md border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-neutral-200 transition hover:bg-white/10"
+					>
+						<span>
+							<span class="block">Benachrichtigungen anzeigen</span>
+							<span class="mt-0.5 block text-xs text-neutral-500"
+								>Deaktivieren, um keine Benachrichtigungen zu erhalten.</span
+							>
+						</span>
+						<input
+							id="notifications_enabled"
+							name="notifications_enabled"
+							value="true"
+							type="checkbox"
+							class="checkbox checkbox-sm"
+							bind:checked={notificationsEnabled}
+						/>
+					</label>
+
+					<div class="mt-3 space-y-2">
+						{#each MEDIA_TYPE_ORDER as mediaType (mediaType)}
+							<details class="rounded-md border border-white/10 bg-white/5">
+								<summary
+									class="ml-focus cursor-pointer px-3 py-2.5 text-sm font-medium text-neutral-200 transition hover:bg-white/10"
+								>
+									{MEDIA_TYPE_LABELS[mediaType]}
+								</summary>
+								<div class="space-y-2 border-t border-white/10 p-3">
+									<label
+										for={`notification_${mediaType}_backlog_adds`}
+										class="ml-focus flex cursor-pointer items-center justify-between gap-3 rounded-md px-1 py-1 text-sm text-neutral-300"
+									>
+										<span>Backlog Benachrichtigungen</span>
+										<input
+											id={`notification_${mediaType}_backlog_adds`}
+											name={`notification_${mediaType}_backlog_adds`}
+											value="true"
+											type="checkbox"
+											class="checkbox checkbox-sm"
+											bind:checked={notificationPreferences[mediaType].backlog_adds}
+										/>
+									</label>
+									<label
+										for={`notification_${mediaType}_regular_adds`}
+										class="ml-focus flex cursor-pointer items-center justify-between gap-3 rounded-md px-1 py-1 text-sm text-neutral-300"
+									>
+										<span>Normale Benachrichtigungen</span>
+										<input
+											id={`notification_${mediaType}_regular_adds`}
+											name={`notification_${mediaType}_regular_adds`}
+											value="true"
+											type="checkbox"
+											class="checkbox checkbox-sm"
+											bind:checked={notificationPreferences[mediaType].regular_adds}
+										/>
+									</label>
+								</div>
+							</details>
+						{/each}
+					</div>
 				</div>
 
 				<div class="rounded-lg border border-white/10 bg-white/5 p-4">

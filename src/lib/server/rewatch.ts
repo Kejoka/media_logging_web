@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-type MediumType = 'games' | 'movies' | 'shows' | 'books';
+type MediumType = 'games' | 'movies' | 'shows' | 'books' | 'music';
 
 type RewatchRow = {
 	id: number;
@@ -8,19 +8,22 @@ type RewatchRow = {
 	igdbid?: number | null;
 	tmdbid?: number | null;
 	gbid?: string | null;
+	mbid?: string | null;
 	seasons?: string | null;
 };
 
-const LOOKUP_FIELD: Record<Exclude<MediumType, 'shows'>, 'igdbid' | 'tmdbid' | 'gbid'> = {
+const LOOKUP_FIELD: Record<Exclude<MediumType, 'shows'>, 'igdbid' | 'tmdbid' | 'gbid' | 'mbid'> = {
 	games: 'igdbid',
 	movies: 'tmdbid',
-	books: 'gbid'
+	books: 'gbid',
+	music: 'mbid'
 };
 const SELECT_FIELDS: Record<MediumType, string> = {
 	games: 'id, added, igdbid',
 	movies: 'id, added, tmdbid',
 	shows: 'id, added, tmdbid, seasons',
-	books: 'id, added, gbid'
+	books: 'id, added, gbid',
+	music: 'id, added, mbid'
 };
 
 function normalizeSeasonKey(seasons: unknown) {

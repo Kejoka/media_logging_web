@@ -20,7 +20,7 @@
 			| 'follow'
 			| 'recommendation'
 			| 'recommendation_response';
-		media_type: 'games' | 'movies' | 'shows' | 'books' | null;
+		media_type: 'games' | 'movies' | 'shows' | 'books' | 'music' | null;
 		media_title?: string;
 		media_image?: string;
 		count?: number;
@@ -30,6 +30,7 @@
 			message?: string;
 			status?: string;
 			response?: 'accept' | 'decline';
+			music_type?: 'album' | 'ep' | 'single' | string;
 			media_id?: number | string;
 			media_year?: number;
 			mode?: number | string;
@@ -244,7 +245,7 @@
 				error?: string;
 				action?: 'accept' | 'decline';
 				media_id?: number | string | null;
-				media_type?: 'games' | 'movies' | 'shows' | 'books' | null;
+				media_type?: 'games' | 'movies' | 'shows' | 'books' | 'music' | null;
 				resolved_medium?: {
 					id: number;
 					added?: string;
@@ -369,7 +370,10 @@
 		<div
 			class="scrollbar-hide modal-box flex max-h-[85dvh] w-[94vw] max-w-lg flex-col gap-3 overflow-y-auto rounded-2xl border border-base-content/10 bg-base-300 p-4 shadow-2xl"
 		>
-			<p class="truncate text-lg font-bold" title={`Empfehlung von @${selectedRecommendation.username}`}>
+			<p
+				class="truncate text-lg font-bold"
+				title={`Empfehlung von @${selectedRecommendation.username}`}
+			>
 				Empfehlung von @{selectedRecommendation.username}
 			</p>
 			{#if selectedRecommendation.media_title}
@@ -430,7 +434,10 @@
 			<div class="flex items-start justify-between gap-3">
 				<div>
 					<p class="text-lg font-bold">Antwort auf deine Empfehlung</p>
-					<p class="truncate text-sm opacity-80" title={`Von @${selectedResponseNotification.username}`}>
+					<p
+						class="truncate text-sm opacity-80"
+						title={`Von @${selectedResponseNotification.username}`}
+					>
 						Von @{selectedResponseNotification.username}
 					</p>
 				</div>

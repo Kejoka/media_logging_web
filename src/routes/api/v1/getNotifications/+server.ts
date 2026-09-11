@@ -1,11 +1,53 @@
+import {
+	isMediaType,
+	normalize_notification_preferences,
+	type NotificationPreferences
+} from '$lib/utils';
+
+function shouldShowAddActivity(
+	activity: {
+		activity_type?: string;
+		media_type?: string | null;
+		details?: { backlogged?: unknown } | null;
+	},
+	preferences: NotificationPreferences
+): boolean {
+	if (
+		activity.activity_type !== 'add' ||
+		!activity.media_type ||
+		!isMediaType(activity.media_type)
+	) {
+		return true;
+	}
+
+	const isBacklogAdd = Number(activity.details?.backlogged ?? 0) === 1;
+	const mediaPreferences = preferences[activity.media_type];
+	return isBacklogAdd ? mediaPreferences.backlog_adds : mediaPreferences.regular_adds;
+}
+
 /** @type {import('./$types').RequestHandler} */
-export async function POST({ request, locals: { supabase, safeGetSession } }) {
+export async function POST({ locals: { supabase, safeGetSession } }) {
 	const { session } = await safeGetSession();
 	if (!session) {
 		return new Response(JSON.stringify({ error: 'Not authenticated' }), { status: 401 });
 	}
 
 	try {
+		const { data: notificationSettings, error: notificationSettingsError } = await supabase
+			.from('notification_preferences')
+			.select('notifications_enabled, preferences')
+			.eq('user_id', session.user.id)
+			.maybeSingle();
+
+		if (notificationSettingsError) throw notificationSettingsError;
+		if (notificationSettings?.notifications_enabled === false) {
+			return new Response(JSON.stringify({ notifications: [], unreadCount: 0 }));
+		}
+
+		const notificationPreferences = normalize_notification_preferences(
+			notificationSettings?.preferences
+		);
+
 		// Get the list of users the current user is following
 		const { data: following, error: followingError } = await supabase
 			.from('following')
@@ -85,7 +127,9 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		if (recommendationActivitiesRes.error) throw recommendationActivitiesRes.error;
 		if (recommendationResponsesRes.error) throw recommendationResponsesRes.error;
 
-		const activities = followedActivitiesRes.data || [];
+		const activities = (followedActivitiesRes.data || []).filter((activity) =>
+			shouldShowAddActivity(activity, notificationPreferences)
+		);
 		const followActivities = followActivitiesRes.data || [];
 		const recommendationActivities = recommendationActivitiesRes.data || [];
 		const recommendationResponses = recommendationResponsesRes.data || [];
@@ -109,7 +153,9 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 		// Combine both activity types and deduplicate by ID
 		const activityIds = new Set((activities || []).map((a) => a.id));
 		const uniqueFollowActivities = relevantFollowActivities.filter((a) => !activityIds.has(a.id));
-		const uniqueIncomingRecommendations = incomingRecommendations.filter((a) => !activityIds.has(a.id));
+		const uniqueIncomingRecommendations = incomingRecommendations.filter(
+			(a) => !activityIds.has(a.id)
+		);
 		const uniqueSenderResponses = senderResponses.filter((a) => !activityIds.has(a.id));
 		const allActivities = [
 			...(activities || []),
@@ -126,9 +172,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 
 		if (dismissedError) throw dismissedError;
 
-		const dismissedActivityIds = new Set(
-			(dismissedActivities || []).map((d) => d.activity_id)
-		);
+		const dismissedActivityIds = new Set((dismissedActivities || []).map((d) => d.activity_id));
 
 		// Filter out dismissed activities
 		const visibleActivities = allActivities.filter((a) => !dismissedActivityIds.has(a.id));
@@ -175,8 +219,8 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 }
 
 // Helper function to format activities - no grouping, show each individually
-function formatActivities(activities: any[]) {
-	const formatted: any[] = [];
+function formatActivities(activities: Record<string, unknown>[]) {
+	const formatted: Record<string, unknown>[] = [];
 
 	activities.forEach((activity) => {
 		// Add unique ID prefix based on activity type
@@ -194,6 +238,6 @@ function formatActivities(activities: any[]) {
 		if (a.activity_type === 'recommendation' && b.activity_type !== 'recommendation') return -1;
 		if (a.activity_type !== 'recommendation' && b.activity_type === 'recommendation') return 1;
 		// Within same type, sort by date (newest first)
-		return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+		return new Date(String(b.created_at)).getTime() - new Date(String(a.created_at)).getTime();
 	});
 }
