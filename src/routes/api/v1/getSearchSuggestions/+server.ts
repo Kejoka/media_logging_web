@@ -203,8 +203,9 @@ async function addMusicCoverArt(medium: mediaObject): Promise<mediaObject> {
 	if (!medium.mbid) return medium;
 
 	try {
-		const cover = await coverArtArchiveApi.getReleaseGroupCover(medium.mbid, 'front');
-		return { ...medium, image: cover.url || undefined };
+		const covers = await coverArtArchiveApi.getReleaseGroupCovers(medium.mbid);
+		const frontCover = covers.images.find((image) => image.front) ?? covers.images[0];
+		return { ...medium, image: frontCover?.thumbnails?.['250'] || undefined };
 	} catch (error) {
 		console.warn(`Cover art unavailable for MusicBrainz release group ${medium.mbid}`, error);
 		return medium;
