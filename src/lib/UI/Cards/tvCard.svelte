@@ -100,8 +100,11 @@
 		pointerStart = null;
 		if (movedDistance <= TAP_THRESHOLD) {
 			suppressInlineScoreUpdateUntil = Date.now() + 250;
-			config.score = pointerStartScore;
-			openRatingModal(pointerStartScore);
+			const score = pointerStartScore;
+			setTimeout(() => {
+				config.score = score;
+				openRatingModal(score);
+			}, 0);
 		}
 	}
 

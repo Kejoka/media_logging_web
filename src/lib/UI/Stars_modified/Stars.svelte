@@ -90,6 +90,12 @@
 		justify-content: center;
 		gap: 0.5rem;
 	}
+	/* Expand only the transparent touch target; the star artwork keeps its size and position. */
+	.stars :global(svg) {
+		box-sizing: content-box;
+		padding: 20px;
+		margin: -20px;
+	}
 	/*
 	.slider {
 		opacity: 0;
