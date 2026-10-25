@@ -1177,6 +1177,7 @@
 	<!-- Add-Button -->
 	{#if current_mode != 2 && own_profile}
 		<button
+			class="add-entry-button btn relative z-20 h-fit overflow-visible rounded-none rounded-t-lg border-none bg-base-100 pb-2 text-2xl shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.3),0_-4px_6px_-4px_rgba(0,0,0,0.3)] btn-neutral hover:bg-base-200"
 			onclick={() => {
 				last_search_page = 1;
 				search_val = '';
@@ -1185,7 +1186,6 @@
 				search_modal.checked = true;
 				current_suggestions = [];
 			}}
-			class="btn relative z-20 h-fit overflow-visible rounded-none rounded-t-lg border-none bg-base-100 pb-2 text-2xl shadow-[0_-10px_15px_-3px_rgba(0,0,0,0.3),0_-4px_6px_-4px_rgba(0,0,0,0.3)] btn-neutral hover:bg-base-200"
 		>
 			+
 		</button>

@@ -446,7 +446,8 @@
 	}
 
 	function showEditForm(event: CustomEvent) {
-		to_edit = event.detail;
+		// Edit a draft so changes can be compared with the persisted entry on close.
+		to_edit = { ...event.detail };
 		original_to_edit_release = to_edit.release || null;
 		original_to_edit_added = to_edit.added || null;
 		to_editRelease = new Date(to_edit.release || '');
@@ -719,6 +720,12 @@
 	}
 
 	async function updateMedium() {
+		const previousMedium = media_data.find((obj) => obj.id == to_edit.id);
+		if (!previousMedium) {
+			edit_modal.checked = false;
+			return;
+		}
+
 		const releaseFromPicker = toIsoOrFallback(to_editRelease, original_to_edit_release);
 		const addedFromPicker = toIsoOrFallback(to_editAdded, original_to_edit_added);
 		const normalizedNotes = encodeReviewNotes(decodeReviewNotes(to_edit.notes).bubbles);
@@ -746,7 +753,32 @@
 		if (current_medium === 'games') {
 			to_edit.trophy = to_editTrophy ? 1 : 0;
 		}
-		const previousMedium = media_data.find((obj) => obj.id == to_edit.id);
+
+		const editableFields: Array<keyof mediaObject> = [
+			'title',
+			'subtitle',
+			'author',
+			'artist',
+			'image',
+			'release',
+			'added',
+			'genres',
+			'platforms',
+			'seasons',
+			'episode',
+			'trophy',
+			'pagecount',
+			'music_type',
+			'notes'
+		];
+		const hasChanges = editableFields.some(
+			(field) => (previousMedium[field] ?? null) !== (to_edit[field] ?? null)
+		);
+		if (!hasChanges) {
+			edit_modal.checked = false;
+			return;
+		}
+
 		patchVisibleMedium(to_edit.id, to_edit);
 		const sync_timestamp = new Date();
 
@@ -1941,13 +1973,7 @@
 			>Änderungen speichern</button
 		>
 	</div>
-	<button
-		type="button"
-		on:click={() => {
-			edit_modal.checked = false;
-		}}
-		class="modal-backdrop -z-10">Close</button
-	>
+	<button type="button" on:click={updateMedium} class="modal-backdrop -z-10">Close</button>
 </div>
 <!-- Streaming Provider Modal -->
 <input type="checkbox" id="streaming_modal" class="modal-toggle" bind:this={streaming_modal} />

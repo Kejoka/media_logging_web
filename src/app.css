@@ -19,6 +19,16 @@ body {
 	color: var(--color-base-content);
 }
 
+/* Keep navigation behind every modal, including checkbox and state-driven modals. */
+body:has(.modal-toggle:checked) nav,
+body:has(.modal-toggle:checked) .dock-sticky,
+body:has(.modal.modal-open) nav,
+body:has(.modal.modal-open) .dock-sticky,
+body:has(.modal-toggle:checked) .add-entry-button,
+body:has(.modal.modal-open) .add-entry-button {
+	pointer-events: none;
+}
+
 button,
 input,
 select,
