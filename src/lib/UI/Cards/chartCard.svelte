@@ -357,6 +357,9 @@
 						ticks: { precision: 0 }
 					},
 					y: {
+						// Line charts use the y-axis for their numeric values. Keep zero visible
+						// so activity is not visually compared against the lowest non-zero month.
+						beginAtZero: isLine,
 						ticks: {
 							autoSkip: false,
 							font: { size: 11 }
@@ -400,7 +403,10 @@
 		}
 	}
 
-	$: chartRows = rowsForType().filter((row) => row.value !== 0);
+	$: chartRows = rowsForType().filter(
+		(row) =>
+			row.value !== 0 || chart_type === 'activity_timeline' || chart_type === 'pages_over_time'
+	);
 	$: chartConfig = chartRows.length ? buildConfig(chartRows) : null;
 	$: if (canvas && chartConfig) {
 		void tick().then(renderChart);

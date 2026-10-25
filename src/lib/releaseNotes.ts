@@ -40,9 +40,10 @@ const releaseNotes: Record<string, ReleaseNote> = {
 		summary:
 			'Bücher werden jetzt in mehreren APIs gesucht und Android Nutzer sollten ein besseres Erlebnis haben.',
 		items: [
-			'OpenLibrary war etwas kacke was Deutsche Bücher angeht. Die Daten werden deshalb jetzt auch mehreren APIs bezogen. Dadurch kann es vorkommen, dass doppelte Suchergebnisse angezeigt werden. ',
+			'OpenLibrary war etwas kacke was Deutsche Bücher angeht. Die Daten werden deshalb jetzt auch mehreren APIs bezogen. Dadurch kann es vorkommen, dass doppelte Suchergebnisse angezeigt werden. Die sekundäre API hat aktuell außerdem Probleme, aber es wird scheinbar bereits dran gearbeitet und sollte dann zuverlässig funktionieren.',
 			'Die PWA sollte bei Android nutzern jetzt besser auf das System Styling reagieren und nicht so leicht überschrieben werden. Kann es leider nicht selbst testen, da auf dem Emulator irgendwie auch vorher schon alles fine war.',
-			'Die Interaktion mit der Bewertungsnanzeige wurde für Touchbedienung mit.. unpräzisen Fingern verbessert. '
+			'Die Interaktion mit der Bewertungsnanzeige wurde für Touchbedienung mit.. unpräzisen Fingern verbessert. ',
+			'Die Graphen der Statistikansicht wurden mit 0 als Basiswert versehen. '
 		]
 	}
 };
