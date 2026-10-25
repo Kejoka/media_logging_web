@@ -2,7 +2,8 @@ import {
 	PRIVATE_IGDB_CLIENT,
 	PRIVATE_IGDB_SECRET,
 	PRIVATE_IGDB_TOKEN,
-	PRIVATE_TMDB_V3_KEY
+	PRIVATE_TMDB_V3_KEY,
+	PRIVATE_GOOGLE_BOOKS_KEY
 } from '$env/static/private';
 import { env as privateEnv } from '$env/dynamic/private';
 import { PUBLIC_IGDB_SUPABASE } from '$env/static/public';
@@ -49,6 +50,24 @@ type OpenLibraryDoc = {
 
 type OpenLibrarySearchResponse = {
 	docs?: OpenLibraryDoc[];
+};
+
+type GoogleBookVolume = {
+	id?: string;
+	volumeInfo?: {
+		title?: string;
+		subtitle?: string;
+		authors?: string[];
+		publishedDate?: string;
+		pageCount?: number;
+		averageRating?: number;
+		categories?: string[];
+		imageLinks?: { thumbnail?: string; smallThumbnail?: string };
+	};
+};
+
+type GoogleBooksResponse = {
+	items?: GoogleBookVolume[];
 };
 
 const BOOK_GENRE_RULES: Array<[string, string[]]> = [
@@ -157,6 +176,79 @@ function mapOpenLibraryDocToMedia(doc: OpenLibraryDoc): mediaObject | null {
 			typeof doc.ratings_average === 'number' ? Number(doc.ratings_average.toFixed(1)) : undefined,
 		genres: mapOpenLibrarySubjectsToGenres(doc.subject)
 	};
+}
+
+function toBookRelease(value?: string) {
+	if (!value) return undefined;
+	const match = value.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?/);
+	if (!match) return undefined;
+	const date = new Date(
+		Date.UTC(Number(match[1]), Number(match[2] || 1) - 1, Number(match[3] || 1))
+	);
+	return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+}
+
+function mapGoogleBookToMedia(volume: GoogleBookVolume): mediaObject | null {
+	const info = volume.volumeInfo;
+	if (!volume.id || !info?.title) return null;
+	return {
+		gbid: volume.id,
+		title: info.title,
+		subtitle: info.subtitle,
+		author: info.authors?.join(', '),
+		release: toBookRelease(info.publishedDate),
+		image: (info.imageLinks?.thumbnail || info.imageLinks?.smallThumbnail)?.replace(
+			/^http:/,
+			'https:'
+		),
+		pagecount: info.pageCount,
+		averagerating: info.averageRating,
+		genres: info.categories?.slice(0, 4).join(', ')
+	};
+}
+
+function normalizeBookText(value?: string) {
+	return (value || '')
+		.toLocaleLowerCase('de-DE')
+		.normalize('NFD')
+		.replace(/[\u0300-\u036f]/g, '')
+		.replace(/[^\p{L}\p{N}]+/gu, ' ')
+		.trim();
+}
+
+function titleRelevance(title: string, query: string) {
+	const normalizedTitle = normalizeBookText(title);
+	const normalizedQuery = normalizeBookText(query);
+	if (!normalizedTitle || !normalizedQuery) return 0;
+	if (normalizedTitle === normalizedQuery) return 1;
+	if (normalizedTitle.startsWith(normalizedQuery)) return 0.92;
+	if (normalizedTitle.includes(normalizedQuery)) return 0.82;
+	const queryTokens = normalizedQuery.split(' ');
+	const titleTokens = new Set(normalizedTitle.split(' '));
+	return queryTokens.filter((token) => titleTokens.has(token)).length / queryTokens.length;
+}
+
+function mergeBookResults(results: mediaObject[], query: string) {
+	const merged = new Map<string, mediaObject>();
+	for (const result of results) {
+		const key = `${normalizeBookText(result.title)}|${normalizeBookText(result.author)}`;
+		const existing = merged.get(key);
+		if (
+			!existing ||
+			Object.values(result).filter(Boolean).length > Object.values(existing).filter(Boolean).length
+		) {
+			const combined = { ...existing };
+			for (const [field, value] of Object.entries(result)) {
+				if (value !== undefined && value !== null && value !== '') {
+					combined[field as keyof mediaObject] = value as never;
+				}
+			}
+			merged.set(key, combined);
+		}
+	}
+	return [...merged.values()]
+		.sort((a, b) => titleRelevance(b.title || '', query) - titleRelevance(a.title || '', query))
+		.slice(0, 20);
 }
 
 function toMusicReleaseDate(value?: string) {
@@ -424,9 +516,7 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 				case 'books':
 					const books_url = new URL('https://openlibrary.org/search.json');
 					books_url.searchParams.set('q', search_val);
-					if (search_author) {
-						books_url.searchParams.set('author', search_author);
-					}
+					if (search_author) books_url.searchParams.set('author', search_author);
 					books_url.searchParams.set('page', String(search_page));
 					books_url.searchParams.set('limit', '20');
 					books_url.searchParams.set(
@@ -444,20 +534,48 @@ export async function POST({ request, locals: { supabase, safeGetSession } }) {
 							'subject'
 						].join(',')
 					);
-					const raw_book_res = await fetch(books_url.toString(), {
-						headers: getOpenLibraryHeaders()
-					});
-					if (!raw_book_res.ok) {
-						throw new Error(`OpenLibrary request failed with status ${raw_book_res.status}`);
+					const googleQuery = search_author
+						? `${search_val} inauthor:${search_author}`
+						: search_val;
+					const googleUrl = new URL('https://www.googleapis.com/books/v1/volumes?q=search+terms');
+					googleUrl.searchParams.set('q', googleQuery);
+					const extra_params = {
+						maxResults: 20,
+						startIndex: (search_page - 1) * 20,
+						orderBy: 'relevance',
+						projection: 'full'
+					};
+					for (const [key, value] of Object.entries(extra_params)) {
+						books_url.searchParams.set(key, String(value));
 					}
-					const book_res = (await raw_book_res.json()) as OpenLibrarySearchResponse;
+					googleUrl.searchParams.set('key', PRIVATE_GOOGLE_BOOKS_KEY);
 
-					book_res.docs?.forEach((book) => {
-						const mappedBook = mapOpenLibraryDocToMedia(book);
-						if (mappedBook) {
-							search_results.push(mappedBook);
-						}
-					});
+					const [openLibraryResult, googleResult] = await Promise.allSettled([
+						fetch(books_url.toString(), { headers: getOpenLibraryHeaders() }),
+						fetch(googleUrl.toString())
+					]);
+					const candidates: mediaObject[] = [];
+					if (openLibraryResult.status === 'fulfilled' && openLibraryResult.value.ok) {
+						const book_res = (await openLibraryResult.value.json()) as OpenLibrarySearchResponse;
+						candidates.push(
+							...(book_res.docs || [])
+								.map(mapOpenLibraryDocToMedia)
+								.filter((book): book is mediaObject => Boolean(book))
+						);
+					} else {
+						console.warn('OpenLibrary book search unavailable');
+					}
+					if (googleResult.status === 'fulfilled' && googleResult.value.ok) {
+						const google_res = (await googleResult.value.json()) as GoogleBooksResponse;
+						candidates.push(
+							...(google_res.items || [])
+								.map(mapGoogleBookToMedia)
+								.filter((book): book is mediaObject => Boolean(book))
+						);
+					} else {
+						console.warn('Google Books search unavailable');
+					}
+					search_results.push(...mergeBookResults(candidates, search_val));
 					return new Response(JSON.stringify(search_results));
 				case 'music': {
 					const music_response = await musicBrainzApi.search('release-group', {
