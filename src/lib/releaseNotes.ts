@@ -33,6 +33,17 @@ const releaseNotes: Record<string, ReleaseNote> = {
 			'Die Settings wurden erweitert: Du kannst jetzt einstellen welche Art von Benachrichtigungen du bekommen willst.',
 			'Die verschiedenen Anzeigemöglichkeiten deiner Medien (Filter-Button neben der aufklappbaren Suchleiste und der Medienauswahl) funktioniert jetzt mit der neuen Datenladestrategie.'
 		]
+	},
+	'2.4.0': {
+		version: '2.4.0',
+		title: 'Deutsche Bücher und UX Verbesserungen',
+		summary:
+			'Bücher werden jetzt in mehreren APIs gesucht und Android Nutzer sollten ein besseres Erlebnis haben.',
+		items: [
+			'OpenLibrary war etwas kacke was Deutsche Bücher angeht. Die Daten werden deshalb jetzt auch mehreren APIs bezogen. Dadurch kann es vorkommen, dass doppelte Suchergebnisse angezeigt werden. ',
+			'Die PWA sollte bei Android nutzern jetzt besser auf das System Styling reagieren und nicht so leicht überschrieben werden. Kann es leider nicht selbst testen, da auf dem Emulator irgendwie auch vorher schon alles fine war.',
+			'Die Interaktion mit der Bewertungsnanzeige wurde für Touchbedienung mit.. unpräzisen Fingern verbessert. '
+		]
 	}
 };
 
