@@ -1,5 +1,7 @@
 {
 	"display": "standalone",
+	"theme_color": "#1d232a",
+	"background_color": "#1d232a",
 	"scope": "/",
 	"start_url": "/",
 	"name": "Media Logger",

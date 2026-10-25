@@ -7,6 +7,38 @@
 @plugin '@tailwindcss/typography';
 @plugin '@tailwindcss/forms';
 
+/* Keep Android Chrome and installed PWAs aligned with the app's dark theme. */
+:root {
+	color-scheme: dark;
+	accent-color: var(--color-accent);
+}
+
+html,
+body {
+	background-color: var(--color-base-300);
+	color: var(--color-base-content);
+}
+
+button,
+input,
+select,
+textarea {
+	color-scheme: dark;
+}
+
+input:not([type='range']):not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+	background-color: var(--color-base-200);
+	color: var(--color-base-content);
+}
+
+input::placeholder,
+textarea::placeholder {
+	color: color-mix(in oklab, var(--color-base-content) 45%, transparent);
+	opacity: 1;
+}
+
 .ml-input {
 	width: 100%;
 	border-radius: 0.5rem;
@@ -14,7 +46,9 @@
 	background-color: color-mix(in oklab, var(--color-base-200) 50%, transparent);
 	padding: 0.625rem 1rem;
 	color: var(--color-base-content);
-	transition: border-color 150ms ease, box-shadow 150ms ease;
+	transition:
+		border-color 150ms ease,
+		box-shadow 150ms ease;
 }
 
 .ml-input::placeholder {
