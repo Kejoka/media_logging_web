@@ -25,7 +25,7 @@
 		is_profile_root_page,
 		route_profile_username
 	} from '../stores/uiState';
-	import { MEDIA_TYPE_ORDER, normalize_enabled_media_types } from '$lib/utils';
+	import { MEDIA_TYPE_ORDER, MODAL_SPACING, normalize_enabled_media_types } from '$lib/utils';
 
 	let { data, children } = $props();
 	let { supabase, session, user, ownProfileUsername, ownProfileEnabledMediaTypes } = $derived(data);
@@ -207,7 +207,10 @@
 </svelte:head>
 
 <!-- Main Div -->
-<div class="flex h-screen flex-col">
+<div
+	class="flex h-screen flex-col"
+	style={`--modal-top-gap: ${MODAL_SPACING.top}; --modal-bottom-gap: ${MODAL_SPACING.bottom}; --modal-horizontal-gap: ${MODAL_SPACING.horizontal}; --modal-max-width: ${MODAL_SPACING.maxWidth}`}
+>
 	{#if !$is_auth_page && session}
 		<nav class="sticky top-0 right-0 left-0 z-10 bg-base-300 shadow-lg shadow-black/30">
 			<div class="relative flex min-h-12 w-full items-center px-4 py-2">

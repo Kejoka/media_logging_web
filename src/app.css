@@ -19,6 +19,32 @@ body {
 	color: var(--color-base-content);
 }
 
+/* Keep every modal clear of the sticky bars and consistently tappable on mobile. */
+.modal {
+	box-sizing: border-box;
+	padding: var(--modal-top-gap) var(--modal-horizontal-gap) var(--modal-bottom-gap);
+	align-items: center;
+}
+
+.modal > .modal-box {
+	box-sizing: border-box;
+	width: min(calc(100vw - (2 * var(--modal-horizontal-gap))), var(--modal-max-width)) !important;
+	max-width: var(--modal-max-width) !important;
+	max-height: calc(100dvh - var(--modal-top-gap) - var(--modal-bottom-gap)) !important;
+	margin: 0 !important;
+	position: relative;
+	z-index: 1;
+}
+
+.modal > .modal-backdrop {
+	position: fixed;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: auto;
+	z-index: 0;
+}
+
 /* Keep navigation behind every modal, including checkbox and state-driven modals. */
 body:has(.modal-toggle:checked) nav,
 body:has(.modal-toggle:checked) .dock-sticky,

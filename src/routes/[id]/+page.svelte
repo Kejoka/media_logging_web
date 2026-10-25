@@ -978,7 +978,7 @@
 						/>
 					</label>
 				{/if}
-				<div class="scrollbar-hide max-h-[50vh] overflow-y-auto" onscroll={handleSuggestionScroll}>
+				<div class="scrollbar-hide max-h-[40vh] overflow-y-auto" onscroll={handleSuggestionScroll}>
 					{#each current_suggestions as suggestion}
 						<button
 							class="btn mb-3 h-fit w-full py-2"
